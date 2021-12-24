@@ -1,0 +1,31 @@
+namespace Silver.Encoding;
+
+table Variable {
+    byte_length:uint;
+    data:[ubyte]; // optional
+    published_name:[byte];  // optional to make it externally referenceable
+}
+
+table Frame {
+    variables:[Variable];
+    instructions:[byte];
+}
+
+table Function {
+    args:[Variable];
+    frames:[Frame];
+    published_name:[byte];
+}
+
+table Dynamic {
+    name:[byte]; // the string reference
+}
+
+table Context {
+    dynamic_vars:[Dynamic];
+    dynamic_fns:[Dynamic];
+    constants:[Variable];
+    functions:[Function];
+}
+
+root_type Context;
