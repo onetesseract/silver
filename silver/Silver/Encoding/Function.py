@@ -101,7 +101,14 @@ class Function(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         return o == 0
 
-def Start(builder): builder.StartObject(3)
+    # Function
+    def ReturnByteWidth(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
+        return 0
+
+def Start(builder): builder.StartObject(4)
 def FunctionStart(builder):
     """This method is deprecated. Please switch to Start."""
     return Start(builder)
@@ -129,6 +136,10 @@ def StartPublishedNameVector(builder, numElems): return builder.StartVector(1, n
 def FunctionStartPublishedNameVector(builder, numElems):
     """This method is deprecated. Please switch to Start."""
     return StartPublishedNameVector(builder, numElems)
+def AddReturnByteWidth(builder, returnByteWidth): builder.PrependUint32Slot(3, returnByteWidth, 0)
+def FunctionAddReturnByteWidth(builder, returnByteWidth):
+    """This method is deprecated. Please switch to AddReturnByteWidth."""
+    return AddReturnByteWidth(builder, returnByteWidth)
 def End(builder): return builder.EndObject()
 def FunctionEnd(builder):
     """This method is deprecated. Please switch to End."""

@@ -32,31 +32,11 @@ class Variable(object):
         return 0
 
     # Variable
-    def Data(self, j):
+    def DataIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            a = self._tab.Vector(o)
-            return self._tab.Get(flatbuffers.number_types.Uint8Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 1))
+            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
-
-    # Variable
-    def DataAsNumpy(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Uint8Flags, o)
-        return 0
-
-    # Variable
-    def DataLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # Variable
-    def DataIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        return o == 0
 
     # Variable
     def PublishedName(self, j):
@@ -93,14 +73,10 @@ def AddByteLength(builder, byteLength): builder.PrependUint32Slot(0, byteLength,
 def VariableAddByteLength(builder, byteLength):
     """This method is deprecated. Please switch to AddByteLength."""
     return AddByteLength(builder, byteLength)
-def AddData(builder, data): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(data), 0)
-def VariableAddData(builder, data):
-    """This method is deprecated. Please switch to AddData."""
-    return AddData(builder, data)
-def StartDataVector(builder, numElems): return builder.StartVector(1, numElems, 1)
-def VariableStartDataVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartDataVector(builder, numElems)
+def AddDataIndex(builder, dataIndex): builder.PrependUint32Slot(1, dataIndex, 0)
+def VariableAddDataIndex(builder, dataIndex):
+    """This method is deprecated. Please switch to AddDataIndex."""
+    return AddDataIndex(builder, dataIndex)
 def AddPublishedName(builder, publishedName): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(publishedName), 0)
 def VariableAddPublishedName(builder, publishedName):
     """This method is deprecated. Please switch to AddPublishedName."""

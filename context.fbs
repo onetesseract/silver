@@ -2,19 +2,20 @@ namespace Silver.Encoding;
 
 table Variable {
     byte_length:uint;
-    data:[ubyte]; // optional
+    data_index:uint; // optional
     published_name:[byte];  // optional to make it externally referenceable
 }
 
 table Frame {
     variables:[Variable];
-    instructions:[byte];
+    instructions_index:uint;
 }
 
 table Function {
     args:[Variable];
     frames:[Frame];
     published_name:[byte];
+    return_byte_width:uint;
 }
 
 table Dynamic {

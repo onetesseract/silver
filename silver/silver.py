@@ -1,5 +1,6 @@
-import sys
 import enum
+import sys
+
 
 class Instruction:
 	"""
@@ -23,7 +24,8 @@ class Instruction:
 
 
 class InstructionEnum(enum.Enum):
-	add_8 = 0
+	halt = 0
+	add_byte = 1
 
 class Decorator:
 	"""
@@ -34,13 +36,16 @@ class Decorator:
 		self.vals = vals
 		if typ == "entry_frame":
 			self.entry_frame = vals[0]
-		if self.typ == "arg":
+		elif self.typ == "arg":
 			self.arg_index = vals[0]
 			self.arg_name = vals[1]
-			self.arg_bitwidth = vals[2]
-		if self.typ == "return":
+			self.arg_bytewidth = vals[2]
+		elif self.typ == "return":
 			self.return_name = vals[0]
-			self.return_bitwidth = vals[1]
+			self.return_bytewidth = vals[1]
+		elif self.typ == "variable":
+			self.var_name = vals[0]
+			self.var_bytewidth = vals[1]
 	
 	def render(self) -> str:
 		string = self.typ

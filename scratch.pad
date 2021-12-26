@@ -35,3 +35,6 @@ roight
 a variable lookup starts within the dynamics
 then indexes through the constants then the function args then starts descending through frames
 todo: figure out how to compile-time function lookups
+
+one instruction:
+one byte opcode, one byte padding, up to three arguments INCLUDING return as two byte ints- subject to change

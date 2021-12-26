@@ -50,31 +50,11 @@ class Frame(object):
         return o == 0
 
     # Frame
-    def Instructions(self, j):
+    def InstructionsIndex(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            a = self._tab.Vector(o)
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 1))
+            return self._tab.Get(flatbuffers.number_types.Uint32Flags, o + self._tab.Pos)
         return 0
-
-    # Frame
-    def InstructionsAsNumpy(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Int8Flags, o)
-        return 0
-
-    # Frame
-    def InstructionsLength(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.VectorLen(o)
-        return 0
-
-    # Frame
-    def InstructionsIsNone(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        return o == 0
 
 def Start(builder): builder.StartObject(2)
 def FrameStart(builder):
@@ -88,14 +68,10 @@ def StartVariablesVector(builder, numElems): return builder.StartVector(4, numEl
 def FrameStartVariablesVector(builder, numElems):
     """This method is deprecated. Please switch to Start."""
     return StartVariablesVector(builder, numElems)
-def AddInstructions(builder, instructions): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(instructions), 0)
-def FrameAddInstructions(builder, instructions):
-    """This method is deprecated. Please switch to AddInstructions."""
-    return AddInstructions(builder, instructions)
-def StartInstructionsVector(builder, numElems): return builder.StartVector(1, numElems, 1)
-def FrameStartInstructionsVector(builder, numElems):
-    """This method is deprecated. Please switch to Start."""
-    return StartInstructionsVector(builder, numElems)
+def AddInstructionsIndex(builder, instructionsIndex): builder.PrependUint32Slot(1, instructionsIndex, 0)
+def FrameAddInstructionsIndex(builder, instructionsIndex):
+    """This method is deprecated. Please switch to AddInstructionsIndex."""
+    return AddInstructionsIndex(builder, instructionsIndex)
 def End(builder): return builder.EndObject()
 def FrameEnd(builder):
     """This method is deprecated. Please switch to End."""
