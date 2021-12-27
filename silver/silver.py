@@ -1,6 +1,8 @@
 import enum
 import sys
 
+import bytecode_compiler
+
 
 class Instruction:
 	"""
@@ -153,6 +155,8 @@ def main():
 			function.frames[-1].add_instruction(inst)
 
 	print(function.render())
+
+	print(bytecode_compiler.compile_function(function, 0))
 
 
 

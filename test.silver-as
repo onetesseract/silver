@@ -1,10 +1,10 @@
 ~function testF # testF(x u8, u8 y) u8 = x + y
-    @entry_frame f0
+    # @entry_frame f0
     # name bytewidth
     @return ret 1 # x + y
     #  index name bytewidth
-    @arg 0 x 1 # x byte
-    @arg 1 y 1 # y byte
+    @arg 1 x 1 # x byte
+    @arg 2 y 1 # y byte
     
     ~frame f0
         # @variable varname bytewidth
