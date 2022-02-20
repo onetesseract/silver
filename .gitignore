@@ -1,3 +1,4 @@
-/quicksilver/target
-/quicksilver
 /.vscode
+/.cache
+/compile_commands.json
+/build
