@@ -1,0 +1,3 @@
+/home/onetesseract/silver/parser/build/CMakeFiles/silver.dir
+/home/onetesseract/silver/parser/build/CMakeFiles/edit_cache.dir
+/home/onetesseract/silver/parser/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/silver.dir/src/decorator.cpp.o CMakeFiles/silver.dir/src/function.cpp.o CMakeFiles/silver.dir/src/instruction.cpp.o CMakeFiles/silver.dir/src/main.cpp.o CMakeFiles/silver.dir/src/model.cpp.o CMakeFiles/silver.dir/src/parser.cpp.o CMakeFiles/silver.dir/src/types.cpp.o -o silver 
