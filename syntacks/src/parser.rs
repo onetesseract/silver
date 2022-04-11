@@ -4,7 +4,7 @@
  *
  * */
 
-use nom::{IResult, sequence::{tuple, pair}, character::{complete::{multispace0, alpha1, alphanumeric1}, is_alphanumeric}, bytes::complete::{tag, take_while1}, branch::alt, combinator::{recognize, opt}, multi::many0_count};
+use nom::{IResult, sequence::tuple, character::{complete::multispace0, is_alphanumeric}, bytes::complete::{tag, take_while1}, branch::alt, combinator::opt};
 
 pub type ParsingFn<'a, O> = dyn Fn(&'a str) -> IResult<&'a str, O>;
 

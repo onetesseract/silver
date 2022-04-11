@@ -1,0 +1,41 @@
+server is http::server
+print is io::stdout.print
+
+main is function(a as int,
+		 b as str) {
+	myserv is http::server(
+		callback is function(ctx as http::context) {
+			return "Hello Server!" + b
+		}
+	)
+	myserv.serve(port is 9090)
+	return 0
+}
+
+cond is function(inspect as &const str, somebool as &bool is &false) {
+	// is creates constants
+	a as str is inspect.trim()
+	if a == "eee" 
+		// one call is one expression, so doesnt need braces
+		// parameters are named
+		// "is" means print can't alter text
+		// if we did something like
+		// print_ptr(text = &inspect)
+		// the function could modify inspect through the pointer
+		print(text is "uuu")
+	else if a == "aaa" {
+		text is "yeee"
+		// errors: cannot pass constant text as inconstant
+		print(text = text)
+	}
+	else {
+		print(text is "nothing")
+	}
+
+}
+
+// throws an error, toplevel fns must be constant
+exfn = function () //....	
+
+// errors, setting a const parameter default with = means it's not constant
+otherfn is function (someparam as const &int = 7) //...

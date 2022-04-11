@@ -11,7 +11,7 @@
 //! - an escape followed by whitespace consumes all whitespace between the
 //!   escape and the next non-whitespace character
 
-#![cfg(feature = "alloc")]
+// #![cfg(feature = "alloc")]
 
 use nom::branch::alt;
 use nom::bytes::streaming::{is_not, take_while_m_n};
