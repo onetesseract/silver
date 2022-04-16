@@ -1,4 +1,4 @@
-use nom::{IResult, multi::many0, character::complete::multispace0, bytes::complete::tag, sequence::tuple};
+use nom::{IResult, multi::{many0, separated_list0}, character::complete::multispace0, bytes::complete::tag, sequence::tuple};
 
 use super::expr::Expr;
 
@@ -8,20 +8,20 @@ pub struct Block<'a> {
 }
 impl<'a> Block<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
-        let (remnant, (_, _, exprs_vec, _)) = tuple((tag("{"), multispace0, many0(tuple((Expr::parse, multispace0))), tag("}")))(input)?;
-        let mut exprs = vec![];
-        for (i, _) in exprs_vec {
-            exprs.push(i);
-        }
-        Ok((remnant, Block { exprs }))
+        let (remnant, (_, _, exprs_vec, _)) = tuple((tag("{"), multispace0, separated_list0(tuple((multispace0, tag(";"), multispace0)), Expr::parse), tag("}")))(input)?;
+        // let mut exprs = vec![];
+        // for (i, _) in exprs_vec {
+        //     exprs.push(i);
+        // }
+        Ok((remnant, Block { exprs: exprs_vec }))
     }
 }
-
+//
 // mod tests {
 //     use crate::syntax::block::Block;
 //
 //     #[test]
 //     fn block_parsing() {
-//         println!("{:?}", Block::parse("{}"));
+//         println!("block- {:?}", Block::parse("{aaa bb; print(c)}"));
 //     }
 // }

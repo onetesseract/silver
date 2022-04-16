@@ -1,6 +1,5 @@
-pub mod parser;
-pub(crate) mod parsestring;
-pub mod syntax;
+pub mod program;
+pub mod interp;
 
 #[cfg(test)]
 mod tests {

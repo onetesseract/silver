@@ -22,5 +22,5 @@ fn main() {
     // }
     // println!("{:?}", rules);
     
-    println!("{:?}", parser::syntax::expr::Expr::parse("a = (uu aa,) { ee(uu) }"));
+    println!("{:?}", parser::syntax::expr::Expr::parse("a pfft= (uu aa) { ee(uu) }"));
 }

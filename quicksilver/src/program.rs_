@@ -1,0 +1,11 @@
+use std::fs;
+
+pub struct Program {
+    pub source: String,
+}
+
+impl Program {
+    pub fn from_file(filename: String) -> Self {
+        Program { source: fs::read_to_string(filename).expect("Failed to read file") }
+    }
+}

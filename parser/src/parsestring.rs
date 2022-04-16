@@ -14,8 +14,8 @@
 // #![cfg(feature = "alloc")]
 
 use nom::branch::alt;
-use nom::bytes::streaming::{is_not, take_while_m_n};
-use nom::character::streaming::{char, multispace1};
+use nom::bytes::complete::{is_not, take_while_m_n};
+use nom::character::complete::{char, multispace1};
 use nom::combinator::{map, map_opt, map_res, value, verify};
 use nom::error::{FromExternalError, ParseError};
 use nom::multi::fold_many0;
