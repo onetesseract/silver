@@ -17,8 +17,8 @@ pub struct FnProto<'a> {
 
 impl<'a> FnProto<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> { // TODO: return types
-        let (remnant, (_, _, args, _, _, _, return_type)) = tuple((tag("("), multispace0, separated_list0(tuple((multispace0, tag(","), multispace0)), VarDef::parse), multispace0, tag(")"), multispace0, opt(Type::parse)))(input)?;
-        Ok((remnant, FnProto {args, return_type}))
+        let (remnant, (_, _, args, _, _, _, return_type)) = tuple((tag("("), multispace0, separated_list0(tuple((multispace0, tag(","), multispace0)), VarDef::parse), multispace0, tag(")"), multispace0, Type::parse))(input)?;
+        Ok((remnant, FnProto {args, return_type: Some(return_type)}))
     }
 }
 

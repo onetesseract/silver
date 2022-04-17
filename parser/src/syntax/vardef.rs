@@ -1,16 +1,16 @@
 use nom::{IResult, sequence::tuple, character::complete::multispace0, branch::alt};
 
-use super::{ty::Type, variable::Variable};
+use super::{ty::Type, variable::Variable, identifier::Identifier};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct VarDef<'a> {
-    pub variable: Variable<'a>,
+    pub variable: Identifier<'a>,
     pub ty: Type<'a>,
 }
 
 impl<'a> VarDef<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
-        let (remnant, (variable, _, ty)) = tuple((Variable::parse, multispace0, Type::parse))(input)?;
+        let (remnant, (variable, _, ty)) = tuple((Identifier::parse, multispace0, Type::parse))(input)?;
         Ok((remnant, VarDef { ty, variable }))
     }
 }

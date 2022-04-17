@@ -22,6 +22,6 @@ mod tests {
 
     #[test]
     fn tl_parsing() {
-        println!("big one {:#?}", TopLevelExpr::parse(r#"print (arg &str)void main (argc int, argv &&str)int = {puts()}"#))
+        println!("big one {:#?}", TopLevelExpr::parse(r#"main (argc int, argv &&str)int = {puts()}"#))
     }
 }

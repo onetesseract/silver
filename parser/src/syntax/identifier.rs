@@ -13,7 +13,7 @@ impl<'a> Identifier<'a> {
 }
 
 fn is_valid_id(input: char) -> bool {
-    return is_alphabetic(input as u8) ||  "!£$%^&*~#:@'-_+<>/\\|".contains(input)
+    return is_alphabetic(input as u8) ||  "!£$%^&*~#:@'-_+<>/\\|1234567890".contains(input)
 }
 // impl<'a> From<Identifier<'a>> for Atom<'a> {
 //     fn from(val: Identifier<'a>) -> Self {

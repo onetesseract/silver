@@ -19,8 +19,8 @@ impl<'a> Atom<'a> {
         alt((
             // | input: &'a str | { let (remnant, call) = Call::parse(input)?; Ok((remnant, Atom::Call(call))) }, // TODO: fix thi
             | input: &'a str | { let (remnant, block) = Block::parse(input)?; Ok((remnant, Atom::Block(block))) },
-            | input: &'a str | { let (remnant, id) = Variable::parse(input)?; Ok((remnant, Atom::Variable(id))) },
             | input: &'a str | { let (remnant, literal) = Literal::parse(input)?; Ok((remnant, Atom::Literal(literal))) },
+            | input: &'a str | { let (remnant, id) = Variable::parse(input)?; Ok((remnant, Atom::Variable(id))) },
         ))(input)
     }
 }

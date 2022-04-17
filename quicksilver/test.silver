@@ -1,0 +1,3 @@
+printc(val u64) u64
+
+test() u64 = { printc(66) }
