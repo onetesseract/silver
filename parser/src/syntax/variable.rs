@@ -12,7 +12,7 @@ impl<'a> Variable<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
         alt((
             | input: &'a str | { let (remnant, (_, _, var)) = tuple((tag("&"), multispace0, Variable::parse))(input)?; Ok((remnant, Variable::Reference(Box::new(var)))) },
-            | input: &'a str | { let (remnant, (_, _, var)) = tuple((tag("&"), multispace0, Variable::parse))(input)?; Ok((remnant, Variable::Dereference(Box::new(var)))) },
+            | input: &'a str | { let (remnant, (_, _, var)) = tuple((tag("*"), multispace0, Variable::parse))(input)?; Ok((remnant, Variable::Dereference(Box::new(var)))) },
             | input: &'a str | { let (remnant, name) = Identifier::parse(input)?; Ok((remnant, Variable::Identifier(name))) }
         ))(input)
     }

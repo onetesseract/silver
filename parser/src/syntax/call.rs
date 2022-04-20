@@ -35,8 +35,8 @@ impl<'a> Call<'a> {
         Ok((remnant, call))
     }
     fn parse_with_infix(input: &'a str) -> IResult<&'a str, Self> {
-        let (remnant, (left, _, function, _, right)) = tuple((Atom::parse, multispace0, Atom::parse, multispace0, Atom::parse))(input)?;
-        Ok((remnant, Call {function: Box::new(Expr::Atom(function)), args: vec![Expr::Atom(left), Expr::Atom(right)], is_infix: true}))
+        let (remnant, (left, _, function, _, right)) = tuple((Atom::parse, multispace0, Atom::parse, multispace0, Expr::parse))(input)?;
+        Ok((remnant, Call {function: Box::new(Expr::Atom(function)), args: vec![Expr::Atom(left), right], is_infix: true}))
     }
 }
 //
@@ -49,11 +49,11 @@ impl<'a> Call<'a> {
 //     exprs
 // }
 //
-// mod tests {
-//     use crate::syntax::call::Call;
-//
-//     #[test]
-//     fn call_parsing() {
-//         println!("call-parse {:?}", Call::parse("self plus other"))
-//     }
-// }
+mod tests {
+    use crate::syntax::call::Call;
+
+    #[test]
+    fn call_parsing() {
+        println!("call-parse {:?}", Call::parse("self plud (other plus ee)"))
+    }
+}

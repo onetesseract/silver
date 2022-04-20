@@ -1,3 +1,11 @@
-printc(val u64) u64
+printf(val &u8) u64;
 
-test() u64 = { printc(66) }
+test() u8 = {
+  one u8;
+  two u8;
+  one = 1;
+  two = 2;
+  three u8;
+  three = (*one + *two);
+  *three
+};

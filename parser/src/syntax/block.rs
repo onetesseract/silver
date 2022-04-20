@@ -8,7 +8,7 @@ pub struct Block<'a> {
 }
 impl<'a> Block<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
-        let (remnant, (_, _, exprs_vec, _)) = tuple((tag("{"), multispace0, separated_list0(tuple((multispace0, tag(";"), multispace0)), Expr::parse), tag("}")))(input)?;
+        let (remnant, (_, _, exprs_vec, _, _)) = tuple((tag("{"), multispace0, separated_list0(tuple((multispace0, tag(";"), multispace0)), Expr::parse), multispace0, tag("}")))(input)?;
         // let mut exprs = vec![];
         // for (i, _) in exprs_vec {
         //     exprs.push(i);
@@ -17,11 +17,16 @@ impl<'a> Block<'a> {
     }
 }
 //
-// mod tests {
-//     use crate::syntax::block::Block;
-//
-//     #[test]
-//     fn block_parsing() {
-//         println!("block- {:?}", Block::parse("{aaa bb; print(c)}"));
-//     }
-// }
+mod tests {
+    use crate::syntax::block::Block;
+
+    #[test]
+    fn block_parsing() {
+        println!("\n\nblock- {:?}", Block::parse(r#"{
+  one u8;
+  two u8;
+  d \= (a + b);
+  0
+}"#));
+    }
+}

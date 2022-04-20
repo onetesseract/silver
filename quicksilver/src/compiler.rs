@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
-use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, AnyValue}, module::{Module, Linkage}, types::{BasicTypeEnum, AnyTypeEnum, PointerType, BasicType, FunctionType, AnyType, BasicMetadataTypeEnum}, AddressSpace};
-use parser::syntax::{expr::Expr, fndef::{FnDef, FnProto}, variable::Variable, literal::Literal, toplevel::TopLevelExpr};
+use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, AnyValue, IntMathValue}, module::{Module, Linkage}, types::{BasicTypeEnum, AnyTypeEnum, PointerType, BasicType, FunctionType, AnyType, BasicMetadataTypeEnum}, AddressSpace};
+use parser::syntax::{expr::Expr, fndef::{FnDef, FnProto}, variable::Variable, literal::Literal, toplevel::TopLevelExpr, ty::Type, identifier::Identifier, vardef::VarDef, atom::Atom};
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -28,7 +28,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     /// Creates a stack allocation instruction in the entry block of a function (reserves space for
     /// a variable)
-    fn create_entry_block_alloca(&self, name: &str, ty: BasicTypeEnum<'ctx>) -> PointerValue<'ctx> {
+    fn create_entry_block_alloca(&self, name: String, ty: BasicTypeEnum<'ctx>) -> PointerValue<'ctx> {
         let builder = self.context.create_builder();
 
         let entry = self.fn_value().get_first_basic_block().unwrap();
@@ -37,7 +37,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Some(first) => builder.position_before(&first),
             None => builder.position_at_end(entry),
         }
-        builder.build_alloca(ty, name)
+        builder.build_alloca(ty, name.as_str())
     }
 
     fn build_call(&self, target: PointerValue<'ctx>, args: Vec<BasicValueEnum<'ctx>>) -> Result<Option<BasicValueEnum<'ctx>>, String> {
@@ -51,30 +51,76 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+
+    fn build_assign(&self, lhs: PointerValue<'ctx>, rhs: BasicValueEnum<'ctx>) -> Result<(), String> {
+        self.builder.build_store(lhs, rhs);
+        Ok(())
+    }
+
+    fn build_add(&self, lhs: BasicValueEnum<'ctx>, rhs: BasicValueEnum<'ctx>) -> Result<BasicValueEnum<'ctx>, String> {
+        match lhs {
+            BasicValueEnum::IntValue(int_lhs) => Ok(self.builder.build_int_add(int_lhs, rhs.into_int_value(), "tmp_int_add").as_basic_value_enum()),
+            _ => Err(format!("Cannot add {:?} and {:?}", lhs, rhs)),
+        }
+    }
+
+
     /// Compiles the given Expr into a BasicTypeEnum
     fn compile_expr(&mut self, expr: &Expr) -> Result<Option<BasicValueEnum<'ctx>>, String> {
         match expr {
             Expr::Call(call) => {
-                match call.is_infix {
-                    true => todo!(),
-                    false => {
-                        let mut args = vec![];
-                        for i in &call.args {
-                            args.push(match self.compile_expr(i)? {
-                                Some(expr) => expr,
-                                None => return Err("y u wanna call with a null value as arg".to_string()),
-                            });
-                        }
-                        let target = match self.compile_expr(&call.function)? {
-                            Some(value) => match value {
-                                BasicValueEnum::PointerValue(p) => p,
-                                _ => return Err(format!("{:?} is not a pointer value yet you want to call it. curious.", value))
-                            },
-                            None => return Err("You can't call a null value".to_string()),
-                        };
-                        self.build_call(target, args)
-                    },
+                if call.is_infix {
+                    match &*call.function {
+                        Expr::Atom(Atom::Variable(Variable::Identifier(id))) => {
+                            match id.name.as_str() {
+                                "=" => {
+                                    let lhs = self.compile_expr(&call.args[0])?;
+                                    let lhs = if let Some(BasicValueEnum::PointerValue(pointer)) = lhs {
+                                        pointer
+                                    } else {
+                                        return Err(format!("{:?} is not a pointer yet you would assign it.", call.args[0]))
+                                    };
+                                    let rhs = self.compile_expr(&call.args[1])?;
+                                    let rhs = match rhs {
+                                        Some(rhs) => rhs,
+                                        None => return Err(format!("cannot assign void to a thing - trying to use {:?}", call.args[1])),
+                                    };
+                                    self.build_assign(lhs, rhs)?;
+                                    return Ok(None);
+                                },
+                                "+" => {
+                                    let lhs = match self.compile_expr(&call.args[0])? {
+                                        Some(s) => s,
+                                        None => return Err("Cannot add with a null value".to_string()),
+                                    };
+                                    let rhs = match self.compile_expr(&call.args[1])? {
+                                        Some(s) => s,
+                                        None => return Err("Cannot add with a null value".to_string()),
+                                    };
+                                    return Ok(Some(self.build_add(lhs, rhs)?));
+                                },
+                                _ => (),
+                            }
+                        },
+                        _ => (),
+                    }
                 }
+                let mut args = vec![];
+                // if call.is_infix TODO: infix calls
+                for i in &call.args {
+                    args.push(match self.compile_expr(i)? {
+                        Some(expr) => expr,
+                        None => return Err("y u wanna call with a null value as arg".to_string()),
+                    });
+                }
+                let target = match self.compile_expr(&call.function)? {
+                    Some(value) => match value {
+                        BasicValueEnum::PointerValue(p) => p,
+                        _ => return Err(format!("{:?} is not a pointer value yet you want to call it. curious.", value))
+                    },
+                    None => return Err("You can't call a null value".to_string()),
+                };
+                self.build_call(target, args)
             },
             Expr::Atom(atom) => match atom {
                 parser::syntax::atom::Atom::Variable(var) => Ok(Some(self.compile_variable(&var)?.as_basic_value_enum())), // TODO: uhhh should this be loaded
@@ -91,10 +137,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             },
             Expr::VarDef(vardef) => {
                 let ty = self.variable_to_ty(&vardef.ty.name)?;
-                let var = self.create_entry_block_alloca(vardef.variable.name, ty);
+                let var = self.create_entry_block_alloca(vardef.variable.name.to_string(), ty);
                 self.variables.insert(vardef.variable.name.to_string(), var);
                 Ok(Some(var.as_basic_value_enum()))
             },
+            Expr::Bracketed(expr) => {
+                self.compile_expr(expr)
+            }
             Expr::FnDef(_) => todo!("lambdas"),
         }
     }
@@ -108,33 +157,34 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
                 self.context.i8_type().const_array(values.as_slice()).as_basic_value_enum()
             },
-            Literal::Int(i) => self.context.i64_type().const_int(*i as u64, true).as_basic_value_enum(),
+            Literal::Int(i) => self.context.i8_type().const_int(*i as u64, true).as_basic_value_enum(),
             Literal::Float(f) => self.context.f64_type().const_float(*f).as_basic_value_enum(),
         }
     }
 
-    fn compile_variable(&self, variable: &Variable) -> Result<PointerValue<'ctx>, String> {
+    fn compile_variable(&self, variable: &Variable) -> Result<BasicValueEnum<'ctx>, String> {
         match variable {
             Variable::Reference(var) => {
                 let compiled_var = self.compile_variable(var)?;
-                let varspace = self.create_entry_block_alloca("tmp_reference_variable_storage", compiled_var.get_type().as_basic_type_enum())   ;
+                let varspace = self.create_entry_block_alloca("tmp_reference_variable_storage".to_string(), compiled_var.get_type().as_basic_type_enum())   ;
                 self.builder.build_store(varspace, compiled_var);
-                Ok(varspace)
+                Ok(varspace.as_basic_value_enum())
             },
             Variable::Dereference(var) => { // TODO: rewrite this hot garbage
-                let compiled_var = self.compile_variable(var)?;
+                let compiled_var = self.compile_variable(var)?.into_pointer_value();
                 // let to_be_derefed = self.builder.build_load(compiled_var, "tmp_deref_variable_load");
-                match compiled_var.get_type().get_element_type() /* to_be_derefed */ {
-                    AnyTypeEnum::PointerType(_val) => {}, // self.builder.build_load(val, "tmp_deref_variable"),
-                    _ => return Err(format!("you can't dereference {:?}", var)),
-                };
-                Ok(self.builder.build_load(compiled_var, "tmp_deref_variable").into_pointer_value())
+                // TODO: bring back checks?
+                // match compiled_var.get_type().get_element_type() /* to_be_derefed */ {
+                //     AnyTypeEnum::PointerType(_val) => {}, // self.builder.build_load(val, "tmp_deref_variable"),
+                //     _ => return Err(format!("you can't dereference {:?}", compiled_var)),
+                // };
+                Ok(self.builder.build_load(compiled_var, "tmp_deref_variable"))
                 // let varspace = self.create_entry_block_alloca("tmp_variable_deref_storage", root_value.get_type());
                 // self.builder.build_store(varspace,root_value);
                 // Ok(Some(varspace))
             },
-            Variable::Identifier(id) => Ok(match self.variables.get(id.name) {
-                Some(s) => *s,
+            Variable::Identifier(id) => Ok(match self.variables.get(id.name.as_str()) {
+                Some(s) => s.as_basic_value_enum(),
                 None => return Err(format!("Cannot find variable {}", id.name)),
             }),
         }
@@ -146,31 +196,51 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Ok(self.variable_to_ty(var)?.ptr_type(AddressSpace::Generic).as_basic_type_enum())
             },
             Variable::Dereference(_) => Err(format!("{:?} is not a valid type", variable)),
-            Variable::Identifier(id) => Ok(match self.types.get(id.name) {
+            Variable::Identifier(id) => Ok(match self.types.get(id.name.as_str()) {
                 Some(s) => *s,
                 None => return Err(format!("Cannot find type {}", id.name)),
             }),
         }
     }
 
-    fn compile_fn_proto(&self, proto: &FnProto) -> Result<FunctionType<'ctx>, String> {
+    fn compile_fn_proto(&self, proto: &FnProto) -> Result<(FunctionType<'ctx>, String), String> {
         let mut args_types: Vec<BasicMetadataTypeEnum> = vec![];
         for i in &proto.args {
             args_types.push(self.variable_to_ty(&i.ty.name)?.into());
         }
-        Ok(match &proto.return_type {
-            Some(var) => self.variable_to_ty(&var.name)?.fn_type(args_types.as_slice(), false),
+        let mangled = args_types.mangle();
+
+        let void_type = self.context.void_type().fn_type(args_types.as_slice(), false);
+        Ok((match &proto.return_type {
+            // Some(Type {name: Variable::Identifier(Identifier { name: String::from("void"), phantom: PhantomData})}) => void_type,
+            Some(var) => {
+                if let Type {name: Variable::Identifier(id)} = var {
+                    if id.name == "void".to_string() {
+                        void_type
+                    } else {
+                        self.variable_to_ty(&var.name)?.fn_type(args_types.as_slice(), false)
+                    }
+                } else {
+                    self.variable_to_ty(&var.name)?.fn_type(args_types.as_slice(), false)
+                }
+            },
             None => self.context.void_type().fn_type(args_types.as_slice(), false),
-        })
+        }, mangled))
     }
 
     fn compile_fn(&mut self, func: &FnDef, body: Option<&Expr>) -> Result<FunctionValue<'ctx>, String> {
-        let proto = self.compile_fn_proto(&func.proto)?;
-        let fn_val = self.module.add_function(func.name.name, proto, Some(Linkage::External));
+
+        let mut proto_expr = func.proto.clone();
+        if let Some(s) = &func.upon {
+            proto_expr.args.insert(0, s.clone());
+        }
+
+        let (proto, mangled_name) = self.compile_fn_proto(&proto_expr)?;
+        let fn_val = self.module.add_function(&(mangled_name + func.name.name.as_str()), proto, Some(Linkage::External));
 
         // set arg names
         for (i, arg) in fn_val.get_param_iter().enumerate() {
-            arg.set_name(func.proto.args[i].variable.name); // TODO: tf does this code do
+            arg.set_name(proto_expr.args[i].variable.name.as_str()); // TODO: tf does this code do
         }
 
         let ptr_value = fn_val.as_global_value().as_pointer_value();
@@ -192,8 +262,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // build variable map
         for (i, arg) in fn_val.get_param_iter().enumerate() {
-            let arg_name = func.proto.args[i].variable.name;
-            let varspace = self.create_entry_block_alloca(arg_name, arg.get_type());
+            let arg_name = proto_expr.args[i].variable.name.clone();
+            let varspace = self.create_entry_block_alloca(arg_name.to_string(), arg.get_type());
 
             self.builder.build_store(varspace, arg);
             self.variables.insert(arg_name.to_string(), varspace);
@@ -250,6 +320,21 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             },
         }
+    }
+}
+
+pub trait NameMangle {
+    fn mangle(&self) -> String;
+}
+
+impl<'a> NameMangle for Vec<BasicMetadataTypeEnum<'a>> {
+    fn mangle(&self) -> String {
+        let mut s: String = "".to_string();
+        for i in self {
+            // s = s + format!("{:?}", i).as_str();
+            println!("mangling {:?}", i);
+        }
+        s
     }
 }
 
