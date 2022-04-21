@@ -9,6 +9,8 @@ pub enum Expr<'a> {
     VarDef(VarDef<'a>),
     FnDef(FnDef<'a>),
     Bracketed(Box<Expr<'a>>),
+    Reference(Box<Expr<'a>>),
+    Dereference(Box<Expr<'a>>),
 }
 
 impl<'a> Expr<'a> {
@@ -19,16 +21,18 @@ impl<'a> Expr<'a> {
             | input: &'a str | { let (remnant, fndef) = FnDef::parse(input)?; Ok((remnant, Expr::FnDef(fndef))) },
             | input: &'a str | { let (remnant, call) = Call::parse(input)?; Ok((remnant, Expr::Call(call))) },
             | input: &'a str | { let (remnant, vardef) = VarDef::parse(input)?; Ok((remnant, Expr::VarDef(vardef))) },
+            | input: &'a str | { let (remnant, (_, _, expr)) = tuple((tag("&"), multispace0, Expr::parse))(input)?; Ok((remnant, Expr::Reference(Box::new(expr)))) },
+            | input: &'a str | { let (remnant, (_, _, expr)) = tuple((tag("*"), multispace0, Expr::parse))(input)?; Ok((remnant, Expr::Dereference(Box::new(expr)))) },
             | input: &'a str | { let (remnant, atom) = Atom::parse(input)?; Ok((remnant, Expr::Atom(atom))) },
         ))(input)
     }
 }
 
-// mod tests {
-//     use crate::syntax::expr::Expr;
-//
-//     // #[test]
-//     // fn expr_parsing() {
-//     //     println!("{:?}", Expr::parse("uu"))
-//     // }
-// }
+mod tests {
+    use crate::syntax::expr::Expr;
+
+    #[test]
+    fn expr_parsing() {
+        println!("aaa {:?}", Expr::parse("&\"uu\""))
+    }
+}

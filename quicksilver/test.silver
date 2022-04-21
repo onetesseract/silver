@@ -1,11 +1,9 @@
 printf(val &u8) u64;
 
-test() u8 = {
-  one u8;
-  two u8;
-  one = 1;
-  two = 2;
-  three u8;
-  three = (*one + *two);
-  *three
+main() u8 = {
+  str &u8;
+  str = "hello";
+  printf(str);
+  printf("whoa");
+  0
 };

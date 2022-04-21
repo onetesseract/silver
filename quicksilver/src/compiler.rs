@@ -1,7 +1,7 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
-use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, AnyValue, IntMathValue}, module::{Module, Linkage}, types::{BasicTypeEnum, AnyTypeEnum, PointerType, BasicType, FunctionType, AnyType, BasicMetadataTypeEnum}, AddressSpace};
-use parser::syntax::{expr::Expr, fndef::{FnDef, FnProto}, variable::Variable, literal::Literal, toplevel::TopLevelExpr, ty::Type, identifier::Identifier, vardef::VarDef, atom::Atom};
+use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, InstructionOpcode}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType}, AddressSpace};
+use parser::syntax::{expr::Expr, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom};
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -64,6 +64,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+    fn compile_expr_lhs(&mut self, expr: &Expr) -> Result<PointerValue<'ctx>, String> {
+        match expr {
+            Expr::Atom(Atom::Identifier(id)) => match self.variables.get(id.name) {
+                Some (s) => Ok(*s),
+                None => Err(format!("Cannot find varible {}", id.name)),
+            },
+            _ => match self.compile_expr(expr)? {
+                Some(BasicValueEnum::PointerValue(p)) => Ok(p),
+                any => Err(format!("Expected a pointer to assign or call, got {:?}", any))
+            },
+        }
+    }
+
 
     /// Compiles the given Expr into a BasicTypeEnum
     fn compile_expr(&mut self, expr: &Expr) -> Result<Option<BasicValueEnum<'ctx>>, String> {
@@ -71,15 +84,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Expr::Call(call) => {
                 if call.is_infix {
                     match &*call.function {
-                        Expr::Atom(Atom::Variable(Variable::Identifier(id))) => {
-                            match id.name.as_str() {
+                        Expr::Atom(Atom::Identifier(id)) => {
+                            match id.name {
                                 "=" => {
-                                    let lhs = self.compile_expr(&call.args[0])?;
-                                    let lhs = if let Some(BasicValueEnum::PointerValue(pointer)) = lhs {
-                                        pointer
-                                    } else {
-                                        return Err(format!("{:?} is not a pointer yet you would assign it.", call.args[0]))
-                                    };
+                                    let lhs = self.compile_expr_lhs(&call.args[0])?;
+                                    // let lhs = if let Some(BasicValueEnum::PointerValue(pointer)) = lhs {
+                                    //     pointer
+                                    // } else {
+                                    //     return Err(format!("{:?} is not a pointer yet you would assign it.", call.args[0]))
+                                    // };
                                     let rhs = self.compile_expr(&call.args[1])?;
                                     let rhs = match rhs {
                                         Some(rhs) => rhs,
@@ -113,17 +126,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         None => return Err("y u wanna call with a null value as arg".to_string()),
                     });
                 }
-                let target = match self.compile_expr(&call.function)? {
-                    Some(value) => match value {
-                        BasicValueEnum::PointerValue(p) => p,
-                        _ => return Err(format!("{:?} is not a pointer value yet you want to call it. curious.", value))
-                    },
-                    None => return Err("You can't call a null value".to_string()),
-                };
+                let target = self.compile_expr_lhs(&call.function)?;
                 self.build_call(target, args)
             },
             Expr::Atom(atom) => match atom {
-                parser::syntax::atom::Atom::Variable(var) => Ok(Some(self.compile_variable(&var)?.as_basic_value_enum())), // TODO: uhhh should this be loaded
+                parser::syntax::atom::Atom::Identifier(id) => {
+                    println!("{:?}", self.variables.get(id.name).unwrap().get_type());
+                    Ok(Some(self.builder.build_load(match self.variables.get(id.name) {
+                    Some(s) => *s,
+                    None => return Err(format!("Cannot find variable {}", id.name)),
+                }, "tmp_variable_load")))}
+                , // TODO: uhhh should this be loaded
                 parser::syntax::atom::Atom::Block(block) => {
                     if block.exprs.len() == 0 { return Ok(None) }
                     let mut exprs = block.exprs.clone();
@@ -136,7 +149,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 parser::syntax::atom::Atom::Literal(literal) => Ok(Some(self.compile_literal(literal))),
             },
             Expr::VarDef(vardef) => {
-                let ty = self.variable_to_ty(&vardef.ty.name)?;
+                let ty = self.compile_type(&vardef.ty)?;
                 let var = self.create_entry_block_alloca(vardef.variable.name.to_string(), ty);
                 self.variables.insert(vardef.variable.name.to_string(), var);
                 Ok(Some(var.as_basic_value_enum()))
@@ -145,6 +158,23 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.compile_expr(expr)
             }
             Expr::FnDef(_) => todo!("lambdas"),
+            Expr::Reference(referenced) => {
+                let compiled_target = self.compile_expr(&referenced)?;
+                let compiled_target = match compiled_target {
+                    Some(s) => s,
+                    None => return Err(format!("Cannot reference a void thing - {:?}", referenced))
+                };
+                let varspace = self.create_entry_block_alloca("tmp_reference_variable_storage".to_string(), compiled_target.get_type());
+                self.builder.build_store(varspace, compiled_target);
+                Ok(Some(varspace.as_basic_value_enum()))
+            },
+            Expr::Dereference(target) => {
+                let target = match self.compile_expr(target)? {
+                    Some(BasicValueEnum::PointerValue(p)) => p,
+                    _ => return Err(format!("Cannot dereference a void or not pointer thing - {:?}", target)),
+                };
+                Ok(Some(self.builder.build_load(target, "tmp_deref_load")))
+            },
         }
     }
 
@@ -155,73 +185,80 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 for c in s.chars() {
                     values.push(self.context.i8_type().const_int(c as u64, false))
                 }
-                self.context.i8_type().const_array(values.as_slice()).as_basic_value_enum()
+                // TODO: important! stop using c stings
+                values.push(self.context.i8_type().const_int('\0' as u64, false));
+                let raw = self.context.i8_type().const_array(values.as_slice()).as_basic_value_enum();
+                let global = self.module.add_global(raw.get_type(), None, "const_str_storage");
+                global.set_constant(true);
+                global.set_visibility(inkwell::GlobalVisibility::Hidden);
+                global.set_initializer(&raw);
+                // let cast = self.builder.build_cast(InstructionOpcode::PtrToPt, global.as_pointer_value(), self.context.i8_type().ptr_type(AddressSpace::Generic), "const_string_cast");
+                let cast = global.as_pointer_value().const_cast(self.context.i8_type().ptr_type(AddressSpace::Generic)).as_basic_value_enum();
+                cast
             },
             Literal::Int(i) => self.context.i8_type().const_int(*i as u64, true).as_basic_value_enum(),
             Literal::Float(f) => self.context.f64_type().const_float(*f).as_basic_value_enum(),
         }
     }
 
-    fn compile_variable(&self, variable: &Variable) -> Result<BasicValueEnum<'ctx>, String> {
-        match variable {
-            Variable::Reference(var) => {
-                let compiled_var = self.compile_variable(var)?;
-                let varspace = self.create_entry_block_alloca("tmp_reference_variable_storage".to_string(), compiled_var.get_type().as_basic_type_enum())   ;
-                self.builder.build_store(varspace, compiled_var);
-                Ok(varspace.as_basic_value_enum())
-            },
-            Variable::Dereference(var) => { // TODO: rewrite this hot garbage
-                let compiled_var = self.compile_variable(var)?.into_pointer_value();
-                // let to_be_derefed = self.builder.build_load(compiled_var, "tmp_deref_variable_load");
-                // TODO: bring back checks?
-                // match compiled_var.get_type().get_element_type() /* to_be_derefed */ {
-                //     AnyTypeEnum::PointerType(_val) => {}, // self.builder.build_load(val, "tmp_deref_variable"),
-                //     _ => return Err(format!("you can't dereference {:?}", compiled_var)),
-                // };
-                Ok(self.builder.build_load(compiled_var, "tmp_deref_variable"))
-                // let varspace = self.create_entry_block_alloca("tmp_variable_deref_storage", root_value.get_type());
-                // self.builder.build_store(varspace,root_value);
-                // Ok(Some(varspace))
-            },
-            Variable::Identifier(id) => Ok(match self.variables.get(id.name.as_str()) {
-                Some(s) => s.as_basic_value_enum(),
-                None => return Err(format!("Cannot find variable {}", id.name)),
-            }),
-        }
-    }
+    // fn compile_variable(&self, variable: &Variable) -> Result<BasicValueEnum<'ctx>, String> {
+    //     match variable {
+    //         Variable::Reference(var) => {
+    //             let compiled_var = self.compile_variable(var)?;
+    //             let varspace = self.create_entry_block_alloca("tmp_reference_variable_storage".to_string(), compiled_var.get_type().as_basic_type_enum())   ;
+    //             self.builder.build_store(varspace, compiled_var);
+    //             Ok(varspace.as_basic_value_enum())
+    //         },
+    //         Variable::Dereference(var) => { // TODO: rewrite this hot garbage
+    //             let compiled_var = self.compile_variable(var)?.into_pointer_value();
+    //             // let to_be_derefed = self.builder.build_load(compiled_var, "tmp_deref_variable_load");
+    //             // TODO: bring back checks?
+    //             // match compiled_var.get_type().get_element_type() /* to_be_derefed */ {
+    //             //     AnyTypeEnum::PointerType(_val) => {}, // self.builder.build_load(val, "tmp_deref_variable"),
+    //             //     _ => return Err(format!("you can't dereference {:?}", compiled_var)),
+    //             // };
+    //             Ok(self.builder.build_load(compiled_var, "tmp_deref_variable"))
+    //             // let varspace = self.create_entry_block_alloca("tmp_variable_deref_storage", root_value.get_type());
+    //             // self.builder.build_store(varspace,root_value);
+    //             // Ok(Some(varspace))
+    //         },
+    //         Variable::Identifier(id) => Ok(match self.variables.get(id.name.as_str()) {
+    //             Some(s) => self.builder.build_load(*s, "tmp_variable_load"),
+    //             None => return Err(format!("Cannot find variable {}", id.name)),
+    //         }),
+    //     }
+    // }
 
-    fn variable_to_ty(&self, variable: &Variable) -> Result<BasicTypeEnum<'ctx>, String> {
-        match variable {
-            Variable::Reference(var) => {
-                Ok(self.variable_to_ty(var)?.ptr_type(AddressSpace::Generic).as_basic_type_enum())
+    fn compile_type(&self, ty: &Type) -> Result<BasicTypeEnum<'ctx>, String> {
+        match ty {
+            Type::PtrTo(target) => Ok(self.compile_type(target)?.ptr_type(AddressSpace::Generic).as_basic_type_enum()),
+            Type::ArrayOf(elem, count) => Ok(self.compile_type(elem)?.array_type(*count as u32).as_basic_type_enum()),
+            Type::Name(id) => match self.types.get(id.name) {
+                Some(s) => Ok(*s),
+                None => Err(format!("Cannot find type {}", id.name))
             },
-            Variable::Dereference(_) => Err(format!("{:?} is not a valid type", variable)),
-            Variable::Identifier(id) => Ok(match self.types.get(id.name.as_str()) {
-                Some(s) => *s,
-                None => return Err(format!("Cannot find type {}", id.name)),
-            }),
         }
     }
 
     fn compile_fn_proto(&self, proto: &FnProto) -> Result<(FunctionType<'ctx>, String), String> {
         let mut args_types: Vec<BasicMetadataTypeEnum> = vec![];
         for i in &proto.args {
-            args_types.push(self.variable_to_ty(&i.ty.name)?.into());
+            args_types.push(self.compile_type(&i.ty)?.into());
         }
         let mangled = args_types.mangle();
 
         let void_type = self.context.void_type().fn_type(args_types.as_slice(), false);
         Ok((match &proto.return_type {
             // Some(Type {name: Variable::Identifier(Identifier { name: String::from("void"), phantom: PhantomData})}) => void_type,
-            Some(var) => {
-                if let Type {name: Variable::Identifier(id)} = var {
+            Some(ty) => {
+                if let Type::Name(id) = ty {
                     if id.name == "void".to_string() {
                         void_type
                     } else {
-                        self.variable_to_ty(&var.name)?.fn_type(args_types.as_slice(), false)
+                        self.compile_type(ty)?.fn_type(args_types.as_slice(), false)
                     }
                 } else {
-                    self.variable_to_ty(&var.name)?.fn_type(args_types.as_slice(), false)
+                    self.compile_type(ty)?.fn_type(args_types.as_slice(), false)
                 }
             },
             None => self.context.void_type().fn_type(args_types.as_slice(), false),
@@ -236,11 +273,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         let (proto, mangled_name) = self.compile_fn_proto(&proto_expr)?;
-        let fn_val = self.module.add_function(&(mangled_name + func.name.name.as_str()), proto, Some(Linkage::External));
+        let fn_val = self.module.add_function(&(mangled_name + func.name.name), proto, Some(Linkage::External));
 
         // set arg names
         for (i, arg) in fn_val.get_param_iter().enumerate() {
-            arg.set_name(proto_expr.args[i].variable.name.as_str()); // TODO: tf does this code do
+            arg.set_name(proto_expr.args[i].variable.name); // TODO: tf does this code do
         }
 
         let ptr_value = fn_val.as_global_value().as_pointer_value();

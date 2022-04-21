@@ -6,7 +6,7 @@ pub mod literal;
 pub mod block;
 pub mod fndef;
 pub mod atom;
-pub mod variable;
+// pub mod variable;
 pub mod vardef;
 pub mod expr;
 pub mod toplevel;

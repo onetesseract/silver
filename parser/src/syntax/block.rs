@@ -25,7 +25,7 @@ mod tests {
         println!("\n\nblock- {:?}", Block::parse(r#"{
   one u8;
   two u8;
-  d \= (a + b);
+  d = (a + b);
   0
 }"#));
     }

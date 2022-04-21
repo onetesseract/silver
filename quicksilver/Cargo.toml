@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 parser = {path = "../parser"}
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm11-0"] }
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm13-0"] }

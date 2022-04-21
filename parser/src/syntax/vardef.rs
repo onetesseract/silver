@@ -1,6 +1,6 @@
-use nom::{IResult, sequence::tuple, character::complete::multispace0, branch::alt};
+use nom::{IResult, sequence::tuple, character::complete::multispace0};
 
-use super::{ty::Type, variable::Variable, identifier::Identifier};
+use super::{ty::Type, identifier::Identifier};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct VarDef<'a> {
@@ -15,19 +15,19 @@ impl<'a> VarDef<'a> {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
-pub enum PossiblyTypedVariable<'a> {
-    Typed(VarDef<'a>),
-    Untyped(Variable<'a>),
-}
-impl<'a> PossiblyTypedVariable<'a> {
-    pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
-        alt((
-            | input: &'a str | { let (remnant, vardef) = VarDef::parse(input)?; Ok((remnant, PossiblyTypedVariable::Typed(vardef))) },
-            | input: &'a str | { let (remnant, variable) = Variable::parse(input)?; Ok((remnant, PossiblyTypedVariable::Untyped(variable))) },
-        ))(input)
-    }
-}
+// #[derive(PartialEq, Debug, Clone)]
+// pub enum PossiblyTypedVariable<'a> {
+//     Typed(VarDef<'a>),
+//     Untyped(Variable<'a>),
+// }
+// impl<'a> PossiblyTypedVariable<'a> {
+//     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
+//         alt((
+//             | input: &'a str | { let (remnant, vardef) = VarDef::parse(input)?; Ok((remnant, PossiblyTypedVariable::Typed(vardef))) },
+//             | input: &'a str | { let (remnant, variable) = Variable::parse(input)?; Ok((remnant, PossiblyTypedVariable::Untyped(variable))) },
+//         ))(input)
+//     }
+// }
 
 // mod tests {
 //     use crate::syntax::vardef::VarDef;
