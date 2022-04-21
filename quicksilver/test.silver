@@ -1,9 +1,13 @@
-printf(val &u8) u64;
+printf(val &u8) void;
 
-main() u8 = {
-  str &u8;
-  str = "hello";
-  printf(str);
-  printf("whoa");
+print_argc_recursive(count u64, index u64, argv &&u8) void = {
+  printf(argv[index]);
+  printf("\n");
+  if (index != count) print_argc_recursive(count, index + 1, argv)
+};
+
+main(argc u64, argv &&u8) u64 = {
+  printf("hello there\n");
+  print_argc_recursive(argc, 0, argv);
   0
 };

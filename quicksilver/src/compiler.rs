@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, InstructionOpcode}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType}, AddressSpace};
+use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, InstructionOpcode}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType}, AddressSpace, IntPredicate};
 use parser::syntax::{expr::Expr, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom};
 
 pub struct Compiler<'a, 'ctx> {
@@ -112,6 +112,38 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                     };
                                     return Ok(Some(self.build_add(lhs, rhs)?));
                                 },
+                                "==" => {
+                                    let lhs = match self.compile_expr(&call.args[0])? {
+                                        Some(s) => s,
+                                        None => return Err("Cannot compare with a null value".to_string()),
+                                    };
+                                    let rhs = match self.compile_expr(&call.args[1])? {
+                                        Some(s) => s,
+                                        None => return Err("Cannot compare with a null value".to_string()),
+                                    };
+                                    match lhs { // TODO: not just call into_x_value
+                                        BasicValueEnum::IntValue(iv) => return Ok(Some(
+                                                self.builder.build_int_compare(IntPredicate::EQ, iv, rhs.into_int_value(), "tmp_int_eq_cmp").as_basic_value_enum()
+                                                )),
+                                        _ => todo!(),
+                                    };
+                                },
+                                "!=" => { // TODO: move this logic into its own fn
+                                    let lhs = match self.compile_expr(&call.args[0])? {
+                                        Some(s) => s,
+                                        None => return Err("Cannot compare with a null value".to_string()),
+                                    };
+                                    let rhs = match self.compile_expr(&call.args[1])? {
+                                        Some(s) => s,
+                                        None => return Err("Cannot compare with a null value".to_string()),
+                                    };
+                                    match lhs { // TODO: not just call into_x_value
+                                        BasicValueEnum::IntValue(iv) => return Ok(Some(
+                                                self.builder.build_int_compare(IntPredicate::NE, iv, rhs.into_int_value(), "tmp_int_ne_cmp").as_basic_value_enum()
+                                                )),
+                                        _ => todo!(),
+                                    };
+                                },
                                 _ => (),
                             }
                         },
@@ -123,7 +155,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 for i in &call.args {
                     args.push(match self.compile_expr(i)? {
                         Some(expr) => expr,
-                        None => return Err("y u wanna call with a null value as arg".to_string()),
+                        // HUGE TODO: fix else statements kekw
+                        None => return Err(format!("y u wanna call with a null value as arg - {:?}", i)),
                     });
                 }
                 let target = self.compile_expr_lhs(&call.function)?;
@@ -175,6 +208,74 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 };
                 Ok(Some(self.builder.build_load(target, "tmp_deref_load")))
             },
+            Expr::IfElse(ifelse) => {
+                let cond = match self.compile_expr(&ifelse.condition)? {
+                    Some(BasicValueEnum::IntValue(i)) => i,
+                    _ => return Err(format!("Cannot use {:?} as a condition in an if/else", ifelse.condition)),
+                };
+
+                let cond = cond.const_cast(self.context.bool_type(), false);
+                let fn_val = self.fn_value();
+
+                let if_bb = self.context.append_basic_block(fn_val, "if_bb");
+                let cont_bb = self.context.append_basic_block(fn_val, "ifcond_bb");
+                let else_bb = if let Some(_) = &ifelse.els {
+                    Some(self.context.append_basic_block(fn_val, "else_bb"))
+                } else { None };
+
+                let els_val = if let Some(else_bb) = else_bb {
+                    self.builder.build_conditional_branch(cond, if_bb, else_bb);
+
+                    self.builder.position_at_end(else_bb);
+                    let els = ifelse.els.as_ref().unwrap();
+                    let els_val = self.compile_expr(els)?;
+                    self.builder.build_unconditional_branch(cont_bb);
+
+                    els_val
+                } else {
+                    self.builder.build_conditional_branch(cond, if_bb, cont_bb);
+                    None
+                };
+
+                self.builder.position_at_end(if_bb);
+                let if_val = self.compile_expr(&ifelse.then)?;
+                self.builder.build_unconditional_branch(cont_bb);
+
+                self.builder.position_at_end(cont_bb);
+
+                match (if_val, els_val) {
+                    (Some(if_val), Some(els_val)) => {
+                        if if_val.get_type() == els_val.get_type() {
+                            let phi = self.builder.build_phi(if_val.get_type(), "tmp_if_phi");
+                            phi.add_incoming(&[(&if_val, if_bb), (&els_val, else_bb.unwrap())]);
+                            Ok(Some(phi.as_basic_value()))
+                        } else { Ok(None) }
+                    },
+                    _ => Ok(None),
+                }
+            }
+            Expr::ArrayAccess(array, index) => {
+                // TODO: compile_atom
+                let array = match self.compile_expr(&Expr::Atom(array.clone()))? {
+                    Some(s) => s,
+                    None => return Err(format!("Unable to index into a void - {:?}", array)),
+                };
+
+                let index = match self.compile_expr(&index)? {
+                    Some(BasicValueEnum::IntValue(iv)) => iv,
+                    _ => return Err(format!("Cannot use {:?} as an index", index)),
+                };
+                // TODO: vector values, pointer offsets
+                match array {
+                    // BasicValueEnum::ArrayValue(array) => match self.builder.build_extract_value(array, index, "tmp_array_access") {
+                    //     Some(s) => Ok(Some(s)),
+                    //     None => Err(format!("Index {} out of bounds of array {:?}", index, array)),
+                    // },
+                    // TODO: add this to LHS compilation
+                    BasicValueEnum::PointerValue(pointer) => Ok(Some( self.builder.build_load(unsafe { self.builder.build_gep(pointer, &[index], "tmp_pointer_gep") }, "tmp_gep_load"))),
+                    _ => Err(format!("Unable to index into a non-array thing - {:?}", array)),
+                }
+            },
         }
     }
 
@@ -196,38 +297,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let cast = global.as_pointer_value().const_cast(self.context.i8_type().ptr_type(AddressSpace::Generic)).as_basic_value_enum();
                 cast
             },
-            Literal::Int(i) => self.context.i8_type().const_int(*i as u64, true).as_basic_value_enum(),
+            Literal::Int(i) => self.context.i64_type().const_int(*i as u64, true).as_basic_value_enum(),
             Literal::Float(f) => self.context.f64_type().const_float(*f).as_basic_value_enum(),
         }
     }
-
-    // fn compile_variable(&self, variable: &Variable) -> Result<BasicValueEnum<'ctx>, String> {
-    //     match variable {
-    //         Variable::Reference(var) => {
-    //             let compiled_var = self.compile_variable(var)?;
-    //             let varspace = self.create_entry_block_alloca("tmp_reference_variable_storage".to_string(), compiled_var.get_type().as_basic_type_enum())   ;
-    //             self.builder.build_store(varspace, compiled_var);
-    //             Ok(varspace.as_basic_value_enum())
-    //         },
-    //         Variable::Dereference(var) => { // TODO: rewrite this hot garbage
-    //             let compiled_var = self.compile_variable(var)?.into_pointer_value();
-    //             // let to_be_derefed = self.builder.build_load(compiled_var, "tmp_deref_variable_load");
-    //             // TODO: bring back checks?
-    //             // match compiled_var.get_type().get_element_type() /* to_be_derefed */ {
-    //             //     AnyTypeEnum::PointerType(_val) => {}, // self.builder.build_load(val, "tmp_deref_variable"),
-    //             //     _ => return Err(format!("you can't dereference {:?}", compiled_var)),
-    //             // };
-    //             Ok(self.builder.build_load(compiled_var, "tmp_deref_variable"))
-    //             // let varspace = self.create_entry_block_alloca("tmp_variable_deref_storage", root_value.get_type());
-    //             // self.builder.build_store(varspace,root_value);
-    //             // Ok(Some(varspace))
-    //         },
-    //         Variable::Identifier(id) => Ok(match self.variables.get(id.name.as_str()) {
-    //             Some(s) => self.builder.build_load(*s, "tmp_variable_load"),
-    //             None => return Err(format!("Cannot find variable {}", id.name)),
-    //         }),
-    //     }
-    // }
 
     fn compile_type(&self, ty: &Type) -> Result<BasicTypeEnum<'ctx>, String> {
         match ty {

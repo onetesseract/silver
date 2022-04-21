@@ -2,6 +2,7 @@ use nom::{IResult, branch::alt};
 
 use super::{block::Block, literal::Literal, identifier::Identifier};
 
+// TODO: move Bracketed to here
 #[derive(PartialEq, Debug, Clone)]
 pub enum Atom<'a> {
     Identifier(Identifier<'a>),

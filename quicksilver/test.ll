@@ -1,14 +1,41 @@
 ; ModuleID = 'file_kek'
 source_filename = "file_kek"
 
-@const_str_storage = hidden constant [6 x i8] c"hello\00"
-@const_str_storage.1 = hidden constant [5 x i8] c"whoa\00"
+@const_str_storage = hidden constant [2 x i8] c"\0A\00"
+@const_str_storage.1 = hidden constant [13 x i8] c"hello there\0A\00"
+@str = private unnamed_addr constant [12 x i8] c"hello there\00", align 1
 
-declare i64 @printf(i8*)
+declare void @printf(i8*)
 
-define i8 @main() {
+define void @print_argc_recursive(i64 %count, i64 %index, i8** %argv) {
 entry:
-  %tmp_call = call i64 @printf(i8* noundef nonnull dereferenceable(1) getelementptr inbounds ([6 x i8], [6 x i8]* @const_str_storage, i64 0, i64 0))
-  %tmp_call1 = call i64 @printf(i8* noundef nonnull dereferenceable(1) getelementptr inbounds ([5 x i8], [5 x i8]* @const_str_storage.1, i64 0, i64 0))
-  ret i8 0
+  %tmp_pointer_gep = getelementptr i8*, i8** %argv, i64 %index
+  %tmp_gep_load = load i8*, i8** %tmp_pointer_gep, align 8
+  call void @printf(i8* noundef nonnull dereferenceable(1) %tmp_gep_load)
+  %putchar = call i32 @putchar(i32 10)
+  %tmp_int_ne_cmp.not = icmp eq i64 %count, %index
+  br i1 %tmp_int_ne_cmp.not, label %ifcond_bb, label %if_bb
+
+if_bb:                                            ; preds = %entry
+  %tmp_int_add = add i64 %index, 1
+  call void @print_argc_recursive(i64 %count, i64 %tmp_int_add, i8** %argv)
+  br label %ifcond_bb
+
+ifcond_bb:                                        ; preds = %if_bb, %entry
+  ret void
 }
+
+; Function Attrs: nofree nounwind
+declare noundef i32 @putchar(i32 noundef) #0
+
+define i64 @main(i64 %argc, i8** %argv) {
+entry:
+  %puts = call i32 @puts(i8* nonnull dereferenceable(1) getelementptr inbounds ([12 x i8], [12 x i8]* @str, i64 0, i64 0))
+  call void @print_argc_recursive(i64 %argc, i64 0, i8** %argv)
+  ret i64 0
+}
+
+; Function Attrs: nofree nounwind
+declare noundef i32 @puts(i8* nocapture noundef readonly) #0
+
+attributes #0 = { nofree nounwind }

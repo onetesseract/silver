@@ -1,5 +1,7 @@
 use nom::{IResult, sequence::tuple, character::complete::{multispace0, one_of}, branch::alt, bytes::complete::tag, combinator::{map_res, recognize}, multi::many1};
 
+use crate::take_number;
+
 use super::identifier::Identifier;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -25,13 +27,3 @@ impl<'a> Type<'a> {
     }
 }
 
-fn take_number(input: &str) -> IResult<&str, usize> {
-    map_res(
-        recognize(
-            many1(
-                one_of("0123456789")
-            )
-        ),
-        |out: &str| usize::from_str_radix(out, 10)
-    )(input)
-}

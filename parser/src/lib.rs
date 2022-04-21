@@ -1,6 +1,19 @@
+use nom::{IResult, combinator::{map_res, recognize}, multi::many1, character::complete::one_of};
+
 pub mod parser;
 pub(crate) mod parsestring;
 pub mod syntax;
+
+pub(crate) fn take_number(input: &str) -> IResult<&str, usize> {
+    map_res(
+        recognize(
+            many1(
+                one_of("0123456789")
+            )
+        ),
+        |out: &str| usize::from_str_radix(out, 10)
+    )(input)
+}
 
 #[cfg(test)]
 mod tests {

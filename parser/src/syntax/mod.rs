@@ -10,3 +10,4 @@ pub mod atom;
 pub mod vardef;
 pub mod expr;
 pub mod toplevel;
+pub mod ifelse;
