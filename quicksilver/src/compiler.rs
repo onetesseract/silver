@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType}, AddressSpace, IntPredicate};
-use parser::syntax::{expr::{Expr, L1Expr}, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom};
+use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue, InstructionOpcode}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType}, AddressSpace, IntPredicate};
+use parser::syntax::{expr::Expr, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom};
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -74,19 +74,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Some(BasicValueEnum::PointerValue(p)) => Ok(p),
                 any => Err(format!("Expected a pointer to assign or call, got {:?}", any))
             },
-        }
-    }
-
-    fn compile_l1_expr(&mut self, expr: &L1Expr) -> Result<Option<BasicValueEnum<'ctx>>, String> {
-        match expr {
-            L1Expr::VarDef(vardef) => {
-                let ty = self.compile_type(&vardef.ty)?;
-                let var = self.create_entry_block_alloca(vardef.variable.name.to_string(), ty);
-                self.variables.insert(vardef.variable.name.to_string(), var);
-                Ok(Some(var.as_basic_value_enum()))
-            },
-            L1Expr::FnDef(_) => todo!("lambdas"),
-            L1Expr::Expr(e) => self.compile_expr(e),
         }
     }
 
@@ -177,7 +164,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             },
             Expr::Atom(atom) => match atom {
                 parser::syntax::atom::Atom::Identifier(id) => {
-                    // println!("{:?}", self.variables.get(id.name).unwrap().get_type());
+                    println!("{:?}", self.variables.get(id.name).unwrap().get_type());
                     Ok(Some(self.builder.build_load(match self.variables.get(id.name) {
                     Some(s) => *s,
                     None => return Err(format!("Cannot find variable {}", id.name)),
@@ -188,15 +175,22 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let mut exprs = block.exprs.clone();
                     let last_expr = exprs.pop().unwrap();
                     for i in exprs {
-                        self.compile_l1_expr(&i)?;
+                        self.compile_expr(&i)?;
                     }
-                    self.compile_l1_expr(&last_expr)
+                    self.compile_expr(&last_expr)
                 },
                 parser::syntax::atom::Atom::Literal(literal) => Ok(Some(self.compile_literal(literal))),
+            },
+            Expr::VarDef(vardef) => {
+                let ty = self.compile_type(&vardef.ty)?;
+                let var = self.create_entry_block_alloca(vardef.variable.name.to_string(), ty);
+                self.variables.insert(vardef.variable.name.to_string(), var);
+                Ok(Some(var.as_basic_value_enum()))
             },
             Expr::Bracketed(expr) => {
                 self.compile_expr(expr)
             }
+            Expr::FnDef(_) => todo!("lambdas"),
             Expr::Reference(referenced) => {
                 let compiled_target = self.compile_expr(&referenced)?;
                 let compiled_target = match compiled_target {
@@ -419,12 +413,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         match expr {
             TopLevelExpr::Assign(lhs, rhs) => {
                 match lhs {
-                    L1Expr::VarDef(_) => todo!("global constamts"),
-                    L1Expr::FnDef(fndef) => {
-                        let rhs = match rhs {
-                            L1Expr::Expr(e) => e,
-                            _ => return Err(format!("Cannot use {:?} as a function body", rhs)),
-                        };
+                    Expr::VarDef(_) => todo!("global constamts"),
+                    Expr::FnDef(fndef) => {
                         self.compile_fn(&fndef, Some(&rhs))?;
                         Ok(())
                     },
@@ -432,7 +422,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
             },
             TopLevelExpr::Expr(ex) => {
-                if let L1Expr::FnDef(fnd) = ex {
+                if let Expr::FnDef(fnd) = ex {
                     self.compile_fn(&fnd, None)?;
                     Ok(())
                 } else {

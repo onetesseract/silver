@@ -1,19 +1,19 @@
 use nom::{IResult, character::complete::multispace0, sequence::tuple, bytes::complete::tag, branch::alt, combinator::fail};
 
-use super::expr::{Expr, L1Expr};
+use super::expr::Expr;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TopLevelExpr<'a> {
-    Assign(L1Expr<'a>, L1Expr<'a>),
-    Expr(L1Expr<'a>),
+    Assign(Expr<'a>, Expr<'a>),
+    Expr(Expr<'a>),
 }
 
 impl<'a> TopLevelExpr<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
         alt((
-                | input: &'a str | { let (remnant, (expr1, _, _, _, expr2, _, _)) = tuple((L1Expr::parse, multispace0, tag("="), multispace0, L1Expr::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::Assign(expr1, expr2))) },
+                | input: &'a str | { let (remnant, (expr1, _, _, _, expr2, _, _)) = tuple((Expr::parse, multispace0, tag("="), multispace0, Expr::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::Assign(expr1, expr2))) },
                 // | _input:&'a str | { fail(input) },
-                | input: &'a str | { let (remnant,(expr, _, _)) = tuple((L1Expr::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::Expr(expr))) }
+                | input: &'a str | { let (remnant,(expr, _, _)) = tuple((Expr::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::Expr(expr))) }
         ))(input)
     }
 }
