@@ -25,6 +25,6 @@ mod tests {
 
     #[test]
     fn ifelse_parsing() {
-        println!("ifelse {:#?}", Expr::parse("a == b c() else d"))
+        println!("ifelse {:#?}", Expr::parse("(index == count) {printf(\"eoa aaaa c\")} else {printf(\"\n\"); print_argc_recursive(count, index + 1, argv)}"))
     }
 }
