@@ -13,16 +13,16 @@ entry:
   %tmp_gep_load = load i8*, i8** %tmp_pointer_gep, align 8
   call void @printf(i8* noundef nonnull dereferenceable(1) %tmp_gep_load)
   %putchar = call i32 @putchar(i32 10)
-  %tmp_int_ne_cmp.not = icmp eq i64 %count, %index
-  br i1 %tmp_int_ne_cmp.not, label %ifcond_bb, label %if_bb
+  %tmp_int_eq_cmp = icmp eq i64 %count, %index
+  br i1 %tmp_int_eq_cmp, label %ifcond_bb, label %else_bb
 
-if_bb:                                            ; preds = %entry
+ifcond_bb:                                        ; preds = %entry, %else_bb
+  ret void
+
+else_bb:                                          ; preds = %entry
   %tmp_int_add = add i64 %index, 1
   call void @print_argc_recursive(i64 %count, i64 %tmp_int_add, i8** %argv)
   br label %ifcond_bb
-
-ifcond_bb:                                        ; preds = %if_bb, %entry
-  ret void
 }
 
 ; Function Attrs: nofree nounwind

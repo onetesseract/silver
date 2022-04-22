@@ -1,4 +1,6 @@
-use nom::{IResult, character::is_alphabetic, bytes::complete::take_while1};
+use nom::{IResult, character::is_alphabetic, bytes::complete::take_while1, combinator::fail};
+
+use crate::RESERVED;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Identifier<'a> {
@@ -8,6 +10,9 @@ pub struct Identifier<'a> {
 impl<'a> Identifier<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
         let (remnant, name) = take_while1(is_valid_esc)(input)?;
+        if RESERVED.contains(&name) {
+            return fail(input);
+        }
         Ok((remnant, Identifier { name }))
         // parse_id(input)
     }
