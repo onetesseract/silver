@@ -19,3 +19,12 @@ impl<'a> IfElse<'a> {
         Ok((remnant, IfElse {condition: Box::new(condition), then: Box::new(then), els}))
     }
 }
+
+mod tests {
+    use crate::syntax::{ifelse::IfElse, expr::Expr};
+
+    #[test]
+    fn ifelse_parsing() {
+        println!("ifelse {:#?}", Expr::parse("a == b c() else d"))
+    }
+}
