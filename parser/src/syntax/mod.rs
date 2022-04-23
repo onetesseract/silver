@@ -11,3 +11,5 @@ pub mod vardef;
 pub mod expr;
 pub mod toplevel;
 pub mod ifelse;
+pub mod structdef;
+pub mod structaccess;

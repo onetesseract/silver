@@ -1,11 +1,13 @@
 printf(val &u8) void;
 
-print_argc_recursive(count u64, index u64, argv &&u8) void = {
-  printf(argv[index]);
-  if (index == count) printf("end of args") else {printf("\n"); print_argc_recursive(count, index + 1, argv)}
+string {
+  buf &u8;
+  self &string =(other &string) void = printf("not impl kekw");
 };
 
 main(argc u64, argv &&u8) u64 = {
-  print_argc_recursive(argc, 0, argv);
+  str string;
+  str.buf = "ee";
+  printf(str.buf);
   0
 };

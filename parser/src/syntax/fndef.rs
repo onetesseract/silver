@@ -35,16 +35,16 @@ impl<'a> FnDef<'a> {
         alt((FnDef::parse_with_upon, FnDef::parse_no_upon))(input)
     }
 }
-//
-// mod tests {
-//     use nom::{multi::separated_list0, bytes::complete::tag, character::complete::multispace0, sequence::tuple};
-//
-//     use crate::syntax::{fndef::{FnDef, FnProto}, vardef::VarDef};
-//
-//     #[test]
-//     fn fndecl_parsing() {
-//         // println!("{:?}", FnProto::parse(r#"(a str, b str) baa"#));
-//         // println!("{:?}", separated_list0(tuple((multispace0, tag(","), multispace0)), VarDef::parse)("a str,b str,c str"))
-//         println!("{:?}", FnDef::parse("self class plus(other class)"))
-//     }
-// }
+
+mod tests {
+    use nom::{multi::separated_list0, bytes::complete::tag, character::complete::multispace0, sequence::tuple};
+
+    use crate::syntax::{fndef::{FnDef, FnProto}, vardef::VarDef};
+
+    #[test]
+    fn fndecl_parsing() {
+        // println!("{:?}", FnProto::parse(r#"(a str, b str) baa"#));
+        // println!("{:?}", separated_list0(tuple((multispace0, tag(","), multispace0)), VarDef::parse)("a str,b str,c str"))
+        println!("fndef {:#?}", FnDef::parse("self &string =(other &string) void = printf(\"not impl kekw\")"))
+    }
+}

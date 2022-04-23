@@ -1,1 +1,4 @@
-printf(other u8) u8;
+structname {
+  avar aname = aval;
+  self structname meep(some u8) void = meep;
+};

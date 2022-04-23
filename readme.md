@@ -1,3 +1,4 @@
+this readme is outdated and invalidated, read at your own risk  
 # Silver
 _A really stupid programming thing_  
 The idea for this whole mess is to have silver's own syntax compile to a generic silver-assembly (.sas) file and _then_ we can do loads of screwery with it, like compile to native, bytecode, interpret it, etc.  

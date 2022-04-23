@@ -1,7 +1,18 @@
 use std::collections::HashMap;
 
-use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType}, AddressSpace, IntPredicate};
-use parser::syntax::{expr::{Expr, L1Expr}, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom};
+use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType, StructType, AnyTypeEnum, AnyType}, AddressSpace, IntPredicate};
+use parser::syntax::{expr::{Expr, L1Expr}, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom, structdef::StructDef, identifier::Identifier};
+
+pub struct CompiledStructType<'ctx> {
+    pub members: HashMap<String, CompiledStructMember<'ctx>>,
+    pub functions: HashMap<String, PointerValue<'ctx>>,
+    pub ty: StructType<'ctx>,
+}
+pub struct CompiledStructMember<'ctx> {
+    pub index: usize,
+    pub ty: BasicTypeEnum<'ctx>,
+    pub val: Option<BasicValueEnum<'ctx>>,
+}
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -12,7 +23,9 @@ pub struct Compiler<'a, 'ctx> {
 
     variables: HashMap<String, PointerValue<'ctx>>,
     types: HashMap<String, BasicTypeEnum<'ctx>>,
+    structs: HashMap<String, CompiledStructType<'ctx>>,
     fn_val_opt: Option<FunctionValue<'ctx>>,
+    lhs: bool,
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
@@ -64,17 +77,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn compile_expr_lhs(&mut self, expr: &Expr) -> Result<PointerValue<'ctx>, String> {
-        match expr {
-            Expr::Atom(Atom::Identifier(id)) => match self.variables.get(id.name) {
-                Some (s) => Ok(*s),
-                None => Err(format!("Cannot find varible {}", id.name)),
-            },
-            _ => match self.compile_expr(expr)? {
-                Some(BasicValueEnum::PointerValue(p)) => Ok(p),
-                any => Err(format!("Expected a pointer to assign or call, got {:?}", any))
-            },
-        }
+    pub fn compile_expr_lhs(&mut self, expr: &Expr) -> Result<PointerValue<'ctx>, String> {
+        let prev = self.lhs;
+        self.lhs = true;
+        let ex = match self.compile_expr(expr)? {
+            Some(BasicValueEnum::PointerValue(pv)) => pv,
+            any => return Err(format!("Expected pointer, got {:?}", any))
+        };
+        self.lhs = prev;
+        return Ok(ex);
     }
 
     fn compile_l1_expr(&mut self, expr: &L1Expr) -> Result<Option<BasicValueEnum<'ctx>>, String> {
@@ -90,9 +101,37 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+    fn mangle_type(ty: AnyTypeEnum) -> String {
+        match ty {
+            AnyTypeEnum::ArrayType(arr) => "Arr".to_string() + &Compiler::mangle_type(arr.get_element_type().as_any_type_enum()),
+            AnyTypeEnum::FloatType(_) => "F".to_string(),
+            AnyTypeEnum::IntType(_) => "I".to_string(),
+            AnyTypeEnum::PointerType(ptr) => "Ptr".to_string() + &Compiler::mangle_type(ptr.get_element_type()),
+            AnyTypeEnum::StructType(st) => {
+                let mut string = "Struct(".to_string();
+                for i in st.get_field_types() {
+                    string += &Compiler::mangle_type(i.as_any_type_enum());
+                }
+                string += &")".to_string();
+                string
+            },
+            AnyTypeEnum::VectorType(_) => todo!(),
+            AnyTypeEnum::FunctionType(_) => todo!(),
+            AnyTypeEnum::VoidType(_) => todo!(),
+        }
+    }
+
+    fn gen_type_mangle(types: Vec<BasicTypeEnum>) -> String {
+        let mut string = String::new();
+        for i in types {
+            string += &Compiler::mangle_type(i.as_any_type_enum());
+        }
+        string
+    }
+
 
     /// Compiles the given Expr into a BasicTypeEnum
-    fn compile_expr(&mut self, expr: &Expr) -> Result<Option<BasicValueEnum<'ctx>>, String> {
+    pub fn compile_expr(&mut self, expr: &Expr) -> Result<Option<BasicValueEnum<'ctx>>, String> {
         match expr {
             Expr::Call(call) => {
                 if call.is_infix {
@@ -101,61 +140,69 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             match id.name {
                                 "=" => {
                                     let lhs = self.compile_expr_lhs(&call.args[0])?;
+                                    if !lhs.get_type().get_element_type().is_struct_type() {
                                     // let lhs = if let Some(BasicValueEnum::PointerValue(pointer)) = lhs {
                                     //     pointer
                                     // } else {
                                     //     return Err(format!("{:?} is not a pointer yet you would assign it.", call.args[0]))
                                     // };
-                                    let rhs = self.compile_expr(&call.args[1])?;
-                                    let rhs = match rhs {
-                                        Some(rhs) => rhs,
-                                        None => return Err(format!("cannot assign void to a thing - trying to use {:?}", call.args[1])),
-                                    };
-                                    self.build_assign(lhs, rhs)?;
-                                    return Ok(None);
+                                        let rhs = self.compile_expr(&call.args[1])?;
+                                        let rhs = match rhs {
+                                            Some(rhs) => rhs,
+                                            None => return Err(format!("cannot assign void to a thing - trying to use {:?}", call.args[1])),
+                                        };
+                                        self.build_assign(lhs, rhs)?;
+                                        return Ok(None);
+                                    }
                                 },
                                 "+" => {
                                     let lhs = match self.compile_expr(&call.args[0])? {
                                         Some(s) => s,
                                         None => return Err("Cannot add with a null value".to_string()),
                                     };
-                                    let rhs = match self.compile_expr(&call.args[1])? {
-                                        Some(s) => s,
-                                        None => return Err("Cannot add with a null value".to_string()),
-                                    };
-                                    return Ok(Some(self.build_add(lhs, rhs)?));
+                                    if !lhs.is_struct_value() {
+                                        let rhs = match self.compile_expr(&call.args[1])? {
+                                            Some(s) => s,
+                                            None => return Err("Cannot add with a null value".to_string()),
+                                        };
+                                        return Ok(Some(self.build_add(lhs, rhs)?));
+                                    }
                                 },
                                 "==" => {
                                     let lhs = match self.compile_expr(&call.args[0])? {
                                         Some(s) => s,
                                         None => return Err("Cannot compare with a null value".to_string()),
                                     };
-                                    let rhs = match self.compile_expr(&call.args[1])? {
-                                        Some(s) => s,
-                                        None => return Err("Cannot compare with a null value".to_string()),
-                                    };
-                                    match lhs { // TODO: not just call into_x_value
-                                        BasicValueEnum::IntValue(iv) => return Ok(Some(
+                                    if !lhs.is_struct_value() {
+                                        let rhs = match self.compile_expr(&call.args[1])? {
+                                            Some(s) => s,
+                                            None => return Err("Cannot compare with a null value".to_string()),
+                                        };
+                                        match lhs { // TODO: not just call into_x_value
+                                            BasicValueEnum::IntValue(iv) => return Ok(Some(
                                                 self.builder.build_int_compare(IntPredicate::EQ, iv, rhs.into_int_value(), "tmp_int_eq_cmp").as_basic_value_enum()
                                                 )),
-                                        _ => todo!(),
-                                    };
+                                            _ => todo!(),
+                                        };
+                                    }
                                 },
                                 "!=" => { // TODO: move this logic into its own fn
                                     let lhs = match self.compile_expr(&call.args[0])? {
                                         Some(s) => s,
                                         None => return Err("Cannot compare with a null value".to_string()),
                                     };
-                                    let rhs = match self.compile_expr(&call.args[1])? {
-                                        Some(s) => s,
-                                        None => return Err("Cannot compare with a null value".to_string()),
-                                    };
-                                    match lhs { // TODO: not just call into_x_value
-                                        BasicValueEnum::IntValue(iv) => return Ok(Some(
+                                    if !lhs.get_type().is_struct_type() {
+                                        let rhs = match self.compile_expr(&call.args[1])? {
+                                            Some(s) => s,
+                                            None => return Err("Cannot compare with a null value".to_string()),
+                                        };
+                                        match lhs { // TODO: not just call into_x_value
+                                            BasicValueEnum::IntValue(iv) => return Ok(Some(
                                                 self.builder.build_int_compare(IntPredicate::NE, iv, rhs.into_int_value(), "tmp_int_ne_cmp").as_basic_value_enum()
                                                 )),
-                                        _ => todo!(),
-                                    };
+                                            _ => todo!(),
+                                        };
+                                    }
                                 },
                                 _ => (),
                             }
@@ -164,25 +211,40 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     }
                 }
                 let mut args = vec![];
+                let mut args_types = vec![];
                 // if call.is_infix TODO: infix calls
                 for i in &call.args {
-                    args.push(match self.compile_expr(i)? {
+                    let ex = match self.compile_expr(i)? {
                         Some(expr) => expr,
                         // HUGE TODO: fix else statements kekw
                         None => return Err(format!("y u wanna call with a null value as arg - {:?}", i)),
-                    });
+                    };
+                    args_types.push(ex.get_type());
+                    args.push(ex);
                 }
-                let target = self.compile_expr_lhs(&call.function)?;
+                let target = match &*call.function {
+                    Expr::Atom(Atom::Identifier(id)) => {
+                        let name = Compiler::gen_type_mangle(args_types);
+                        let ex = name + &"//".to_string() + &id.name.to_string();
+                        self.compile_expr_lhs(&Expr::Atom(Atom::Identifier(Identifier { name: ex.as_str() })))?
+                    }
+                    _ => self.compile_expr_lhs(&call.function)?,
+                };
                 self.build_call(target, args)
             },
             Expr::Atom(atom) => match atom {
                 Atom::Identifier(id) => {
                     // println!("{:?}", self.variables.get(id.name).unwrap().get_type());
-                    Ok(Some(self.builder.build_load(match self.variables.get(id.name) {
-                    Some(s) => *s,
-                    None => return Err(format!("Cannot find variable {}", id.name)),
-                }, "tmp_variable_load")))}
-                , // TODO: uhhh should this be loaded
+                    let var = match self.variables.get(id.name) {
+                        Some(s) => *s,
+                        None => return Err(format!("Cannot find variable {}", id.name)),
+                    };
+                    if self.lhs {
+                        Ok(Some(var.as_basic_value_enum()))
+                    } else {
+                        Ok(Some(self.builder.build_load(var, "tmp_variable_load")))
+                    }
+                }, // TODO: uhhh should this be loaded
                 Atom::Block(block) => {
                     if block.exprs.len() == 0 { return Ok(None) }
                     let mut exprs = block.exprs.clone();
@@ -213,6 +275,55 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     };
                     Ok(Some(self.builder.build_load(target, "tmp_deref_load")))
                 },
+                Atom::StructAccess(access) => {
+                let lhs = self.compile_expr_lhs(&Expr::Atom(*access.root.clone()))?;
+                match &*access.access {
+                    Expr::Atom(Atom::Identifier(id)) => {
+                        if let AnyTypeEnum::StructType(st) = lhs.get_type().get_element_type() {
+                            let mut struct_name = None;
+                            for (k, v) in &self.types {
+                                if v == &st.as_basic_type_enum() {
+                                    struct_name = Some(k);
+                                }
+                            }
+                            let struct_name = match struct_name {
+                                Some(s) => s,
+                                None => panic!("aaaaaa"),
+                            };
+                            let struct_type = match self.structs.get(struct_name) {
+                                Some(s) => s,
+                                None => panic!("whaa"),
+                            };
+                            let member = match struct_type.members.get(&id.name.to_string()) {
+                                Some(s) => s,
+                                None => return Err(format!("Cannot find struct member {} in struct {}", id.name, struct_name)),
+                            };
+
+                            let val = self.builder.build_struct_gep(lhs, member.index as u32, "tmp_struct_access_gep").unwrap();
+                            if self.lhs {
+                                Ok(Some(val.as_basic_value_enum()))
+                            } else {
+                                Ok(Some(self.builder.build_load(val, "tmp_struct_access_load")))
+                            }
+                        } else { Err(format!("Cannot access into a non-struct type {:?}", lhs)) }
+                    },
+                    Expr::Call(call) => {
+                        let mut args = vec![];
+                        args.push(lhs.as_basic_value_enum());
+                        // if call.is_infix TODO: infix calls
+                        for i in &call.args {
+                            args.push(match self.compile_expr(i)? {
+                                Some(expr) => expr,
+                                // HUGE TODO: fix else statements kekw
+                                None => return Err(format!("y u wanna call with a null value as arg - {:?}", i)),
+                            });
+                        }
+                        let target = self.compile_expr_lhs(&call.function)?;
+                        self.build_call(target, args)
+                    },
+                    _ => todo!(),
+                }
+            }
             },
             Expr::IfElse(ifelse) => {
                 let cond = match self.compile_expr(&ifelse.condition)? {
@@ -278,7 +389,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     //     None => Err(format!("Index {} out of bounds of array {:?}", index, array)),
                     // },
                     // TODO: add this to LHS compilation
-                    BasicValueEnum::PointerValue(pointer) => Ok(Some( self.builder.build_load(unsafe { self.builder.build_gep(pointer, &[index], "tmp_pointer_gep") }, "tmp_gep_load"))),
+                    BasicValueEnum::PointerValue(pointer) => {
+                        let val = unsafe { self.builder.build_gep(pointer, &[index], "tmp_pointer_gep") };
+                        if self.lhs {
+                            Ok(Some(val.as_basic_value_enum()))
+                        } else {
+                            Ok(Some(self.builder.build_load(val, "tmp_gep_load")))
+                        }
+                    },
                     _ => Err(format!("Unable to index into a non-array thing - {:?}", array)),
                 }
             },
@@ -308,7 +426,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn compile_type(&self, ty: &Type) -> Result<BasicTypeEnum<'ctx>, String> {
+    pub fn compile_type(&self, ty: &Type) -> Result<BasicTypeEnum<'ctx>, String> {
         match ty {
             Type::PtrTo(target) => Ok(self.compile_type(target)?.ptr_type(AddressSpace::Generic).as_basic_type_enum()),
             Type::ArrayOf(elem, count) => Ok(self.compile_type(elem)?.array_type(*count as u32).as_basic_type_enum()),
@@ -321,10 +439,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     fn compile_fn_proto(&self, proto: &FnProto) -> Result<(FunctionType<'ctx>, String), String> {
         let mut args_types: Vec<BasicMetadataTypeEnum> = vec![];
+        let mut args_basic_types: Vec<BasicTypeEnum> = vec![];
         for i in &proto.args {
-            args_types.push(self.compile_type(&i.ty)?.into());
+            let ty = self.compile_type(&i.ty)?;
+            args_basic_types.push(ty);
+            args_types.push(ty.into());
         }
-        let mangled = args_types.mangle();
+        let mangled = Compiler::gen_type_mangle(args_basic_types);
 
         let void_type = self.context.void_type().fn_type(args_types.as_slice(), false);
         Ok((match &proto.return_type {
@@ -340,11 +461,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     self.compile_type(ty)?.fn_type(args_types.as_slice(), false)
                 }
             },
-            None => self.context.void_type().fn_type(args_types.as_slice(), false),
+            None => void_type,
         }, mangled))
     }
 
-    fn compile_fn(&mut self, func: &FnDef, body: Option<&Expr>) -> Result<FunctionValue<'ctx>, String> {
+    pub fn compile_fn(&mut self, func: &FnDef, body: Option<&Expr>) -> Result<FunctionValue<'ctx>, String> {
 
         let mut proto_expr = func.proto.clone();
         if let Some(s) = &func.upon {
@@ -352,7 +473,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         let (proto, mangled_name) = self.compile_fn_proto(&proto_expr)?;
-        let fn_val = self.module.add_function(&(mangled_name + func.name.name), proto, Some(Linkage::External));
+        let mangled_name = mangled_name + &"//".to_string() + func.name.name;
+        let fn_val = self.module.add_function(&mangled_name, proto, Some(Linkage::External));
 
         // set arg names
         for (i, arg) in fn_val.get_param_iter().enumerate() {
@@ -361,7 +483,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let ptr_value = fn_val.as_global_value().as_pointer_value();
 
-        self.variables.insert(func.name.name.to_string(), ptr_value);
+        self.variables.insert(mangled_name, ptr_value);
 
 
         let body = match body {
@@ -401,6 +523,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             self.builder.build_return(None);
         }
 
+        println!("\n\n\n");
+        // self.module.print_to_stderr();
+
         if fn_val.verify(true) {
             self.fpm.run_on(&fn_val);
 
@@ -414,6 +539,34 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             // Err("Invalid function".to_string())
         }
     }
+
+    fn compile_structdef(&mut self, structdef: &StructDef) -> Result<CompiledStructType<'ctx>, String> {
+        let mut members = HashMap::new();
+        let mut types = vec![];
+        for (index, i) in structdef.members.iter().enumerate() {
+            let val = match &i.value {
+                Some(s) => match self.compile_expr(&s)? {
+                    Some(s) => Some(s),
+                    None => return Err(format!("Cannot use null ({:?}) as struct member intialiser", i)),
+                },
+                None => None,
+            };
+            let ty = self.compile_type(&i.vardef.ty)?;
+            types.push(ty);
+            members.insert(i.vardef.variable.name.to_string(), CompiledStructMember {index, ty, val});
+        }
+
+        let ty = self.context.struct_type(types.as_slice(), false);
+        self.types.insert(structdef.name.name.to_string(), ty.as_basic_type_enum());
+
+        let mut functions = HashMap::new();
+        for i in &structdef.functions {
+            functions.insert(i.fndef.name.name.to_string(), self.compile_fn(&i.fndef, i.body.as_ref())?.as_global_value().as_pointer_value());
+        }
+
+        Ok(CompiledStructType {members, functions, ty})
+    }
+
 
     fn compile_tl_expr(&mut self, expr: &TopLevelExpr) -> Result<(), String> {
         match expr {
@@ -439,22 +592,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     todo!("other stuff ig")
                 }
             },
+            TopLevelExpr::StructDef(structdef) => {
+                let structtype = self.compile_structdef(structdef)?;
+                self.structs.insert(structdef.name.name.to_string(), structtype);
+                Ok(())
+            },
         }
-    }
-}
-
-pub trait NameMangle {
-    fn mangle(&self) -> String;
-}
-
-impl<'a> NameMangle for Vec<BasicMetadataTypeEnum<'a>> {
-    fn mangle(&self) -> String {
-        let mut s: String = "".to_string();
-        for i in self {
-            // s = s + format!("{:?}", i).as_str();
-            println!("mangling {:?}", i);
-        }
-        s
     }
 }
 
@@ -478,6 +621,7 @@ mod tests {
         let fpm = PassManager::create(&module);
 
         fpm.add_instruction_combining_pass();
+
         fpm.add_reassociate_pass();
         fpm.add_gvn_pass();
         fpm.add_cfg_simplification_pass();
@@ -501,7 +645,9 @@ mod tests {
             module: &module,
 
             variables: HashMap::new(),
+            structs: HashMap::new(),
             fn_val_opt: None,
+            lhs: false,
             types,
         };
         

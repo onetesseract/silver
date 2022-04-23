@@ -14,7 +14,7 @@ impl<'a> Call<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
         alt((Call::parse_with_infix, Call::parse_with_brackets))(input)
     }
-    fn parse_with_brackets(input: &'a str) -> IResult<&'a str, Self> {
+    pub fn parse_with_brackets(input: &'a str) -> IResult<&'a str, Self> {
         let (remnant, (atom, _, mut calls_vec)) = tuple((Atom::parse, multispace0, many1(tuple((tag("("), multispace0,
         separated_list0(tuple((multispace0, tag(","), multispace0)), Expr::parse),
         multispace0, tag(")"), multispace0)))))(input)?;
@@ -54,6 +54,6 @@ mod tests {
 
     #[test]
     fn call_parsing() {
-        println!("call-parse {:?}", Call::parse("self plud (other plus ee)"))
+        println!("call-parse {:?}", Call::parse(""))
     }
 }

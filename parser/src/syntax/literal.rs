@@ -12,7 +12,7 @@ impl<'a> Literal {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
         Ok(
             alt((
-                | input: &'a str | { let (remnant, s) = recognize(tuple((take_while(| c: char | is_digit(c as u8)), tag("."), take_while(| c: char | is_digit(c as u8)))))(input)?; Ok((remnant, Literal::Float(s.parse::<f64>().unwrap()))) },
+                | input: &'a str | { let (remnant, s) = recognize(tuple((take_while1(| c: char | is_digit(c as u8)), tag("."), take_while1(| c: char | is_digit(c as u8)))))(input)?; Ok((remnant, Literal::Float(s.parse::<f64>().unwrap()))) },
                 | input: &'a str | { let (remnant, s) = take_while1(| c: char | is_digit(c as u8))(input)?; Ok((remnant, Literal::Int(s.parse().unwrap()))) },
                 | input: &'a str | { let (remnant, s) = parse_string(input)?; Ok((remnant, Literal::Str(s))) }
     ))(input)?
