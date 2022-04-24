@@ -1,10 +1,11 @@
 use nom::{IResult, branch::alt, character::complete::multispace0, bytes::complete::tag, sequence::tuple};
 
-use super::{atom::Atom, call::Call, vardef::VarDef, fndef::FnDef, ifelse::IfElse, structaccess::StructAccess};
+use super::{atom::Atom, call::Call, vardef::VarDef, fndef::FnDef, ifelse::IfElse, cast::Cast};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr<'a> {
     Call(Call<'a>),
+    Cast(Cast<'a>),
     Atom(Atom<'a>),
     IfElse(IfElse<'a>),
     ArrayAccess(Atom<'a>, Box<Expr<'a>>),
@@ -39,27 +40,25 @@ impl<'a> Expr<'a> {
     }
     fn parse_exc_atom(input: &'a str) -> IResult<&'a str, Self> {
         alt((
+            | input: &'a str | { let (remnant, cast) = Cast::parse(input)?; Ok((remnant, Expr::Cast(cast))) },
             | input: &'a str | { let (remnant, (atom, _, _, _, index, _, _)) = tuple((Atom::parse, multispace0, tag("["), multispace0, Expr::parse, multispace0, tag("]")))(input)?; Ok((remnant, Expr::ArrayAccess(atom, Box::new(index))))},
             | input: &'a str | { let (remnant, ifelse) = IfElse::parse(input)?; Ok((remnant, Expr::IfElse(ifelse))) },
-            // | input: &'a str | { let (remnant, fndef) = FnDef::parse(input)?; Ok((remnant, Expr::FnDef(fndef))) },
             | input: &'a str | { let (remnant, call) = Call::parse(input)?; Ok((remnant, Expr::Call(call))) },
-            // | input: &'a str | { let (remnant, access) = StructAccess::parse(input)?; Ok((remnant, Expr::StructAccess(access))) },
-            // | input: &'a str | { let (remnant, vardef) = VarDef::parse(input)?; Ok((remnant, Expr::VarDef(vardef))) },
         ))(input)
     }
     fn parse_atom(input: &'a str) -> IResult<&'a str, Self> {
         let (remnant, atom) = Atom::parse(input)?;
         Ok((remnant, Expr::Atom(atom)))
     }
+
+    // TODO: un-duplicate logic
     pub fn parse_exc_infix(input: &'a str) -> IResult<&'a str, Self> {
         alt((
+            | input: &'a str | { let (remnant, cast) = Cast::parse(input)?; Ok((remnant, Expr::Cast(cast))) },
             | input: &'a str | { let (remnant, (atom, _, _, _, index, _, _)) = tuple((Atom::parse, multispace0, tag("["), multispace0, Expr::parse, multispace0, tag("]")))(input)?; Ok((remnant, Expr::ArrayAccess(atom, Box::new(index))))},
             | input: &'a str | { let (remnant, ifelse) = IfElse::parse(input)?; Ok((remnant, Expr::IfElse(ifelse))) },
-            // | input: &'a str | { let (remnant, fndef) = FnDef::parse(input)?; Ok((remnant, Expr::FnDef(fndef))) },
             | input: &'a str | { let (remnant, call) = Call::parse_with_brackets(input)?; Ok((remnant, Expr::Call(call))) },
-            // | input: &'a str | { let (remnant, access) = StructAccess::parse(input)?; Ok((remnant, Expr::StructAccess(access))) },
             | input: &'a str | Expr::parse_atom(input)
-            // | input: &'a str | { let (remnant, vardef) = VarDef::parse(input)?; Ok((remnant, Expr::VarDef(vardef))) },
         ))(input)
 
     }

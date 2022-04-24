@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use inkwell::{context::Context, builder::Builder, passes::PassManager, values::{FunctionValue, PointerValue, BasicMetadataValueEnum, CallableValue, BasicValueEnum, BasicValue}, module::{Module, Linkage}, types::{BasicTypeEnum, FunctionType, BasicMetadataTypeEnum, BasicType, StructType, AnyTypeEnum, AnyType}, AddressSpace, IntPredicate};
-use parser::syntax::{expr::{Expr, L1Expr}, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom, structdef::StructDef, identifier::Identifier};
+use parser::syntax::{expr::{Expr, L1Expr}, fndef::{FnDef, FnProto}, literal::Literal, toplevel::TopLevelExpr, ty::Type, atom::Atom, structdef::StructDef, identifier::Identifier, enumdef::EnumDef};
 
 pub struct CompiledStructType<'ctx> {
     pub members: HashMap<String, CompiledStructMember<'ctx>>,
@@ -24,6 +24,7 @@ pub struct Compiler<'a, 'ctx> {
     variables: HashMap<String, PointerValue<'ctx>>,
     types: HashMap<String, BasicTypeEnum<'ctx>>,
     structs: HashMap<String, CompiledStructType<'ctx>>,
+    consts: HashMap<String, BasicValueEnum<'ctx>>,
     fn_val_opt: Option<FunctionValue<'ctx>>,
     lhs: bool,
 }
@@ -235,6 +236,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Expr::Atom(atom) => match atom {
                 Atom::Identifier(id) => {
                     // println!("{:?}", self.variables.get(id.name).unwrap().get_type());
+                    match self.consts.get(id.name) {
+                        Some(s) => return Ok(Some(*s)),
+                        None => {},
+                    }
                     let var = match self.variables.get(id.name) {
                         Some(s) => *s,
                         None => return Err(format!("Cannot find variable {}", id.name)),
@@ -276,9 +281,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     Ok(Some(self.builder.build_load(target, "tmp_deref_load")))
                 },
                 Atom::StructAccess(access) => {
-                let lhs = self.compile_expr_lhs(&Expr::Atom(*access.root.clone()))?;
                 match &*access.access {
                     Expr::Atom(Atom::Identifier(id)) => {
+                        let lhs = self.compile_expr_lhs(&Expr::Atom(*access.root.clone()))?;
                         if let AnyTypeEnum::StructType(st) = lhs.get_type().get_element_type() {
                             let mut struct_name = None;
                             for (k, v) in &self.types {
@@ -292,7 +297,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             };
                             let struct_type = match self.structs.get(struct_name) {
                                 Some(s) => s,
-                                None => panic!("whaa"),
+                                None => panic!("whaa {}", struct_name),
                             };
                             let member = match struct_type.members.get(&id.name.to_string()) {
                                 Some(s) => s,
@@ -308,20 +313,43 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         } else { Err(format!("Cannot access into a non-struct type {:?}", lhs)) }
                     },
                     Expr::Call(call) => {
+                        let lhs = self.compile_expr(&Expr::Atom(*access.root.clone()))?.unwrap();
+                        // let mut args = vec![];
+                        // args.push(lhs.as_basic_value_enum());
+                        // // if call.is_infix TODO: infix calls
+                        // for i in &call.args {
+                        //     args.push(match self.compile_expr(i)? {
+                        //         Some(expr) => expr,
+                        //         // HUGE TODO: fix else statements kekw
+                        //         None => return Err(format!("y u wanna call with a null value as arg - {:?}", i)),
+                        //     });
+                        // }
+                        // let target = self.compile_expr_lhs(&call.function)?;
+                        // self.build_call(target, args);
                         let mut args = vec![];
                         args.push(lhs.as_basic_value_enum());
-                        // if call.is_infix TODO: infix calls
+                        let mut args_types = vec![];
+                        args_types.push(lhs.get_type().as_basic_type_enum());
                         for i in &call.args {
-                            args.push(match self.compile_expr(i)? {
+                            let ex = match self.compile_expr(i)? {
                                 Some(expr) => expr,
                                 // HUGE TODO: fix else statements kekw
                                 None => return Err(format!("y u wanna call with a null value as arg - {:?}", i)),
-                            });
+                            };
+                            args_types.push(ex.get_type());
+                            args.push(ex);
                         }
-                        let target = self.compile_expr_lhs(&call.function)?;
+                        let target = match &*call.function {
+                            Expr::Atom(Atom::Identifier(id)) => {
+                                let name = Compiler::gen_type_mangle(args_types);
+                                let ex = name + &"//".to_string() + &id.name.to_string();
+                                self.compile_expr_lhs(&Expr::Atom(Atom::Identifier(Identifier { name: ex.as_str() })))?
+                            }
+                            _ => self.compile_expr_lhs(&call.function)?,
+                        };
                         self.build_call(target, args)
                     },
-                    _ => todo!(),
+                    x => todo!("{:?}", x),
                 }
             }
             },
@@ -400,6 +428,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     _ => Err(format!("Unable to index into a non-array thing - {:?}", array)),
                 }
             },
+            Expr::Cast(cast) => {
+                let lhs = match self.compile_expr(&Expr::Atom(cast.target.clone()))? {
+                    Some(s) => s,
+                    None => return Err(format!("Unable to cast a void type {:?}", cast.target)),
+                };
+                let ty = self.compile_type(&cast.ty)?;
+                Ok(Some(self.builder.build_bitcast(lhs, ty, "tmp_bitcast")))
+            },
         }
     }
 
@@ -474,7 +510,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let (proto, mangled_name) = self.compile_fn_proto(&proto_expr)?;
         let mangled_name = mangled_name + &"//".to_string() + func.name.name;
-        let fn_val = self.module.add_function(&mangled_name, proto, Some(Linkage::External));
+        let fn_val = self.module.add_function(func.name.name, proto, Some(Linkage::External));
 
         // set arg names
         for (i, arg) in fn_val.get_param_iter().enumerate() {
@@ -483,6 +519,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let ptr_value = fn_val.as_global_value().as_pointer_value();
 
+        println!("mangled {}", mangled_name);
         self.variables.insert(mangled_name, ptr_value);
 
 
@@ -567,6 +604,18 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Ok(CompiledStructType {members, functions, ty})
     }
 
+    fn compile_enumdef(&mut self, enumdef: &EnumDef) -> Result<(), String> {
+        let name = enumdef.name.name;
+        for (i, member) in enumdef.members.iter().enumerate() {
+            match self.consts.insert(name.to_string() + &"::".to_string() + member.name, self.context.i64_type().const_int(i as u64, false).as_basic_value_enum()) {
+                None => {},
+                Some(_) => return Err(format!("Enum member {}::{} already defined!", name, member.name))
+            }
+        }
+        self.types.insert(name.to_string(), self.context.i64_type().as_basic_type_enum());
+        Ok(())
+    }
+
 
     fn compile_tl_expr(&mut self, expr: &TopLevelExpr) -> Result<(), String> {
         match expr {
@@ -597,6 +646,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.structs.insert(structdef.name.name.to_string(), structtype);
                 Ok(())
             },
+            TopLevelExpr::EnumDef(e) => self.compile_enumdef(e),
         }
     }
 }
@@ -646,6 +696,7 @@ mod tests {
 
             variables: HashMap::new(),
             structs: HashMap::new(),
+            consts: HashMap::new(),
             fn_val_opt: None,
             lhs: false,
             types,
@@ -655,7 +706,7 @@ mod tests {
         
         while remnant.trim() != "" {
             let (remn, expr) = TopLevelExpr::parse(remnant).unwrap();
-            println!("EXPR: {:#?}", expr);
+            // println!("EXPR: {:#?}", expr);
             remnant = remn.trim_start();
 
             compiler.compile_tl_expr(&expr).unwrap();

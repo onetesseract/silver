@@ -1,13 +1,46 @@
 printf(val &u8) void;
+exit(code u64) void;
 
-string {
-  buf &u8;
-  self &string =(other &string) void = printf("not impl kekw");
+panic(msg &u8) void = {
+  printf("\npanic!: ");
+  printf(msg)
 };
 
-main(argc u64, argv &&u8) u64 = {
-  str string;
-  str.buf = "ee";
-  printf(str.buf);
+ExprType enum {
+  Identifier;
+  Number;
+};
+
+Expr {
+  type ExprType;
+  value &u8;
+};
+
+Identifier {
+  value &u8;
+};
+
+self Identifier print() void = {
+  printf(self.value)
+};
+
+self Expr print() void = {
+  if self.type == ExprType::Identifier {
+    print(*((self.value) as &Identifier))
+  } else { panic("not impl") }
+};
+
+main(argc u64, argv &&u8) void = {
+  id Identifier;
+  id.value = "meep";
+
+  ex Expr;
+  ex.type = ExprType::Identifier;
+  ex.value = (&id) as &u8;
+
+  ex.print();
+
+  ex.type = ExprType::Number;
+  ex.print();
   0
 };

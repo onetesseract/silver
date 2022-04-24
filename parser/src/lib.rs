@@ -4,7 +4,7 @@ pub mod parser;
 pub(crate) mod parsestring;
 pub mod syntax;
 
-const RESERVED: [&str; 2] = ["if", "else"];
+const RESERVED: [&str; 4] = ["if", "else", "enum", "as"];
 
 pub(crate) fn take_number(input: &str) -> IResult<&str, usize> {
     map_res(

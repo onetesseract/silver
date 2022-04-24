@@ -13,3 +13,5 @@ pub mod toplevel;
 pub mod ifelse;
 pub mod structdef;
 pub mod structaccess;
+pub mod enumdef;
+pub mod cast;

@@ -1,10 +1,11 @@
 use nom::{IResult, character::complete::multispace0, sequence::tuple, bytes::complete::tag, branch::alt};
 
-use super::{expr::{Expr, L1Expr}, fndef::FnDef, vardef::VarDef, structdef::StructDef};
+use super::{expr::{Expr, L1Expr}, fndef::FnDef, vardef::VarDef, structdef::StructDef, enumdef::EnumDef};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TopLevelExpr<'a> {
     StructDef(StructDef<'a>),
+    EnumDef(EnumDef<'a>),
     Assign(L1Expr<'a>, Expr<'a>),
     Expr(L1Expr<'a>),
 }
@@ -20,6 +21,7 @@ impl<'a> TopLevelExpr<'a> {
     pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
         alt((
                 | input: &'a str | { let (remnant,(structdef, _, _)) = tuple((StructDef::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::StructDef(structdef))) },
+                | input: &'a str | { let (remnant,(enumdef, _, _)) = tuple((EnumDef::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::EnumDef(enumdef))) },
                 | input: &'a str | { let (remnant, (expr1, _, _, _, expr2, _, _)) = tuple((parse_tl_l1, multispace0, tag("="), multispace0, Expr::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::Assign(expr1, expr2))) },
                 // | _input:&'a str | { fail(input) },
                 | input: &'a str | { let (remnant,(expr, _, _)) = tuple((L1Expr::parse, multispace0, tag(";")))(input)?; Ok((remnant, TopLevelExpr::Expr(expr))) }

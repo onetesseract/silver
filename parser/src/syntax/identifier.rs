@@ -24,7 +24,7 @@ fn is_valid_id(input: char) -> bool {
 }
 
 fn is_valid_esc(input: char) -> bool {
-    return is_alphabetic(input as u8) ||  "!£$%^~#@'-_+<>/|1234567890=".contains(input)
+    return is_alphabetic(input as u8) ||  "!£$%^~#@'-_+<>/|1234567890=:".contains(input)
 }
 
 // fn parse_id<'a>(input: &'a str) -> IResult<&'a str, Identifier<'a>> {

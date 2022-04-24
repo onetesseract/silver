@@ -1,4 +1,5 @@
-structname {
-  avar aname = aval;
-  self structname meep(some u8) void = meep;
+main() u8 = {
+  a u8;
+  a = (b as u8);
+  0
 };
