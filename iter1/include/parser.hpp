@@ -2,7 +2,21 @@
 #include <memory>
 #include <vector>
 
+#include <lexer.hpp>
+
 namespace parser {
+class Parser {
+  lexer::LexStream stream;
+
+
+public:
+  Parser(lexer::LexStream stream);
+
+  lexer::Token Next();
+  lexer::Token Peek();
+};
+
+
 class Type {
   std::string name;
 
@@ -65,9 +79,18 @@ public:
   void PrettyPrint(int offset) override;
 };
 
+enum PrototypeType {
+  Normal,
+  Infix,
+  Prefix,
+  Suffix,
+};
+
 class PrototypeExpr : public Expr {
   std::string name;
   std::vector<std::unique_ptr<VarDefExpr>> inputs;
+
+  PrototypeType funcType;
 
 public:
   PrototypeExpr(std::string name, std::vector<std::unique_ptr<VarDefExpr>> inputs, Type return_type);
@@ -84,4 +107,20 @@ public:
   FunctionDefExpr(std::unique_ptr<PrototypeExpr> prototype, std::unique_ptr<Expr> body);
   void PrettyPrint(int offset) override;
 };
+
+std::unique_ptr<Expr> LogError(const std::string message);
+
+
+
+//---------------------------
+//            Parsing mechanisms
+//---------------------------
+
+std::unique_ptr<Expr> ParseNumberExpr(Parser &parser);
+std::unique_ptr<Expr> ParseParenExpr(Parser& parser);
+
+std::unique_ptr<
+
+std::unique_ptr<Expr> ParsePrimary(Parser& parser);
+
 }

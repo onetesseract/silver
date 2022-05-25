@@ -3,6 +3,46 @@
 #include <lexer.hpp>
 
 namespace lexer {
+const std::string TokenTypeName(const TokenType token) noexcept {
+  switch (token) {
+    case TokenType::Eof : return "EOF";
+    case TokenType::Identifier : return "Identifier";
+    case TokenType::Number : return "Number";
+    case TokenType::Unrecognised : return "Unrecognised";
+    default : return "Invalid";
+  }
+}
+
+
+BadTokenUse::BadTokenUse(std::string message_) : message {message_} {}
+
+const char* BadTokenUse::what() const noexcept {
+  return message.c_str();
+}
+
+
+double Token::GetNumber() {
+  if (type != TokenType::Number) {
+    throw BadTokenUse("Tried to get a Number out of a " + TokenTypeName(type));
+  }
+  return number;
+}
+
+std::string& Token::GetIdString() {
+  if (type != TokenType::Identifier) {
+    throw BadTokenUse("Tried to get a Identifier out of a " + TokenTypeName(type));
+  }
+  return idString;
+}
+
+int Token::GetUnrec() {
+  if (type != TokenType::Unrecognised) {
+    throw BadTokenUse("Tried to get a Unrecognised out of a " + TokenTypeName(type));
+  }
+  return unrec; 
+}
+
+
 Input::Input(std::string inputString_) : inputString {inputString_} {}
 
 int Input::Next() {
@@ -12,6 +52,10 @@ int Input::Next() {
   int c = inputString[index];
   index++;
   return c;
+}
+
+void Input::Back() {
+  index--;
 }
 
 Token Input::GetToken() {
@@ -27,6 +71,7 @@ Token Input::GetToken() {
       id_string += last_char;
       last_char = Next();
     }
+    Back();
     return Token {
       .idString = id_string,
       .type = TokenType::Identifier,
@@ -39,6 +84,7 @@ Token Input::GetToken() {
       num_string += last_char;
       last_char = Next();
     }
+    Back();
     return Token {
       .number = strtod(num_string.c_str(), 0),
       .type = TokenType::Number,
@@ -55,5 +101,25 @@ Token Input::GetToken() {
     .unrec = last_char,
     .type = TokenType::Unrecognised,
   };
+}
+
+
+LexStream::LexStream(Input input_) : input {input_} {}
+
+Token LexStream::Next() {
+  if (peeked.has_value()) {
+    Token t = peeked.value();
+    peeked.reset();
+    return t;
+  }
+  return input.GetToken();
+}
+
+Token LexStream::Peek() {
+  if (peeked.has_value()) {
+    return peeked.value();
+  }
+  peeked = Next();
+  return peeked.value();
 }
 }

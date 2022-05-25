@@ -1,32 +1,42 @@
-use nom::{IResult, multi::{many0, separated_list0}, character::complete::multispace0, bytes::complete::tag, sequence::tuple};
+use crate::lexer::Lexer;
 
-use super::expr::{Expr, L1Expr};
+use super::{Expr, ParseResult, ParseError, ParserState, ExprVal};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Block<'a> {
-    pub exprs: Vec<L1Expr<'a>>,
+    pub exprs: Vec<Expr<'a>>,
 }
-impl<'a> Block<'a> {
-    pub fn parse(input: &'a str) -> IResult<&'a str, Self> {
-        let (remnant, (_, _, exprs_vec, _, _)) = tuple((tag("{"), multispace0, separated_list0(tuple((multispace0, tag(";"), multispace0)), L1Expr::parse), multispace0, tag("}")))(input)?;
-        // let mut exprs = vec![];
-        // for (i, _) in exprs_vec {
-        //     exprs.push(i);
-        // }
-        Ok((remnant, Block { exprs: exprs_vec }))
-    }
-}
-//
-mod tests {
-    use crate::syntax::block::Block;
 
-    #[test]
-    fn block_parsing() {
-        println!("\n\nblock- {:?}", Block::parse(r#"{
-  one u8;
-  two u8;
-  d = (a + b);
-  0
-}"#));
+impl<'a> Block<'a> {
+    pub fn parse_raw(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
+        let c = lexer.take_char().render();
+        if c != "{" {
+            return Err(ParseError::new(lexer, format!("Expected {{ to start block, found {}", c)));
+        }
+        lexer.eat_wsp();
+        let mut exprs: Vec<Expr> = vec![];
+        if lexer.peek_char().render() != "}" {
+            loop {
+                exprs.push(Expr::parse(lexer.clone(), state.clone())?);
+                lexer.eat_wsp();
+                if lexer.peek_char().render() != ";" {
+                    return Err(ParseError::new(lexer, format!("Expected ; to separate exprs")));
+                }
+                lexer.take_char(); // eat ;
+                lexer.eat_wsp();
+
+                if lexer.peek_char().render() == "}" {
+                    break;
+                }
+            }
+        }
+        // eat the }
+        lexer.take_char();
+
+        return Ok(Block { exprs })
+    }
+    pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
+        Ok(Expr::new("unknown".to_string(), ExprVal::Block(Block::parse_raw(lexer, state)?)))
     }
 }
+
