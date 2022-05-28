@@ -1,2 +1,2 @@
-func main() uint = 
+main() : uint = 
   a = b*7+6/8-3;

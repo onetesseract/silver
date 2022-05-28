@@ -140,7 +140,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
 mod tests {
     #[test]
     fn parsing_prim() {
-        let l = crate::lexer::Lexer::new("func f(x int) int = 2 * x;");
-        println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
+        let l = crate::lexer::Lexer::new("f(x int) : int = 2 * x;");
+        // println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
     }
 }
