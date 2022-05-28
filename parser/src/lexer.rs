@@ -32,7 +32,10 @@ impl<'ctx> fmt::Debug for LexString<'ctx> {
 }
 
 pub fn match_identifier(c: char) -> bool {
-    c.is_alphabetic() | "_+-><*/=".contains(c)
+    c.is_alphabetic() || c == '_'
+}
+pub fn match_spec_id(c: char) -> bool {
+    "+-><*/=".contains(c)
 }
 
 #[derive(Debug, Clone)]
@@ -69,10 +72,16 @@ impl<'ctx> Lexer<'ctx> {
     // TODO: make it not broken w/ number identifiers
     pub fn take_identifier(&self) -> LexString<'ctx> {
         // let mut is_first = true;
-        self.take_while(match_identifier)
+        let r = self.take_while(match_identifier);
+        if r.render() == "" {
+            return self.take_while(match_spec_id)
+        } else { return r }
     }
     pub fn peek_identifier(&self) -> LexString<'ctx> {
-        self.peek_while(match_identifier)
+        let r = self.peek_while(match_identifier);
+        if r.render() == "" {
+            return self.peek_while(match_spec_id)
+        } else { return r }
     }
     pub fn is_eof(&self) -> bool {
         let t = self.data.read().unwrap();

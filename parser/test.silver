@@ -1,13 +1,23 @@
-func main() u8 = {
+main() : u8 = {
   a u8;
   a = (b as u8);
   0
 };
 
-func main() u8; # main
+main();                              // main()
 
-infix add(u8, u8) u8; # 8 + 3
+pop(list &vec) : u8;                 // pop(list) OR pop list
 
-prefix new(u8) &u8; # new 7;
+new (list &vec) : &vec               // new(list) OR new list
 
-suffix s(&u8) String; # "uajajsu"s or somecharptr s
+(list &vec).pop() : u8;              // list.pop()
+
+(list &vec) as_string : &char;       // list as_string
+
+(source &ptr) into (dest &ptr) : u8; // list.pop() into somevar
+
+#inline
+#linkage internal
+(u8 a) + (u8 b) : u8 {
+  return #AS("add u8 $a $b")
+}

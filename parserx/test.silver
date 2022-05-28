@@ -1,10 +1,2 @@
-func main() uint = {
-  a uint;
-  a = b*(7+6)/(7-3);
-  0;
-};
-
-func main() uint;
-infix add(a uint, b uint) uint;
-prefix new(x uint) uint;
-suffix s(str uint) String;
+func main() uint = 
+  a = b*7+6/8-3;
