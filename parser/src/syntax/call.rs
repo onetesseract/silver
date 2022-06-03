@@ -4,8 +4,8 @@ use super::{variable::VariableExpr, Expr, ParseResult, ParseError, ParserState};
 
 #[derive(Debug, Clone)]
 pub struct CallExpr<'a> {
-    target: VariableExpr<'a>,
-    inputs: Vec<Expr<'a>>,
+    pub target: VariableExpr<'a>,
+    pub inputs: Vec<Expr<'a>>,
 }
 
 impl<'a> CallExpr<'a> {

@@ -1,4 +1,4 @@
-use std::{sync::{RwLock, Arc}, fmt};
+use std::{sync::{RwLock, Arc}, fmt, hash::Hash};
 
 #[derive(Debug, Clone)]
 pub struct LexerInternal<'ctx> {
@@ -6,11 +6,22 @@ pub struct LexerInternal<'ctx> {
     pub index: usize,
 }
 
+// TODO: proper Eqs
 #[derive(Clone)]
 pub struct LexString<'ctx> {
     lexer: Lexer<'ctx>,
     start: usize,
     end: usize,
+}
+
+impl<'ctx> PartialEq for LexString<'ctx> {
+    fn eq(&self, other: &Self) -> bool {
+        self.render() == other.render()
+    }
+}
+
+impl<'ctx> Eq for LexString<'ctx> {
+
 }
 
 impl<'ctx> LexString<'ctx> {
@@ -28,6 +39,13 @@ impl<'ctx> fmt::Debug for LexString<'ctx> {
             .field("rendered-as", &self.render()) // &self.lexer.data.read().unwrap().input.split_at(self.start).1.split_at(self.end - self.start).0)
             .finish()
         // Ok(format!("LexString {\nlexer: {:?},\nstart:\n{:?},\nend:{:?},\nrendered as '{}'", self.lexer, self.start, self.end, self.lexer.data.read().unwrap().input.split_at(self.start).1.split_at(self.end - self.start).0))
+    }
+}
+
+
+impl<'ctx> Hash for LexString<'ctx> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.render().hash(state)    
     }
 }
 

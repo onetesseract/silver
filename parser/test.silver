@@ -18,6 +18,8 @@ new (list &vec) : &vec               // new(list) OR new list
 
 #inline
 #linkage internal
+
+#inline, linkage internal;
 (u8 a) + (u8 b) : u8 {
   return #AS("add u8 $a $b")
 }

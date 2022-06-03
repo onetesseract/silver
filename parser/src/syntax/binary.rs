@@ -1,21 +1,23 @@
-use crate::lexer::Lexer;
+// use crate::lexer::Lexer;
+//
+// use super::{variable::VariableExpr, Expr, ParseResult, ExprVal, ParserState, call::CallExpr};
+//
+// #[derive(Debug, Clone)]
+// pub struct BinaryExpr<'a> {
+//     op: VariableExpr<'a>,
+//     lhs: Expr<'a>,
+//     rhs: Expr<'a>,
+// }
 
-use super::{variable::VariableExpr, Expr, ParseResult, ExprVal, ParserState};
+pub mod BinaryExpr {
+    use crate::{lexer::Lexer, syntax::{ParserState, ParseResult, Expr, ExprVal, call::CallExpr, variable::VariableExpr}};
 
-#[derive(Debug, Clone)]
-pub struct BinaryExpr<'a> {
-    op: VariableExpr<'a>,
-    lhs: Expr<'a>,
-    rhs: Expr<'a>,
-}
-
-impl<'a> BinaryExpr<'a> {
-    pub fn maybe_parse_raw(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Expr> {
+    pub fn maybe_parse_raw<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Expr> {
         let lhs = Expr::parse_primary(lexer.clone(), state.clone())?;
         lexer.eat_wsp();
-        Self::parse_binop_rhs(lexer, lhs, -1, state)
+        parse_binop_rhs(lexer, lhs, -1, state)
     }
-    fn parse_binop_rhs(lexer: Lexer<'a>, lhs: Expr<'a>, prec: isize, state: ParserState) -> ParseResult<'a, Expr<'a>> {
+    fn parse_binop_rhs<'a>(lexer: Lexer<'a>, lhs: Expr<'a>, prec: isize, state: ParserState) -> ParseResult<'a, Expr<'a>> {
         let mut lhs = lhs;
         loop {
             // If this is a binop that binds at least as tightly as the current binop,
@@ -45,9 +47,9 @@ impl<'a> BinaryExpr<'a> {
                 None => -1,
             };
             if parsed_prec < peek_prec {
-                rhs = Self::parse_binop_rhs(lexer.clone(), rhs, prec + 1, state.clone())?;
+                rhs = parse_binop_rhs(lexer.clone(), rhs, prec + 1, state.clone())?;
             }
-            lhs = Expr::new("unknown".to_string(), ExprVal::Binary(BinaryExpr { op: VariableExpr { name: op }, lhs, rhs }));
+            lhs = Expr::new(ExprVal::Call(CallExpr { target: VariableExpr { name: op }, inputs: vec![lhs, rhs] }));
         }
     }
 }

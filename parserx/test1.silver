@@ -1,0 +1,15 @@
+performSomeUnknownAction(a uchar, b uchar);
+combine(a uchar, b uchar): uchar;
+makeYours(object uchar): uchar;
+
+#prec 0;
+(a uchar) do (b uchar) = performSomeUnknownAction(a, b);
+
+#prec 0;
+(a uchar) and (b uchar): uchar = combine(a, b);
+
+your (object uchar): uchar = makeYours(object);
+
+main(I uchar, something uchar) = {
+  I do your something and something;
+};

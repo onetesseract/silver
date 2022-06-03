@@ -1,5 +1,5 @@
 [package]
-name = "parserx"
+name = "compiler"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,4 @@ edition = "2021"
 
 [dependencies]
 parser = { path = "../parser/"}
-compiler = { path = "../compiler/"}
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm13-0"] }

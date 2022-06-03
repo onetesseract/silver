@@ -12,10 +12,10 @@ pub enum FnType {
 
 #[derive(Debug, Clone)]
 pub struct FnProto<'a> {
-    class: FnType,
-    return_ty: Ty,
-    name: LexString<'a>,
-    args: Vec<VarDef<'a>>,
+    pub class: FnType,
+    pub return_ty: Option<Ty<'a>>,
+    pub name: LexString<'a>,
+    pub args: Vec<VarDef<'a>>,
 }
 
 impl<'a> FnProto<'a> {
@@ -46,10 +46,10 @@ impl<'a> FnProto<'a> {
         return Ok(args);
     }
 
-    fn parse_possible_rettype(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Ty> {
+    fn parse_possible_rettype(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Option<Ty>> {
         lexer.eat_wsp();
         if lexer.peek_char().render() != ":" {
-            return Ok(Ty { ty: "void".to_string() })
+            return Ok(None)
         }
         lexer.take_char();
         lexer.eat_wsp();
@@ -58,7 +58,7 @@ impl<'a> FnProto<'a> {
         if ty.render() == "" {
             return Err(ParseError::new(lexer, "Expected valid type".to_string()));
         }
-        return Ok(Ty { ty: ty.render().to_string() })
+        return Ok(Some(Ty { ty }))
     }
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
         lexer.eat_wsp();

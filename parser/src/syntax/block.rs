@@ -36,7 +36,7 @@ impl<'a> Block<'a> {
         return Ok(Block { exprs })
     }
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
-        Ok(Expr::new("unknown".to_string(), ExprVal::Block(Block::parse_raw(lexer, state)?)))
+        Ok(Expr::new(ExprVal::Block(Block::parse_raw(lexer, state)?)))
     }
 }
 

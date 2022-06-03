@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::Lexer;
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, binary::BinaryExpr, block::Block, vardef::VarDef, proto::FnProto};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, binary::BinaryExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints};
 
 pub mod number;
 pub mod ty;
@@ -12,6 +12,7 @@ pub mod call;
 pub mod block;
 pub mod proto;
 pub mod vardef;
+pub mod hints;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 
@@ -20,7 +21,7 @@ pub enum ExprVal<'a> {
     Number(NumberExpr<'a>),
     Variable(VariableExpr<'a>),
     Call(CallExpr<'a>),
-    Binary(BinaryExpr<'a>),
+    // Binary(BinaryExpr<'a>),
     Block(Block<'a>),
     VarDef(VarDef<'a>),
 }
@@ -41,13 +42,12 @@ impl<'a> ParseError<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Expr<'a> {
-    ty: ty::Ty,
-    val: Box<ExprVal<'a>>,
+    pub val: Box<ExprVal<'a>>,
 }
 
 impl<'a> Expr<'a> {
-    pub fn new(s: String, val: ExprVal<'a>) -> Self {
-        Expr {ty: ty::Ty { ty: s }, val: Box::new(val) }
+    pub fn new(val: ExprVal<'a>) -> Self {
+        Expr {val: Box::new(val) }
     }
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
         lexer.eat_wsp();
@@ -81,7 +81,11 @@ impl<'a> Expr<'a> {
 pub struct ParserStateInternal {
     pub infix_fns: HashMap<String, isize>,
     pub suffix_fns: Vec<String>,
+    pub prefix_fns: Vec<String>,
+    pub upon_fns: Vec<String>,
 }
+
+// TODO: better fn thype thingies
 
 impl ParserStateInternal {
     pub fn new() -> Self {
@@ -94,7 +98,7 @@ impl ParserStateInternal {
         infix_fns.insert(">".to_string(), 50);
         infix_fns.insert("==".to_string(), 40);
         infix_fns.insert("=".to_string(), 25);
-        ParserStateInternal { infix_fns, suffix_fns: vec![] }
+        ParserStateInternal { infix_fns, suffix_fns: vec![], prefix_fns: vec![], upon_fns: vec![] }
     }
 }
 
@@ -110,16 +114,51 @@ impl ParserState {
 
 #[derive(Debug, Clone)]
 pub enum TlExpr<'a> {
-    Extern(FnProto<'a>),
-    Func(FnProto<'a>, Expr<'a>),
+    Extern(Option<Hints<'a>>, FnProto<'a>),
+    Func(Option<Hints<'a>>, FnProto<'a>, Expr<'a>),
 }
 
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
     lexer.eat_wsp();
+
+    let hints = match lexer.peek_char().render() {
+        "#" => Some(Hints::parse(lexer.clone())?),
+        _ => None,
+    };
+
+    lexer.eat_wsp();
     let proto = FnProto::parse(lexer.clone(), state.clone())?;
+    let s = state.clone();
+    let mut write = s.data.write().unwrap();
+
+    match proto.class {
+        FnType::Upon => write.upon_fns.push(proto.name.render().to_string()),
+        FnType::Prefix => write.prefix_fns.push(proto.name.render().to_string()),
+        FnType::Suffix => write.suffix_fns.push(proto.name.render().to_string()),
+        FnType::Infix => {
+            if let Some(hints) = &hints {
+                if let Some(hint) = hints.hints.get("prec") {
+                    if hint.len() != 0 {
+                        if let Ok(val) = hint[0].render().parse::<isize>() {
+                            write.infix_fns.insert(proto.name.render().to_string(), val);
+                        } else {
+                            return Err(ParseError::new(lexer, format!("Expected valid integer, got {}", hint[0].render())))
+                        }
+                    } else {
+                        return Err(ParseError::new(lexer, "Require a number with a prec hint".to_string()))
+                    }
+                } else {
+                    return Err(ParseError::new(lexer, "Require a prec hint for infix functions".to_string()))
+                }
+            } else {
+                return Err(ParseError::new(lexer, "Require a prec hint for infix functions".to_string()))
+            }
+        },
+    };
+    drop(write);
     lexer.eat_wsp();
     match lexer.peek_char().render() {
-        ";" => {lexer.take_char(); return Ok(TlExpr::Extern(proto))},
+        ";" => {lexer.take_char(); return Ok(TlExpr::Extern(hints, proto))},
         "=" => (),
         x => return Err(ParseError::new(lexer, format!("Expected = or ;, found `{}`", x))),
     }
@@ -129,7 +168,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     lexer.eat_wsp();
 
     let t = match lexer.peek_char().render() {
-        ";" => Ok(TlExpr::Func(proto, body)),
+        ";" => Ok(TlExpr::Func(hints, proto, body)),
         x => return Err(ParseError::new(lexer, format!("Expected ;, found {}", x))),
     };
     lexer.take_char();
@@ -141,6 +180,6 @@ mod tests {
     #[test]
     fn parsing_prim() {
         let l = crate::lexer::Lexer::new("f(x int) : int = 2 * x;");
-        // println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
+        println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
     }
 }

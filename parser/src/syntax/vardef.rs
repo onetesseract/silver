@@ -4,18 +4,19 @@ use super::{ty::Ty, Expr, ParserState, ParseResult, ExprVal, ParseError};
 
 #[derive(Debug, Clone)]
 pub struct VarDef<'a> {
-    varname: LexString<'a>,
-    ty: Ty,
+    pub varname: LexString<'a>,
+    pub ty: Ty<'a>,
 }
 
 impl<'a> VarDef<'a> {
     pub fn maybe_parse_raw(lexer: Lexer<'a>, e: Expr<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
         if let ExprVal::Variable(v) = &*e.val {
             lexer.eat_wsp();
-            let s = lexer.peek_identifier().render();
+            let possible_type = lexer.peek_identifier();
+            let s = possible_type.render();
             if s != "" && !state.data.read().unwrap().suffix_fns.contains(&s.to_string()) && !state.data.read().unwrap().infix_fns.contains_key(&s.to_string()) /* TODO: add other forms */ {
                 lexer.take_identifier(); // eat it
-                return Ok(Expr::new("unknown".to_string(), ExprVal::VarDef(VarDef { varname: v.name.clone(), ty: Ty { ty: s.to_string()}})))
+                return Ok(Expr::new(ExprVal::VarDef(VarDef { varname: v.name.clone(), ty: Ty { ty: possible_type }})))
             }
         }
         Ok(e)

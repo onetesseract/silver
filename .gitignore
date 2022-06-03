@@ -7,3 +7,5 @@
 /parser/target
 /parserx/target
 /quicksilver/target
+/compiler/target
+/**/target/

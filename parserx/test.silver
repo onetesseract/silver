@@ -1,2 +1,3 @@
-main() : uint = 
-  a = b*7+6/8-3;
+putchar(char uchar);
+
+main(argc uchar, argv uchar) = putchar(argc);
