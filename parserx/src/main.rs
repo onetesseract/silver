@@ -24,7 +24,7 @@ fn main() {
     // println!("{} {}", file, lexer.is_eof());
     while !lexer.is_eof() {
         let res = parse_tl_expr(lexer.clone(), state.clone());
-        // println!("> {:#?}", res.unwrap());
+        println!("> {:#?}", res.clone().unwrap());
         let instance = CompilerInstance::new(compiler.clone());
         compile_tl_expr(res.unwrap(), instance).unwrap();
         lexer.eat_wsp();

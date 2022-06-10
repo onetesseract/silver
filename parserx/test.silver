@@ -1,3 +1,4 @@
-putchar(char uchar);
+#prec 50;
+(a u64) + (b u64) : u64 = #AS("int_add a b");
 
-main(argc uchar, argv uchar) = putchar(argc);
+main(argc u64, argv u64) : u64 = { 7 + 4 };

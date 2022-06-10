@@ -38,6 +38,23 @@ impl<'a> Hints<'a> {
             hints.insert(hint_name.render(), hint_values);
         }
     }
+
+    pub fn get_bool(&self, key: &str) -> Option<Option<bool>> {
+        match self.hints.get(key) {
+            Some(s) => Some({
+                if s.len() == 0 {
+                    Some(true)
+                } else {
+                    match s[0].render().to_lowercase().as_str() {
+                        "true" => Some(true),
+                        "false" => Some(false),
+                        _ => None
+                    }
+                }
+            }),
+            None => None
+        }
+    }
 }
 
 mod tests {

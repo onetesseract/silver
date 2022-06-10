@@ -2,7 +2,7 @@ use std::{sync::{RwLock, Arc}, fmt, hash::Hash};
 
 #[derive(Debug, Clone)]
 pub struct LexerInternal<'ctx> {
-    input: &'ctx str,
+    pub input: &'ctx str,
     pub index: usize,
 }
 
@@ -26,7 +26,20 @@ impl<'ctx> Eq for LexString<'ctx> {
 
 impl<'ctx> LexString<'ctx> {
     pub fn render(&self) -> &'ctx str {
-        self.lexer.data.read().unwrap().input.split_at(self.start).1.split_at(self.end - self.start).0
+        println!("{} {} - {}", self.start, self.end, self.lexer.data.read().unwrap().input
+            .split_at(self.start).1
+            .split_at(self.end - self.start).0
+);
+        // i sorry
+        if self.start == 29 { panic!() }
+        if self.start >= self.lexer.data.read().unwrap().input.len() {
+            return ""
+        } else {
+            return self.lexer.data.read().unwrap().input
+            .split_at(self.start).1
+            .split_at(self.end - self.start).0
+
+        }
     }
 }
 
@@ -89,14 +102,40 @@ impl<'ctx> Lexer<'ctx> {
     }
     // TODO: make it not broken w/ number identifiers
     pub fn take_identifier(&self) -> LexString<'ctx> {
-        // let mut is_first = true;
-        let r = self.take_while(match_identifier);
+        if self.is_eof() {
+            let index = self.data.read().unwrap().index;
+            return LexString { lexer: self.clone(), start: index, end: index };
+        }
+        let mut first = true;
+        let begin = self.data.read().unwrap().index;
+        while self.peek_char().render().as_bytes()[0].is_ascii_alphanumeric() || self.peek_char().render().as_bytes()[0] as char == '_' {
+            if first {
+                if "0123456789".contains(self.peek_char().render().as_bytes()[0] as char) {
+                    break;
+                }
+                first = false;
+            }
+            self.take_char();
+        }
+        let r = LexString { lexer: self.clone(), start:begin, end: self.data.read().unwrap().index };
+
+        // return res;
+        // // let mut is_first = true;
+        // let r = self.take_while(match_identifier);
         if r.render() == "" {
             return self.take_while(match_spec_id)
         } else { return r }
     }
     pub fn peek_identifier(&self) -> LexString<'ctx> {
-        let r = self.peek_while(match_identifier);
+        let begin = self.data.read().unwrap().index;
+        
+        let r = self.take_identifier();
+
+        self.data.write().unwrap().index = begin;
+
+        // return res;
+        //     
+        // let r = self.peek_while(match_identifier);
         if r.render() == "" {
             return self.peek_while(match_spec_id)
         } else { return r }

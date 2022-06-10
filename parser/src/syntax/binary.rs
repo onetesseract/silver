@@ -35,7 +35,7 @@ pub mod BinaryExpr {
             }
             drop(read);
             // ok its a binop, eat it
-            lexer.take_identifier();
+            println!("ate `{}`", lexer.take_identifier().render());
 
             lexer.eat_wsp();
             let mut rhs = Expr::parse_primary(lexer.clone(), state.clone())?;

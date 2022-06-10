@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::Lexer;
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, binary::BinaryExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr};
 
 pub mod number;
 pub mod ty;
@@ -13,6 +13,8 @@ pub mod block;
 pub mod proto;
 pub mod vardef;
 pub mod hints;
+pub mod cdef;
+pub mod string;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 
@@ -24,6 +26,8 @@ pub enum ExprVal<'a> {
     // Binary(BinaryExpr<'a>),
     Block(Block<'a>),
     VarDef(VarDef<'a>),
+    CDef(CDef<'a>),
+    String(StringExpr<'a>),
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +64,8 @@ impl<'a> Expr<'a> {
             '0'..='9' => NumberExpr::parse(lexer),
             'A'..='Z' | 'a'..='z' | '_' => VarDef::maybe_parse_raw(lexer.clone(), VariableExpr::parse(lexer, state.clone())?, state),
             '{' => Block::parse(lexer, state),
+            '#' => CDef::parse(lexer, state),
+            '\"' => StringExpr::parse(lexer, state),
             x => Err(ParseError::new(lexer, format!("Don't know how to parse '{}'", x)))
         }
     }
@@ -169,7 +175,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
 
     let t = match lexer.peek_char().render() {
         ";" => Ok(TlExpr::Func(hints, proto, body)),
-        x => return Err(ParseError::new(lexer, format!("Expected ;, found {}", x))),
+        x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
     };
     lexer.take_char();
     return t;

@@ -4,13 +4,16 @@ pub mod call;
 pub mod vardef;
 pub mod ty;
 pub mod proto;
+pub mod cdef;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 use inkwell::{values::{BasicValueEnum, PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, AnyTypeEnum, BasicType}};
 use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints}};
 
-use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type};
+use crate::asm::compile_asm;
+
+use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef};
 
 #[derive(Debug)]
 pub struct CompilationError<'a> {
@@ -31,13 +34,16 @@ pub struct CompilerInternal<'ctx> {
     pub global_variables: HashMap<&'ctx str, PointerValue<'ctx>>,
     pub global_basic_types: HashMap<&'ctx str, BasicTypeEnum<'ctx>>,
     pub global_any_types: HashMap<&'ctx str, AnyTypeEnum<'ctx>>,
+
+    pub global_fn_hints: HashMap<&'ctx str, Hints<'ctx>>,
 }
 
 impl<'ctx> CompilerInternal<'ctx> {
     pub fn new(context: &'ctx Context, filename: &'ctx str) -> Self {
         let mut global_basic_types = HashMap::new();
-        global_basic_types.insert("uchar", context.i8_type().as_basic_type_enum());
-        CompilerInternal { context, module: context.create_module(filename), global_variables: HashMap::new(), global_basic_types, global_any_types: HashMap::new() }
+        global_basic_types.insert("u8", context.i8_type().as_basic_type_enum());
+        global_basic_types.insert("u64", context.i64_type().as_basic_type_enum());
+        CompilerInternal { context, module: context.create_module(filename), global_variables: HashMap::new(), global_basic_types, global_any_types: HashMap::new(), global_fn_hints: HashMap::new() }
     }
 }
 
@@ -67,13 +73,16 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Result<O
         parser::syntax::ExprVal::Variable(var) => Ok(Some(compile_variable(var, compiler)?)),
         parser::syntax::ExprVal::Call(call) => compile_call(call, compiler),
         parser::syntax::ExprVal::Block(block) => {
-            // TODO: give syntax
-            for expr in block.exprs {
-                expr_codegen(expr, compiler.clone())?;
-            };
-            Ok(None)
+            // TODO: give syntax?
+            // for expr in block.exprs {
+            //     expr_codegen(expr, compiler.clone())?;
+            // };
+            // Ok(None)
+            expr_codegen(block.exprs[0].clone(), compiler)
         },
         parser::syntax::ExprVal::VarDef(def) => Ok(Some(compile_vardef(def, compiler)?.as_basic_value_enum())),
+        parser::syntax::ExprVal::CDef(cdef) => compile_cdef(cdef, compiler),
+        parser::syntax::ExprVal::String(_s) => todo!()
     }
 }
 
