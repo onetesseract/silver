@@ -8,7 +8,7 @@ pub mod cdef;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
-use inkwell::{values::{BasicValueEnum, PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, AnyTypeEnum, BasicType}};
+use inkwell::{values::{BasicValueEnum, PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, AnyTypeEnum, BasicType, BasicMetadataTypeEnum}};
 use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints}};
 
 use crate::asm::compile_asm;
@@ -36,6 +36,10 @@ pub struct CompilerInternal<'ctx> {
     pub global_any_types: HashMap<&'ctx str, AnyTypeEnum<'ctx>>,
 
     pub global_fn_hints: HashMap<&'ctx str, Hints<'ctx>>,
+
+    // BasicMetadataTypeEnum doesn't hash. Look at this mess. TODO: fix. Look at what you have made
+    // me do.
+    pub global_overloadables: HashMap<&'ctx str, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>)>>,
 }
 
 impl<'ctx> CompilerInternal<'ctx> {
@@ -43,7 +47,8 @@ impl<'ctx> CompilerInternal<'ctx> {
         let mut global_basic_types = HashMap::new();
         global_basic_types.insert("u8", context.i8_type().as_basic_type_enum());
         global_basic_types.insert("u64", context.i64_type().as_basic_type_enum());
-        CompilerInternal { context, module: context.create_module(filename), global_variables: HashMap::new(), global_basic_types, global_any_types: HashMap::new(), global_fn_hints: HashMap::new() }
+        global_basic_types.insert("f64", context.f64_type().as_basic_type_enum());
+        CompilerInternal { context, module: context.create_module(filename), global_variables: HashMap::new(), global_basic_types, global_any_types: HashMap::new(), global_fn_hints: HashMap::new(), global_overloadables: HashMap::new() }
     }
 }
 
@@ -87,10 +92,16 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Result<O
 }
 
 pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option<Hints>, compiler: CompilerInstance<'a>) -> Result<FunctionValue<'a>, CompilationError<'a>> {
-    let fn_ty = compile_proto(proto.clone(), compiler.clone())?;
+    let (fn_ty, args_ty) = compile_proto(proto.clone(), compiler.clone())?;
     let fn_val = compiler.compiler.read().unwrap().module.add_function(proto.name.render(), fn_ty, None);
 
-    compiler.compiler.write().unwrap().global_variables.insert(proto.name.render(), fn_val.as_global_value().as_pointer_value());
+    // compiler.compiler.write().unwrap().global_variables.insert(proto.name.render(), fn_val.as_global_value().as_pointer_value());
+    // compiler.compiler.write().unwrap().global_fn_types.insert(proto.name.render(), args_ty);
+    if compiler.compiler.read().unwrap().global_overloadables.contains_key(proto.name.render()) {
+        compiler.compiler.write().unwrap().global_overloadables.get_mut(proto.name.render()).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value()));
+    } else {
+        compiler.compiler.write().unwrap().global_overloadables.insert(proto.name.render(), vec![(args_ty, fn_val.as_global_value().as_pointer_value())]);
+    }
 
     let body = match body {
         Some(s) => s,

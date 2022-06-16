@@ -1,4 +1,15 @@
 #prec 50;
 (a u64) + (b u64) : u64 = #AS("int_add a b");
 
-main(argc u64, argv u64) : u64 = { 7 + 4 };
+#prec 50;
+(a f64) + (b f64) : f64 = #AS("float_add a b");
+
+#prec 75;
+(a u64) / (b u64) : u64 = #AS("int_div a b");
+
+#prec 75;
+(a f64) / (b f64) : f64 = #AS("float_div a b");
+
+(a f64)% : f64 = a / 100.0;
+
+main(argc u64, argv u64) : f64 = { 7.0% };

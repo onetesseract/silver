@@ -15,6 +15,7 @@ pub mod vardef;
 pub mod hints;
 pub mod cdef;
 pub mod string;
+pub mod template;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 

@@ -10,7 +10,18 @@
 // }
 
 pub mod BinaryExpr {
-    use crate::{lexer::Lexer, syntax::{ParserState, ParseResult, Expr, ExprVal, call::CallExpr, variable::VariableExpr}};
+    use crate::{lexer::{Lexer, LexString}, syntax::{ParserState, ParseResult, Expr, ExprVal, call::CallExpr, variable::VariableExpr}};
+
+    pub fn maybe_suffix_fn<'a>(lexer: Lexer<'a>, lhs: Expr<'a>, op: LexString<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
+        // println!("OP: {}, {:?}", op.render());
+        if state.data.read().unwrap().suffix_fns.contains(&op.render().to_string()) {
+            // it is a prefix fn
+            lexer.take_identifier(); // eat the op
+            Ok(Expr::new(ExprVal::Call(CallExpr { target: VariableExpr { name: op }, inputs: vec![lhs] })))
+        } else {
+            Ok(lhs)
+        }
+    }
 
     pub fn maybe_parse_raw<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Expr> {
         let lhs = Expr::parse_primary(lexer.clone(), state.clone())?;
@@ -24,11 +35,12 @@ pub mod BinaryExpr {
             // consume it, otherwise we are done.
             lexer.eat_wsp();
             let op = lexer.peek_identifier();
-            let read = state.data.read().unwrap();
+            let read = state.clone();
+            let read = read.data.read().unwrap();
             let parsed_prec = read.infix_fns.get(&op.render().to_string());
             let parsed_prec = match parsed_prec {
                 Some(s) => *s,
-                None => return Ok(lhs),
+                None => return maybe_suffix_fn(lexer, lhs, op, state),
             };
             if prec > parsed_prec || op.render() == "" {
                 return Ok(lhs);

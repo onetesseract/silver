@@ -26,12 +26,7 @@ impl<'ctx> Eq for LexString<'ctx> {
 
 impl<'ctx> LexString<'ctx> {
     pub fn render(&self) -> &'ctx str {
-        println!("{} {} - {}", self.start, self.end, self.lexer.data.read().unwrap().input
-            .split_at(self.start).1
-            .split_at(self.end - self.start).0
-);
         // i sorry
-        if self.start == 29 { panic!() }
         if self.start >= self.lexer.data.read().unwrap().input.len() {
             return ""
         } else {
@@ -66,7 +61,7 @@ pub fn match_identifier(c: char) -> bool {
     c.is_alphabetic() || c == '_'
 }
 pub fn match_spec_id(c: char) -> bool {
-    "+-><*/=".contains(c)
+    "+-><*/=%".contains(c)
 }
 
 #[derive(Debug, Clone)]

@@ -11,7 +11,7 @@ impl<'a> Block<'a> {
     pub fn parse_raw(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
         let c = lexer.take_char().render();
         if c != "{" {
-            return Err(ParseError::new(lexer, format!("Expected {{ to start block, found {}", c)));
+            return Err(ParseError::new(lexer, format!("Expected {{ to start block, found `{}`", c)));
         }
         lexer.eat_wsp();
         // let mut exprs: Vec<Expr> = vec![];
@@ -35,7 +35,7 @@ impl<'a> Block<'a> {
 
         let c = lexer.take_char().render();
         if c != "}" {
-            return Err(ParseError::new(lexer, format!("Expected {{ to start block, found {}", c)));
+            return Err(ParseError::new(lexer, format!("Expected }} to end block, found `{}`", c)));
         }        
 
         return Ok(Block { exprs: vec![expr] })
