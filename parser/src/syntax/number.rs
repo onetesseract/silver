@@ -16,10 +16,10 @@ impl<'a> NumberExpr<'a> {
     }
 }
 
-mod tests {
-    #[test]
-    fn numberparsertest() {
-        let l = crate::lexer::Lexer::new("9.6473");
-        println!("{:?}", crate::syntax::number::NumberExpr::parse(l));
-    }
-}
+// mod tests {
+//     #[test]
+//     fn numberparsertest() {
+//         let l = crate::lexer::Lexer::new("9.6473");
+//         println!("{:?}", crate::syntax::number::NumberExpr::parse(l));
+//     }
+// }

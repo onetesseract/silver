@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::Lexer;
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template};
 
 pub mod number;
 pub mod ty;
@@ -120,9 +120,11 @@ impl ParserState {
 }
 
 #[derive(Debug, Clone)]
-pub enum TlExpr<'a> {
-    Extern(Option<Hints<'a>>, FnProto<'a>),
-    Func(Option<Hints<'a>>, FnProto<'a>, Expr<'a>),
+pub struct TlExpr<'a> {
+    pub hints: Option<Hints<'a>>,
+    pub template: Option<Template<'a>>,
+    pub proto: FnProto<'a>,
+    pub body: Option<Expr<'a>>,
 }
 
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
@@ -134,6 +136,12 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     };
 
     lexer.eat_wsp();
+
+    let template = match lexer.peek_char().render() {
+        "<" => Some(Template::parse(lexer.clone(), state.clone())?),
+        _ => None,
+    };
+
     let proto = FnProto::parse(lexer.clone(), state.clone())?;
     let s = state.clone();
     let mut write = s.data.write().unwrap();
@@ -165,7 +173,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     drop(write);
     lexer.eat_wsp();
     match lexer.peek_char().render() {
-        ";" => {lexer.take_char(); return Ok(TlExpr::Extern(hints, proto))},
+        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, proto, body: None })},
         "=" => (),
         x => return Err(ParseError::new(lexer, format!("Expected = or ;, found `{}`", x))),
     }
@@ -175,18 +183,18 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     lexer.eat_wsp();
 
     let t = match lexer.peek_char().render() {
-        ";" => Ok(TlExpr::Func(hints, proto, body)),
+        ";" => Ok(TlExpr { hints, template, proto, body: Some(body) /* that I used to know */ }),
         x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
     };
     lexer.take_char();
     return t;
 
 }
-
-mod tests {
-    #[test]
-    fn parsing_prim() {
-        let l = crate::lexer::Lexer::new("f(x int) : int = 2 * x;");
-        println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
-    }
-}
+//
+// mod tests {
+//     #[test]
+//     fn parsing_prim() {
+//         let l = crate::lexer::Lexer::new("f(x int) : int = 2 * x;");
+//         println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
+//     }
+// }

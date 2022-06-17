@@ -109,12 +109,12 @@ impl<'a> FnProto<'a> {
         return Ok(FnProto { class: if is_upon {FnType::Upon} else {FnType::Infix}, return_ty: Self::parse_possible_rettype(lexer, state)?, name: fn_name, args });
     }
 }
-
-mod tests {
-    #[test]
-    fn proto_test() {
-        let l = crate::lexer::Lexer::new("(x int) f : int");
-        let s = crate::syntax::ParserState::new();
-        println!("proto - {:#?}", crate::syntax::proto::FnProto::parse(l, s));
-    }
-}
+//
+// mod tests {
+//     #[test]
+//     fn proto_test() {
+//         let l = crate::lexer::Lexer::new("(x int) f : int");
+//         let s = crate::syntax::ParserState::new();
+//         println!("proto - {:#?}", crate::syntax::proto::FnProto::parse(l, s));
+//     }
+// }
