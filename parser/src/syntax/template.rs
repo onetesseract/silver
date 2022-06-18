@@ -6,12 +6,12 @@ use super::{proto::FnProto, ty::Ty, ParserState, ParseResult, ParseError};
 #[derive(Debug, Clone)]
 pub struct Template<'ctx> {
     // proto: FnProto<'ctx>,
-    params: Vec<TypeParam<'ctx>>,
+    pub params: Vec<TypeParam<'ctx>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TypeParam<'ctx> {
-    name: Ty<'ctx>,
+    pub name: Ty<'ctx>,
     limits: Vec<FnProto<'ctx>>,
 }
 

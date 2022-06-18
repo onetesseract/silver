@@ -12,4 +12,9 @@
 
 (a f64)% : f64 = a / 100.0;
 
-main(argc u64, argv u64) : f64 = { 7.0% };
+something(a u64) : u64 = 7;
+something(a f64) : u64 = 6;
+
+<T> templatable(a T) : u64 = something(a);
+
+main(argc u64, argv u64) : u64 = templatable<f64>(2.3);

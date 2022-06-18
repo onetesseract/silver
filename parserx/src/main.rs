@@ -19,7 +19,10 @@ fn main() {
 
     let context = Context::create();
 
-    let compiler = CompilerInternal::new(&context, args[1].as_str());
+    let module = context.create_module(args[1].as_str());
+    {
+
+    let compiler = CompilerInternal::new(&context, Arc::new(module));
     let compiler = Arc::new(RwLock::new(compiler));
     // println!("{} {}", file, lexer.is_eof());
     while !lexer.is_eof() {
@@ -32,4 +35,6 @@ fn main() {
 
     compiler.read().unwrap().module.print_to_file(args[1].clone() + ".out.ll").unwrap();
     compiler.read().unwrap().module.print_to_stderr();
+    }
+
 }

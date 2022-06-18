@@ -58,12 +58,35 @@ entry_block:
   ret double %"/_call"
 }
 
-define double @main(i64 %0, i64 %1) {
+define i64 @something(i64 %0) {
+entry_block:
+  %a = alloca i64, align 8
+  store i64 %0, i64* %a, align 4
+  ret i64 7
+}
+
+define i64 @something.3(double %0) {
+entry_block:
+  %a = alloca double, align 8
+  store double %0, double* %a, align 8
+  ret i64 6
+}
+
+define i64 @main(i64 %0, i64 %1) {
 entry_block:
   %argv = alloca i64, align 8
   %argc = alloca i64, align 8
   store i64 %0, i64* %argc, align 4
   store i64 %1, i64* %argv, align 4
-  %"%_call" = call double @"%"(double 7.000000e+00)
-  ret double %"%_call"
+  %templatable_call = call i64 @templatable(double 2.300000e+00)
+  ret i64 %templatable_call
+}
+
+define i64 @templatable(double %0) {
+entry_block:
+  %a = alloca double, align 8
+  store double %0, double* %a, align 8
+  %a_variable_load = load double, double* %a, align 8
+  %something_call = call i64 @something.3(double %a_variable_load)
+  ret i64 %something_call
 }

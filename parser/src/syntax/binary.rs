@@ -17,7 +17,7 @@ pub mod BinaryExpr {
         if state.data.read().unwrap().suffix_fns.contains(&op.render().to_string()) {
             // it is a prefix fn
             lexer.take_identifier(); // eat the op
-            Ok(Expr::new(ExprVal::Call(CallExpr { target: VariableExpr { name: op }, inputs: vec![lhs] })))
+            Ok(Expr::new(ExprVal::Call(CallExpr { target: VariableExpr { name: op }, inputs: vec![lhs], types: None})))
         } else {
             Ok(lhs)
         }
@@ -61,7 +61,7 @@ pub mod BinaryExpr {
             if parsed_prec < peek_prec {
                 rhs = parse_binop_rhs(lexer.clone(), rhs, prec + 1, state.clone())?;
             }
-            lhs = Expr::new(ExprVal::Call(CallExpr { target: VariableExpr { name: op }, inputs: vec![lhs, rhs] }));
+            lhs = Expr::new(ExprVal::Call(CallExpr { target: VariableExpr { name: op }, inputs: vec![lhs, rhs], types: None}));
         }
     }
 }

@@ -6,7 +6,10 @@ use super::{CompilerInstance, CompilationError};
 pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Result<BasicTypeEnum<'a>, CompilationError<'a>> {
     match compiler.compiler.read().unwrap().global_basic_types.get(ty.ty.render()) {
         Some(s) => Ok(*s),
-        None => Err(CompilationError::new(format!("Unable to find type {}", ty.ty.render()), ty.ty))
+        None => match compiler.local_basic_types.get(ty.ty.render()) {
+            Some(s) => Ok(*s),
+            None => Err(CompilationError::new(format!("Unable to find type {}", ty.ty.render()), ty.ty)),
+        }
     }
 }
 
