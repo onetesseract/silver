@@ -7,9 +7,13 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 #### Todo List:
 - [ ] Structs
 - [ ] Struct access syntax (`x.y` with `y` a variable)
+- [ ] Typedefs
+- [ ] Pointers and referencing/dereferencing
 - [ ] Struct function access syntax
 - [ ] If statements
 - [ ] Loops!
-  - [ ] While Loops
+  - [ ] While loops
 - [ ] Return statements
 - [ ] Semicolons
+- [ ] Comments
+- [ ] Including other files
