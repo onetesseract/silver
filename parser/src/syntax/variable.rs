@@ -1,6 +1,6 @@
 use crate::lexer::{LexString, Lexer};
 
-use super::{Expr, ExprVal, ParseResult, call::CallExpr, ParserState};
+use super::{Expr, ExprVal, ParseResult, call::CallExpr, ParserState, keywords::{KEYWORDS, parse_keywords}};
 
 #[derive(Debug, Clone)]
 pub struct VariableExpr<'a> {
@@ -13,6 +13,11 @@ impl<'a> VariableExpr<'a> {
     }
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Expr> {
         let v = Self::parse_raw(lexer.clone());
+        
+        if KEYWORDS.contains(&v.name.render()) {
+            return parse_keywords(lexer, state, v.name);
+        }
+
         lexer.eat_wsp();
         if lexer.peek_char().render() == "(" || lexer.peek_char().render() == "<" {
             Ok(Expr::new(ExprVal::Call(CallExpr::parse_raw(lexer, v, state)?)))

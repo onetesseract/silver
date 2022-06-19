@@ -6,13 +6,16 @@ pub mod ty;
 pub mod proto;
 pub mod cdef;
 pub mod template;
+pub mod while_loop;
+pub mod boolean;
+pub mod if_expr;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 use inkwell::{values::{BasicValueEnum, PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, AnyTypeEnum, BasicType, BasicMetadataTypeEnum}};
 use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints}};
 
-use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef};
+use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if};
 
 #[derive(Debug)]
 pub struct CompilationError<'a> {
@@ -51,6 +54,7 @@ impl<'ctx> CompilerInternal<'ctx> {
         global_basic_types.insert("u8", context.i8_type().as_basic_type_enum());
         global_basic_types.insert("u64", context.i64_type().as_basic_type_enum());
         global_basic_types.insert("f64", context.f64_type().as_basic_type_enum());
+        global_basic_types.insert("bool", context.custom_width_int_type(1).as_basic_type_enum());
         CompilerInternal { context, module, global_variables: HashMap::new(), global_basic_types, global_any_types: HashMap::new(), global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new() }
     }
 }
@@ -88,7 +92,10 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Result<O
         },
         parser::syntax::ExprVal::VarDef(def) => Ok(Some(compile_vardef(def, compiler)?.as_basic_value_enum())),
         parser::syntax::ExprVal::CDef(cdef) => compile_cdef(cdef, compiler),
-        parser::syntax::ExprVal::String(_s) => todo!()
+        parser::syntax::ExprVal::String(_s) => todo!(),
+        parser::syntax::ExprVal::Boolean(b) => Ok(Some(compile_boolean(b, compiler)?)),
+        parser::syntax::ExprVal::WhileLoop(while_expr) => { compile_while_loop(while_expr, compiler)?; Ok(None) },
+        parser::syntax::ExprVal::IfExpr(if_expr) => compile_if(if_expr, compiler),
     }
 }
 

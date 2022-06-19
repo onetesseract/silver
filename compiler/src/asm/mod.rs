@@ -25,6 +25,8 @@ pub fn compile_asm<'a>(compiler: CompilerInstance<'a>, asm: String, error_at: Le
         "float_add" => Some(compiler.builder.build_float_add(variables[0].into_float_value(), variables[1].into_float_value(), "asm_float_add").as_basic_value_enum()),
         "int_div" => Some(compiler.builder.build_int_signed_div(variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_div").as_basic_value_enum()),
         "float_div" => Some(compiler.builder.build_float_div(variables[0].into_float_value(), variables[1].into_float_value(), "asm_float_div").as_basic_value_enum()),
+        "int_cmp_eq" => Some(compiler.builder.build_int_compare(inkwell::IntPredicate::EQ, variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_cmp_eq").as_basic_value_enum()),
+        "int_cmp_neq" => Some(compiler.builder.build_int_compare(inkwell::IntPredicate::NE, variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_cmp_eq").as_basic_value_enum()),
         unknown => return Err(CompilationError::new(format!("Unknown opcode {}", unknown), error_at)),
     };
     Ok(r)

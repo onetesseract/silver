@@ -1,7 +1,7 @@
 ; ModuleID = './test.silver'
 source_filename = "./test.silver"
 
-define i64 @"+"(i64 %0, i64 %1) {
+define i1 @"=="(i64 %0, i64 %1) {
 entry_block:
   %b = alloca i64, align 8
   %a = alloca i64, align 8
@@ -9,67 +9,8 @@ entry_block:
   store i64 %1, i64* %b, align 4
   %a_variable_load = load i64, i64* %a, align 4
   %b_variable_load = load i64, i64* %b, align 4
-  %asm_int_add = add i64 %a_variable_load, %b_variable_load
-  ret i64 %asm_int_add
-}
-
-define double @"+.1"(double %0, double %1) {
-entry_block:
-  %b = alloca double, align 8
-  %a = alloca double, align 8
-  store double %0, double* %a, align 8
-  store double %1, double* %b, align 8
-  %a_variable_load = load double, double* %a, align 8
-  %b_variable_load = load double, double* %b, align 8
-  %asm_float_add = fadd double %a_variable_load, %b_variable_load
-  ret double %asm_float_add
-}
-
-define i64 @"/"(i64 %0, i64 %1) {
-entry_block:
-  %b = alloca i64, align 8
-  %a = alloca i64, align 8
-  store i64 %0, i64* %a, align 4
-  store i64 %1, i64* %b, align 4
-  %a_variable_load = load i64, i64* %a, align 4
-  %b_variable_load = load i64, i64* %b, align 4
-  %asm_int_div = sdiv i64 %a_variable_load, %b_variable_load
-  ret i64 %asm_int_div
-}
-
-define double @"/.2"(double %0, double %1) {
-entry_block:
-  %b = alloca double, align 8
-  %a = alloca double, align 8
-  store double %0, double* %a, align 8
-  store double %1, double* %b, align 8
-  %a_variable_load = load double, double* %a, align 8
-  %b_variable_load = load double, double* %b, align 8
-  %asm_float_div = fdiv double %a_variable_load, %b_variable_load
-  ret double %asm_float_div
-}
-
-define double @"%"(double %0) {
-entry_block:
-  %a = alloca double, align 8
-  store double %0, double* %a, align 8
-  %a_variable_load = load double, double* %a, align 8
-  %"/_call" = call double @"/.2"(double %a_variable_load, double 1.000000e+02)
-  ret double %"/_call"
-}
-
-define i64 @something(i64 %0) {
-entry_block:
-  %a = alloca i64, align 8
-  store i64 %0, i64* %a, align 4
-  ret i64 7
-}
-
-define i64 @something.3(double %0) {
-entry_block:
-  %a = alloca double, align 8
-  store double %0, double* %a, align 8
-  ret i64 6
+  %asm_int_cmp_eq = icmp eq i64 %a_variable_load, %b_variable_load
+  ret i1 %asm_int_cmp_eq
 }
 
 define i64 @main(i64 %0, i64 %1) {
@@ -78,15 +19,17 @@ entry_block:
   %argc = alloca i64, align 8
   store i64 %0, i64* %argc, align 4
   store i64 %1, i64* %argv, align 4
-  %templatable_call = call i64 @templatable(double 2.300000e+00)
-  ret i64 %templatable_call
-}
+  %argc_variable_load = load i64, i64* %argc, align 4
+  %"==_call" = call i1 @"=="(i64 %argc_variable_load, i64 3)
+  br i1 %"==_call", label %if_then_block, label %if_else_block
 
-define i64 @templatable(double %0) {
-entry_block:
-  %a = alloca double, align 8
-  store double %0, double* %a, align 8
-  %a_variable_load = load double, double* %a, align 8
-  %something_call = call i64 @something.3(double %a_variable_load)
-  ret i64 %something_call
+if_then_block:                                    ; preds = %entry_block
+  br label %if_cont_block
+
+if_else_block:                                    ; preds = %entry_block
+  br label %if_cont_block
+
+if_cont_block:                                    ; preds = %if_else_block, %if_then_block
+  %if_phi = phi i64 [ 0, %if_then_block ], [ 1, %if_else_block ]
+  ret i64 %if_phi
 }

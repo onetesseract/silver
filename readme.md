@@ -9,10 +9,11 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] Struct access syntax (`x.y` with `y` a variable)
 - [ ] Typedefs
 - [ ] Pointers and referencing/dereferencing
+- [ ] Bitcasting
 - [ ] Struct function access syntax
-- [ ] If statements
+- [X] If statements
 - [ ] Loops!
-  - [ ] While loops
+  - [ ] While loops - Done but untested
 - [ ] Return statements
 - [ ] Semicolons
 - [ ] Comments
