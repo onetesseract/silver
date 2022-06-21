@@ -13,8 +13,8 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] Struct function access syntax
 - [X] If statements
 - [ ] Loops!
-  - [ ] While loops - Done but untested
-- [ ] Return statements
-- [ ] Semicolons
+  - [X] While loops - Done but untested - ~~update: they break everything~~ no it was me
+- [ ] Return statements - done, untested
+- [X] Semicolons - done, ~~untested~~
 - [ ] Comments
 - [ ] Including other files

@@ -9,13 +9,18 @@ pub mod template;
 pub mod while_loop;
 pub mod boolean;
 pub mod if_expr;
+pub mod ret;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
-use inkwell::{values::{BasicValueEnum, PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, AnyTypeEnum, BasicType, BasicMetadataTypeEnum}};
+use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}};
 use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints}};
 
-use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if};
+use crate::value::{Value, CompilerType, TypeEnum};
+
+use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if, ret::compile_return};
+
+pub type CompilationResult<'a> = Result<Value<'a>, CompilationError<'a>>;
 
 #[derive(Debug)]
 pub struct CompilationError<'a> {
@@ -33,16 +38,16 @@ impl<'a> CompilationError<'a> {
 pub struct CompilerInternal<'ctx> {
     pub context: &'ctx Context, // TODO: async compilation
     pub module: Arc<Module<'ctx>>,
-    
-    pub global_variables: HashMap<&'ctx str, PointerValue<'ctx>>,
-    pub global_basic_types: HashMap<&'ctx str, BasicTypeEnum<'ctx>>,
-    pub global_any_types: HashMap<&'ctx str, AnyTypeEnum<'ctx>>,
+
+        
+    pub global_variables: HashMap<&'ctx str, Value<'ctx>>,
+    pub global_types: HashMap<&'ctx str, CompilerType<'ctx>>,
 
     pub global_fn_hints: HashMap<&'ctx str, Hints<'ctx>>,
 
     // BasicMetadataTypeEnum doesn't hash. Look at this mess. TODO: fix. Look at what you have made
-    // me do.
-    pub global_overloadables: HashMap<&'ctx str, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>)>>,
+    // me do. TODO: switch to Values for functions
+    pub global_overloadables: HashMap<&'ctx str, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>, CompilerType<'ctx>)>>,
 
     pub global_fn_templates: HashMap<&'ctx str, TlExpr<'ctx>>,
     pub global_cached_fn_templates: HashMap<&'ctx str, Vec<(Vec<BasicTypeEnum<'ctx>>, FunctionValue<'ctx>)>>,
@@ -50,20 +55,20 @@ pub struct CompilerInternal<'ctx> {
 
 impl<'ctx> CompilerInternal<'ctx> {
     pub fn new(context: &'ctx Context, module: Arc<Module<'ctx>>) -> Self {
-        let mut global_basic_types = HashMap::new();
-        global_basic_types.insert("u8", context.i8_type().as_basic_type_enum());
-        global_basic_types.insert("u64", context.i64_type().as_basic_type_enum());
-        global_basic_types.insert("f64", context.f64_type().as_basic_type_enum());
-        global_basic_types.insert("bool", context.custom_width_int_type(1).as_basic_type_enum());
-        CompilerInternal { context, module, global_variables: HashMap::new(), global_basic_types, global_any_types: HashMap::new(), global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new() }
+        let mut global_types = HashMap::new();
+        global_types.insert("u8", CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert("u64", CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert("f64", CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
+        global_types.insert("bool", CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
+        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new() }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct CompilerInstance<'ctx> {
     pub compiler: Arc<RwLock<CompilerInternal<'ctx>>>,
-    pub local_variables: Arc<RwLock<HashMap<&'ctx str, PointerValue<'ctx>>>>,
-    pub local_basic_types: HashMap<&'ctx str, BasicTypeEnum<'ctx>>,
+    pub local_variables: Arc<RwLock<HashMap<&'ctx str, Value<'ctx>>>>,
+    pub local_types: HashMap<&'ctx str, CompilerType<'ctx>>,
 
     pub do_var_as_ptr: bool,
 
@@ -73,61 +78,59 @@ pub struct CompilerInstance<'ctx> {
 
 impl<'ctx> CompilerInstance<'ctx> {
     pub fn new(compiler: Arc<RwLock<CompilerInternal<'ctx>>>) -> Self {
-        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_basic_types: HashMap::new() }
+        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new() }
     }
 }
 
-pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Result<Option<BasicValueEnum<'a>>, CompilationError<'a>> {
+pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     match *e.val {
-        parser::syntax::ExprVal::Number(num) => Ok(Some(compile_number(num, compiler)?)),
-        parser::syntax::ExprVal::Variable(var) => Ok(Some(compile_variable(var, compiler)?)),
+        parser::syntax::ExprVal::Number(num) => compile_number(num, compiler),
+        parser::syntax::ExprVal::Variable(var) => compile_variable(var, compiler),
         parser::syntax::ExprVal::Call(call) => compile_call(call, compiler),
         parser::syntax::ExprVal::Block(block) => {
-            // TODO: give syntax?
-            // for expr in block.exprs {
-            //     expr_codegen(expr, compiler.clone())?;
-            // };
-            // Ok(None)
-            expr_codegen(block.exprs[0].clone(), compiler)
+            let mut last = Value::void_value(compiler.compiler.read().unwrap().context);
+            for expr in block.exprs {
+                last = expr_codegen(expr, compiler.clone())?;
+            };
+            Ok(last)
         },
-        parser::syntax::ExprVal::VarDef(def) => Ok(Some(compile_vardef(def, compiler)?.as_basic_value_enum())),
+        parser::syntax::ExprVal::VarDef(def) => compile_vardef(def, compiler),
         parser::syntax::ExprVal::CDef(cdef) => compile_cdef(cdef, compiler),
         parser::syntax::ExprVal::String(_s) => todo!(),
-        parser::syntax::ExprVal::Boolean(b) => Ok(Some(compile_boolean(b, compiler)?)),
-        parser::syntax::ExprVal::WhileLoop(while_expr) => { compile_while_loop(while_expr, compiler)?; Ok(None) },
+        parser::syntax::ExprVal::Boolean(b) => compile_boolean(b, compiler),
+        parser::syntax::ExprVal::WhileLoop(while_expr) => compile_while_loop(while_expr, compiler),
         parser::syntax::ExprVal::IfExpr(if_expr) => compile_if(if_expr, compiler),
+        parser::syntax::ExprVal::ReturnExpr(r) => compile_return(r, compiler),
     }
 }
 
-pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option<Hints>, compiler: CompilerInstance<'a>, named: bool) -> Result<FunctionValue<'a>, CompilationError<'a>> {
+pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option<Hints>, compiler: CompilerInstance<'a>, _named: bool) -> Result<FunctionValue<'a>, CompilationError<'a>> {
     let (fn_ty, args_ty) = compile_proto(proto.clone(), compiler.clone())?;
     let fn_val = compiler.compiler.read().unwrap().module.add_function(proto.name.render(), fn_ty, None);
 
-    println!("got read!");
 
     // compiler.compiler.write().unwrap().global_variables.insert(proto.name.render(), fn_val.as_global_value().as_pointer_value());
     // compiler.compiler.write().unwrap().global_fn_types.insert(proto.name.render(), args_ty);
     // if named {
-        println!("here");
-        if compiler.compiler.read().unwrap().global_overloadables.contains_key(proto.name.render()) {
-            println!("here2");
-         compiler.compiler.write().unwrap().global_overloadables.get_mut(proto.name.render()).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value()));
-        } else {
-            println!("here");
-            // panic!();
-            compiler.compiler.write().unwrap().global_overloadables.insert(proto.name.render(), vec![(args_ty, fn_val.as_global_value().as_pointer_value())]);
-        }
-    // }
+    
+    let ret_ty = match proto.return_ty.clone() {
+        Some(s) => compile_basic_type(s, compiler.clone())?,
+        None => CompilerType::new(compiler.compiler.read().unwrap().context.void_type().as_any_type_enum(), TypeEnum::VoidType),
+    };
 
-    println!("wrote");
+    if compiler.compiler.read().unwrap().global_overloadables.contains_key(proto.name.render()) {
+        compiler.compiler.write().unwrap().global_overloadables.get_mut(proto.name.render()).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty));
+    } else {
+        compiler.clone().compiler.write().unwrap().global_overloadables.insert(proto.name.render(), vec![(args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty)]);
+    }
 
     let body = match body {
         Some(s) => s,
         None => return Ok(fn_val),
     };
 
-    let entry_block = compiler.compiler.read().unwrap().context.append_basic_block(fn_val, "entry_block");
-    compiler.builder.position_at_end(entry_block);
+    let entry_block = compiler.clone().compiler.read().unwrap().context.append_basic_block(fn_val, "entry_block");
+    compiler.clone().builder.position_at_end(entry_block);
 
     let mut compiler = compiler;
     compiler.function = Some(fn_val);
@@ -137,24 +140,21 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
         let varspace = entry_block_alloca(arg.get_type(), compiler.clone(), arg_name);
 
         compiler.builder.build_store(varspace, arg);
-        compiler.local_variables.write().unwrap().insert(arg_name, varspace);
+        compiler.clone().local_variables.write().unwrap().insert(arg_name, Value::from(varspace.as_basic_value_enum(), CompilerType::new_ptr_to(compile_basic_type(proto.args[i].ty.clone(), compiler.clone())?, varspace.get_type().as_any_type_enum())));
     }
-
-    println!("starting codegen");
 
     let body = expr_codegen(body, compiler.clone())?;
 
-    println!("done codegenning");
-
     if proto.return_ty.is_some() {
-        let body = match body {
-            Some(body) => body,
-            None => return Err(CompilationError::new(format!("Trying to return void from a fn decl that wants {:?}", proto.return_ty.unwrap()), proto.name)),
+        let body = if body.is_void() {
+            return Err(CompilationError::new(format!("Trying to return void from a fn decl that wants {:?}", proto.return_ty.unwrap()), proto.name));
+        } else {
+            body
         };
-        if body.get_type() != compile_basic_type(proto.return_ty.clone().unwrap(), compiler.clone())? {
-            return Err(CompilationError::new(format!("Type mismatch: trying to return {:?} from a fn decl that wants {:?}", body.get_type(), proto.return_ty.unwrap()), proto.name));
+        if body.ty != compile_basic_type(proto.return_ty.clone().unwrap(), compiler.clone())? {
+            return Err(CompilationError::new(format!("Type mismatch: trying to return {:?} from a fn decl that wants {:?}", body.ty, proto.return_ty.unwrap()), proto.name));
         }
-        compiler.builder.build_return(Some(&body));
+        compiler.builder.build_return(Some(&body.get_basic_value()));
     } else {
         compiler.builder.build_return(None);
     }

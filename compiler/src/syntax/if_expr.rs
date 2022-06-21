@@ -1,16 +1,18 @@
-use inkwell::values::BasicValueEnum;
+use inkwell::types::AnyType;
 use parser::syntax::if_expr::IfExpr;
 
-use super::{CompilerInstance, CompilationError, expr_codegen};
+use crate::value::{TypeEnum, Value, CompilerType};
 
-pub fn compile_if<'a>(expr: IfExpr<'a>, compiler: CompilerInstance<'a>) -> Result<Option<BasicValueEnum<'a>>, CompilationError<'a>> {
+use super::{CompilerInstance, CompilationError, expr_codegen, CompilationResult};
+
+pub fn compile_if<'a>(expr: IfExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     // first we compile the condition
     let cond = expr_codegen(expr.condition.clone(), compiler.clone())?;
 
-    let cond = match cond {
-        Some(inkwell::values::BasicValueEnum::IntValue(iv)) => iv,
+    let cond = match cond.ty.ty {
+        TypeEnum::BoolType => cond.into_int_value(),
         _ => return Err(CompilationError::new(format!("Cannot use {:?} as a true/false condition", expr.condition), expr.raw)),
-    };
+    }; 
 
     
 
@@ -46,26 +48,26 @@ pub fn compile_if<'a>(expr: IfExpr<'a>, compiler: CompilerInstance<'a>) -> Resul
         compiler.builder.build_unconditional_branch(cont_block);
         else_val
     } else {
-        None
+        Value::void_value(compiler.compiler.read().unwrap().context)
     };
 
     compiler.builder.position_at_end(cont_block);
 
     // time for phi!
-    if let Some(else_val) = else_val {
-        if let Some(then_val) = then_val {
-            if else_val.get_type() == then_val.get_type() {
-                let phi = compiler.builder.build_phi(then_val.get_type(), "if_phi");
+    if let Some(_) = else_val.value {
+        if let Some(ref tv) = then_val.value {
+            if else_val.ty == then_val.ty {
+                let phi = compiler.builder.build_phi(tv.value.get_type(), "if_phi");
                 phi.add_incoming(&[
-                    (&then_val, then_block),
-                    (&else_val, else_block.unwrap())
+                    (&then_val.get_basic_value(), then_block),
+                    (&else_val.clone().get_basic_value(), else_block.unwrap())
                 ]);
-                return Ok(Some(phi.as_basic_value()))
+                return Ok(Value::from(phi.as_basic_value(), CompilerType::new(phi.as_basic_value().get_type().as_any_type_enum(), then_val.ty.ty)))
             } else {
-                return Err(CompilationError::new(format!("Mismatched types, expected {:?} twice but second is {:?}", then_val.get_type(), else_val.get_type()), expr.raw));
+                return Err(CompilationError::new(format!("Mismatched types, expected {:?} twice but second is {:?}", then_val.ty, else_val.ty), expr.raw));
             }
         }
     }
 
-    return Ok(None);
+    return Ok(Value::void_value(compiler.compiler.read().unwrap().context));
 }

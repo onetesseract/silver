@@ -1,5 +1,6 @@
 pub mod syntax;
 pub mod asm;
+pub mod value;
 
 #[cfg(test)]
 mod tests {

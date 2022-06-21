@@ -1,8 +1,10 @@
 use parser::syntax::while_loop::WhileLoop;
 
-use super::{CompilerInstance, CompilationError, expr_codegen};
+use crate::value::{Value, TypeEnum};
 
-pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a>) -> Result<(), CompilationError<'a>> {
+use super::{CompilerInstance, CompilationError, expr_codegen, CompilationResult};
+
+pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     // we make a block
     let cond_check_block = compiler.compiler.read().unwrap().context.append_basic_block(compiler.function.unwrap(), "while_loop_cond_check_basic_block");
     // we enter the block
@@ -18,15 +20,15 @@ pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a
     // ok now evaulate the condition
     let cond = expr_codegen(expr.condition.clone(), compiler.clone())?;
 
-    let cond = match cond {
-        Some(inkwell::values::BasicValueEnum::IntValue(iv)) => iv,
-        _ => return Err(CompilationError::new(format!("Cannot use {:?} as a true/false condition", expr.condition), expr.raw)),
+    let cond = match cond.ty.ty {
+        TypeEnum::BoolType => cond.into_int_value(),
+        _ => return Err(CompilationError::new(format!("Cannot use {:?} as a true/false condition, it has type {:?}", expr.condition, cond.ty.ty), expr.raw)),
     };
 
     compiler.builder.build_conditional_branch(cond, body_block, cont_block);
 
     // we done with checking condition, now compile the body
-    compiler.builder.position_at_end(cont_block);
+    compiler.builder.position_at_end(body_block);
     expr_codegen(expr.body, compiler.clone())?;
 
     // back to the top
@@ -35,5 +37,5 @@ pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a
     // now lets put the builder where it should be
     compiler.builder.position_at_end(cont_block);
 
-    Ok(())
+    Ok(Value::void_value(compiler.compiler.read().unwrap().context))
 }

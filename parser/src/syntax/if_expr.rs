@@ -12,7 +12,6 @@ pub struct IfExpr<'a> {
 
 impl<'a> IfExpr<'a> {
     pub fn parse(lexer: Lexer<'a>, state: ParserState, kwd: LexString<'a>) -> ParseResult<'a, Expr<'a>> {
-        println!("parsing if here");
         if kwd.render() != "if" {
             return Err(ParseError::new(lexer, format!("Expected `if`, got `{}`", kwd.render())));
         }

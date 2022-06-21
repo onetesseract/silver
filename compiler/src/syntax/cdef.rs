@@ -1,11 +1,10 @@
-use inkwell::values::BasicValueEnum;
 use parser::syntax::{cdef::CDef, ExprVal};
 
 use crate::asm::compile_asm;
 
-use super::{CompilerInstance, CompilationError};
+use super::{CompilerInstance, CompilationError, CompilationResult};
 
-pub fn compile_cdef<'a>(cdef: CDef<'a>, compiler: CompilerInstance<'a>) -> Result<Option<BasicValueEnum<'a>>, CompilationError<'a>> {
+pub fn compile_cdef<'a>(cdef: CDef<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     match cdef.name.render() {
         "AS" => {
             match &*cdef.inputs[0].val {

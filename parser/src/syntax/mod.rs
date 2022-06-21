@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::Lexer;
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr};
 
 pub mod number;
 pub mod ty;
@@ -19,6 +19,7 @@ pub mod template;
 pub mod keywords;
 pub mod while_loop;
 pub mod if_expr;
+pub mod ret;
 
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
@@ -36,6 +37,7 @@ pub enum ExprVal<'a> {
     Boolean(Boolean<'a>),
     WhileLoop(WhileLoop<'a>),
     IfExpr(IfExpr<'a>),
+    ReturnExpr(ReturnExpr<'a>),
 }
 
 #[derive(Debug, Clone)]
