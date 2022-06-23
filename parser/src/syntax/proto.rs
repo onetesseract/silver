@@ -2,7 +2,7 @@ use crate::lexer::{LexString, Lexer};
 
 use super::{ty::Ty, vardef::VarDef, ParserState, ParseResult, ParseError};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FnType {
     Infix,
     Suffix,
@@ -10,7 +10,7 @@ pub enum FnType {
     Upon,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct FnProto<'a> {
     pub class: FnType,
     pub return_ty: Option<Ty<'a>>,
@@ -19,7 +19,7 @@ pub struct FnProto<'a> {
 }
 
 impl<'a> FnProto<'a> {
-    fn parse_brackets_argslist(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Vec<VarDef<'a>>> {
+    pub fn parse_brackets_argslist(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Vec<VarDef<'a>>> {
         let c = lexer.take_char().render();
         if c != "(" {
             return Err(ParseError::new(lexer, format!("Expected ( in fndef, found {}", c)));
@@ -46,7 +46,7 @@ impl<'a> FnProto<'a> {
         return Ok(args);
     }
 
-    fn parse_possible_rettype(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Option<Ty>> {
+    pub fn parse_possible_rettype(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Option<Ty>> {
         lexer.eat_wsp();
         if lexer.peek_char().render() != ":" {
             return Ok(None)
@@ -54,26 +54,30 @@ impl<'a> FnProto<'a> {
         lexer.take_char();
         lexer.eat_wsp();
         
-        let ty = lexer.take_identifier();
-        if ty.render() == "" {
-            return Err(ParseError::new(lexer, "Expected valid type".to_string()));
-        }
-        return Ok(Some(Ty { ty }))
+        let ty = Ty::parse(lexer, state)?;
+        return Ok(Some(ty))
     }
+
+    pub fn parse_normal_named(lexer: Lexer<'a>, state: ParserState, name: LexString<'a>) -> ParseResult<'a, Self> {
+        if name.render() == "" {
+            return Err(ParseError::new(lexer, format!("Expected a valid function name")));
+        }
+        lexer.eat_wsp();
+
+        let args = Self::parse_brackets_argslist(lexer.clone(), state.clone())?;
+        let return_ty = Self::parse_possible_rettype(lexer, state)?;
+
+        return Ok(FnProto {class: FnType::Prefix, return_ty, name, args})
+    }
+
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
         lexer.eat_wsp();
         if lexer.peek_char().render() != "(" {
             // it's going to be a normal fn yay
+        
             let name = lexer.take_identifier();
-            if name.render() == "" {
-                return Err(ParseError::new(lexer, format!("Expected a valid function name")));
-            }
-            lexer.eat_wsp();
 
-            let args = Self::parse_brackets_argslist(lexer.clone(), state.clone())?;
-            let return_ty = Self::parse_possible_rettype(lexer, state)?;
-
-            return Ok(FnProto {class: FnType::Prefix, return_ty, name, args})
+            return Self::parse_normal_named(lexer, state, name);
         }
         // ight so its not a prefix, sadge
         lexer.take_char(); // eat (

@@ -14,7 +14,7 @@ pub mod ret;
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}};
-use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints}};
+use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints, ty::{Ty, TypeVariants}}};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
@@ -25,12 +25,15 @@ pub type CompilationResult<'a> = Result<Value<'a>, CompilationError<'a>>;
 #[derive(Debug)]
 pub struct CompilationError<'a> {
     pub message: String,
-    pub location: LexString<'a>,
+    pub location: Option<LexString<'a>>,
 }
 
 impl<'a> CompilationError<'a> {
     pub fn new(message: String, location: LexString<'a>) -> Self {
-        CompilationError { message, location }
+        CompilationError { message, location: Some(location) }
+    }
+    pub fn new_anon(message: String) -> Self {
+        CompilationError { message, location: None }
     }
 }
 
@@ -41,7 +44,7 @@ pub struct CompilerInternal<'ctx> {
 
         
     pub global_variables: HashMap<&'ctx str, Value<'ctx>>,
-    pub global_types: HashMap<&'ctx str, CompilerType<'ctx>>,
+    pub global_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
     pub global_fn_hints: HashMap<&'ctx str, Hints<'ctx>>,
 
@@ -56,10 +59,10 @@ pub struct CompilerInternal<'ctx> {
 impl<'ctx> CompilerInternal<'ctx> {
     pub fn new(context: &'ctx Context, module: Arc<Module<'ctx>>) -> Self {
         let mut global_types = HashMap::new();
-        global_types.insert("u8", CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
-        global_types.insert("u64", CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
-        global_types.insert("f64", CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
-        global_types.insert("bool", CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
+        global_types.insert(Ty { val: TypeVariants::Plain("u8")}, CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert(Ty { val: TypeVariants::Plain("u64")}, CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert(Ty { val: TypeVariants::Plain("f64")}, CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
+        global_types.insert(Ty { val: TypeVariants::Plain("bool")}, CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
         CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new() }
     }
 }
@@ -68,7 +71,7 @@ impl<'ctx> CompilerInternal<'ctx> {
 pub struct CompilerInstance<'ctx> {
     pub compiler: Arc<RwLock<CompilerInternal<'ctx>>>,
     pub local_variables: Arc<RwLock<HashMap<&'ctx str, Value<'ctx>>>>,
-    pub local_types: HashMap<&'ctx str, CompilerType<'ctx>>,
+    pub local_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
     pub do_var_as_ptr: bool,
 
@@ -105,7 +108,7 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
 }
 
 pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option<Hints>, compiler: CompilerInstance<'a>, _named: bool) -> Result<FunctionValue<'a>, CompilationError<'a>> {
-    let (fn_ty, args_ty) = compile_proto(proto.clone(), compiler.clone())?;
+    let (fn_ty, args_ty, _, _) = compile_proto(proto.clone(), compiler.clone())?;
     let fn_val = compiler.compiler.read().unwrap().module.add_function(proto.name.render(), fn_ty, None);
 
 

@@ -64,6 +64,7 @@ pub enum TypeEnum<'a> {
     BoolType,
     StructType(StructType<'a>),
     PointerType(Box<CompilerType<'a>>),
+    FunctionType(Vec<CompilerType<'a>>, Box<CompilerType<'a>>)
 }
 
 impl<'a> CompilerType<'a> {
