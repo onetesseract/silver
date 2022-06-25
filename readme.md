@@ -18,3 +18,4 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] Semicolons - done, ~~untested~~
 - [ ] Comments
 - [ ] Including other files
+- [ ] string literals
