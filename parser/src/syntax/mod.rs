@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::lexer::{Lexer, match_spec_id};
+use crate::lexer::{Lexer, match_spec_id, LexString};
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty};
 
 pub mod number;
 pub mod ty;
@@ -145,8 +145,9 @@ impl ParserState {
 pub struct TlExpr<'a> {
     pub hints: Option<Hints<'a>>,
     pub template: Option<Template<'a>>,
-    pub proto: FnProto<'a>,
+    pub proto: Option<FnProto<'a>>,
     pub body: Option<Expr<'a>>,
+    pub typedef: Option<(LexString<'a>, Ty<'a>)>,
 }
 
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
@@ -163,6 +164,29 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
         "<" => Some(Template::parse(lexer.clone(), state.clone())?),
         _ => None,
     };
+
+    println!("p: {}", lexer.peek_identifier().render());
+
+    if lexer.peek_identifier().render() == "type" {
+        lexer.take_identifier();
+        lexer.eat_wsp();
+        let name = lexer.take_identifier();
+        lexer.eat_wsp();
+        if lexer.peek_char().render() != "=" {
+            return Err(ParseError::new(lexer, "Expected = for typedef".to_string()))
+        }
+        lexer.take_char();
+        lexer.eat_wsp();
+        let ty = Ty::parse(lexer.clone(), state)?;
+
+        match lexer.peek_char().render() {
+            ";" => {},
+            x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
+        }
+        lexer.take_char();
+
+        return Ok(TlExpr {proto: None, body: None, template, typedef: Some((name, ty)), hints})
+    }
 
     let proto = FnProto::parse(lexer.clone(), state.clone())?;
     let s = state.clone();
@@ -195,7 +219,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     drop(write);
     lexer.eat_wsp();
     match lexer.peek_char().render() {
-        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, proto, body: None })},
+        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, proto: Some(proto), body: None, typedef: None })},
         "=" => (),
         x => return Err(ParseError::new(lexer, format!("Expected = or ;, found `{}`", x))),
     }
@@ -205,7 +229,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     lexer.eat_wsp();
 
     let t = match lexer.peek_char().render() {
-        ";" => Ok(TlExpr { hints, template, proto, body: Some(body) /* that I used to know */ }),
+        ";" => Ok(TlExpr { hints, template, proto: Some(proto), body: Some(body) /* that I used to know */, typedef: None }),
         x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
     };
     lexer.take_char();

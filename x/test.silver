@@ -1,9 +1,11 @@
 putchar(c u64);
 
-#prec 10;
-(a &u64) = (b u64) = #AS("store_in a b");
+type test = &u64;
 
-print(char &u64) = putchar(* *char);
+#prec 10;
+(a test) = (b u64) = #AS("store_in a b");
+
+print(char test) = putchar(* *char);
 
 main() : u64 = {
   a u64;

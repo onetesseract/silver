@@ -173,11 +173,17 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
 }
 
 pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Result<Option<FunctionValue<'a>>, CompilationError<'a>> {
-    if let Some(ref _templ) = e.template {
-        compiler.compiler.write().unwrap().global_fn_templates.insert(e.proto.name.render(), e);
+    if e.template.is_some() && e.proto.is_some() {
+        compiler.compiler.write().unwrap().global_fn_templates.insert(e.proto.clone().unwrap().name.render(), e);
         Ok(None)
     } else {
-        Ok(Some(compile_fn(e.proto, e.body, e.hints, compiler, true)?))
+        if e.proto.is_some() {
+            Ok(Some(compile_fn(e.proto.unwrap(), e.body, e.hints, compiler, true)?))
+        } else {
+            let basic_ty = compile_basic_type(e.typedef.clone().unwrap().1, compiler.clone())?;
+            compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(e.typedef.unwrap().0.render()) }, basic_ty);
+            Ok(None)
+        }
     }
     // match e {
     //     TlExpr::Extern(hints, proto) => compile_fn(proto, None, hints, compiler),

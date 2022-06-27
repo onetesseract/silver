@@ -72,7 +72,7 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
         new_compiler.local_types.insert(val.clone().name, types[index].clone());
     }
 
-    let val = compile_fn(proto, body, hints, new_compiler, true)?;
+    let val = compile_fn(proto.unwrap(), body, hints, new_compiler, true)?;
 
     println!("hello");
 
