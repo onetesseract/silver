@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::lexer::Lexer;
+use crate::lexer::{Lexer, match_spec_id};
 
 use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr};
 
@@ -49,7 +49,10 @@ pub struct ParseError<'a> {
 
 impl<'a> ParseError<'a> {
     pub fn new(lexer: Lexer<'a>, message: String) -> Self {
-        panic!("{}: {}", lexer.data.read().unwrap().index, message);
+        let index = lexer.data.read().unwrap().index;
+        let (a_split, b_split) = lexer.data.read().unwrap().input.split_at(index);
+        println!("{}<--\n{}", a_split, b_split);
+        panic!("{}: {}", index, message);
         ParseError { lexer: lexer.clone(), message, offset: lexer.data.read().unwrap().index }
     }
 }
@@ -76,7 +79,13 @@ impl<'a> Expr<'a> {
             '{' => Block::parse(lexer, state),
             '#' => CDef::parse(lexer, state),
             '\"' => StringExpr::parse(lexer, state),
-            x => Err(ParseError::new(lexer, format!("Don't know how to parse '{}'", x)))
+            x => {
+                if match_spec_id(x)  {
+                    VariableExpr::parse(lexer, state.clone())
+                } else {
+                    Err(ParseError::new(lexer, format!("Don't know how to parse '{}'", x)))
+                }
+            },
         }
     }
     pub fn parse_paren(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
@@ -114,7 +123,7 @@ impl ParserStateInternal {
         infix_fns.insert(">".to_string(), 50);
         infix_fns.insert("==".to_string(), 40);
         infix_fns.insert("=".to_string(), 25);
-        ParserStateInternal { infix_fns, suffix_fns: vec![], prefix_fns: vec![], upon_fns: vec![] }
+        ParserStateInternal { infix_fns, suffix_fns: vec![], prefix_fns: vec!["&".to_string(), "*".to_string()], upon_fns: vec![] }
     }
 }
 

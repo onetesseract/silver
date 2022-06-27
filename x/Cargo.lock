@@ -147,15 +147,6 @@ name = "parser"
 version = "0.1.0"
 
 [[package]]
-name = "parserx"
-version = "0.1.0"
-dependencies = [
- "compiler",
- "inkwell",
- "parser",
-]
-
-[[package]]
 name = "pest"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -303,3 +294,12 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "x"
+version = "0.1.0"
+dependencies = [
+ "compiler",
+ "inkwell",
+ "parser",
+]

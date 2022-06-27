@@ -19,3 +19,4 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] Comments
 - [ ] Including other files
 - [ ] string literals
+- [ ] literally assigning

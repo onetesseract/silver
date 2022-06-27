@@ -33,7 +33,7 @@ impl<'a> Value<'a> {
     pub fn get_value(&self) -> NonVoidValue<'a> {
         self.value.clone().unwrap()
     }
-    pub fn get_basic_type(&'a self) -> Option<BasicTypeEnum<'a>> {
+    pub fn get_basic_type(&self) -> Option<BasicTypeEnum<'a>> {
         self.ty.try_basic_type()
     }
     pub fn get_basic_value(&self) -> BasicValueEnum<'a> {

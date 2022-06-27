@@ -1,11 +1,41 @@
-use inkwell::{values::{BasicMetadataValueEnum, CallableValue}, types::{BasicMetadataTypeEnum, BasicTypeEnum}};
-use parser::syntax::call::CallExpr;
+use inkwell::{values::{BasicMetadataValueEnum, CallableValue, BasicValue}, types::{BasicMetadataTypeEnum, BasicTypeEnum, AnyType}};
+use parser::syntax::{call::{CallExpr, CallType}, ExprVal};
 
-use crate::value::Value;
+use crate::value::{Value, CompilerType};
 
-use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, template::compile_fn_template, CompilationResult};
+use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, vardef::entry_block_alloca};
 
 pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
+    // TODO: allow overriding & and * fns
+    
+    if let CallType::Prefix = expr.calltype {
+        if expr.target.name.render() == "*" {
+            let value = expr_codegen(expr.inputs[0].clone(), compiler.clone())?;
+            match value.ty.ty.clone() {
+                crate::value::TypeEnum::PointerType(target_ty) => return Ok(Value::from(compiler.builder.build_load(value.get_basic_value().into_pointer_value(), "deref_load"), *target_ty)),
+                _ => return Err(CompilationError::new(format!("Cannot deref a {:?}", expr), expr.target.name))
+            }
+        }
+        if expr.target.name.render() == "&" {
+            match &*expr.clone().inputs[0].val {
+                ExprVal::Variable(v) => {
+                    let mut compiler = compiler;
+                    compiler.do_var_as_ptr = true;
+                    return Ok(compile_variable(v.clone(), compiler)?);
+                },
+                _ => {
+                    let val = expr_codegen(expr.inputs[0].clone(), compiler.clone())?;
+                    let space = entry_block_alloca(val.get_basic_type().unwrap(), compiler.clone(), "deref_space");
+                    compiler.builder.build_store(space, val.get_basic_value());
+
+                    let val = Value::from(space.as_basic_value_enum(), CompilerType::new_ptr_to(val.ty, space.get_type().as_any_type_enum()));
+
+                    return Ok(val);
+                }
+            }
+        }
+    }
+
     let mut compiler = compiler;
 
     let mut inputs = vec![];

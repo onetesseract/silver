@@ -7,6 +7,15 @@ pub struct CallExpr<'a> {
     pub target: VariableExpr<'a>,
     pub inputs: Vec<Expr<'a>>,
     pub types: Option<Vec<Ty<'a>>>,
+    pub calltype: CallType,
+}
+
+#[derive(Debug, Clone)]
+pub enum CallType {
+    Prefix,
+    Suffix,
+    Normal,
+    Infix,
 }
 
 impl<'a> CallExpr<'a> {
@@ -61,6 +70,6 @@ impl<'a> CallExpr<'a> {
         }
         // eat the )
         lexer.take_char();
-        Ok(CallExpr { target, inputs, types })
+        Ok(CallExpr { target, inputs, types, calltype: CallType::Normal })
     }
 }
