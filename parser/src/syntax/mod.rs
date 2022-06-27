@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::{Lexer, match_spec_id};
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast};
 
 pub mod number;
 pub mod ty;
@@ -20,7 +20,7 @@ pub mod keywords;
 pub mod while_loop;
 pub mod if_expr;
 pub mod ret;
-
+pub mod cast;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 
@@ -38,6 +38,7 @@ pub enum ExprVal<'a> {
     WhileLoop(WhileLoop<'a>),
     IfExpr(IfExpr<'a>),
     ReturnExpr(ReturnExpr<'a>),
+    Cast(Cast<'a>),
 }
 
 #[derive(Debug, Clone)]
@@ -72,21 +73,22 @@ impl<'a> Expr<'a> {
     }
     pub fn parse_primary(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
         lexer.eat_wsp();
-        match lexer.peek_char().render().as_bytes()[0] as char {
-            '(' => Self::parse_paren(lexer, state),
-            '0'..='9' => NumberExpr::parse(lexer),
-            'A'..='Z' | 'a'..='z' | '_' => VarDef::maybe_parse_raw(lexer.clone(), VariableExpr::parse(lexer, state.clone())?, state),
-            '{' => Block::parse(lexer, state),
-            '#' => CDef::parse(lexer, state),
-            '\"' => StringExpr::parse(lexer, state),
+        let target = match lexer.peek_char().render().as_bytes()[0] as char {
+            '(' => Self::parse_paren(lexer.clone(), state.clone()),
+            '0'..='9' => NumberExpr::parse(lexer.clone()),
+            'A'..='Z' | 'a'..='z' | '_' => VariableExpr::parse(lexer.clone(), state.clone()),
+            '{' => Block::parse(lexer.clone(), state.clone()),
+            '#' => CDef::parse(lexer.clone(), state.clone()),
+            '\"' => StringExpr::parse(lexer.clone(), state.clone()),
             x => {
                 if match_spec_id(x)  {
-                    VariableExpr::parse(lexer, state.clone())
+                    VariableExpr::parse(lexer.clone(), state.clone())
                 } else {
-                    Err(ParseError::new(lexer, format!("Don't know how to parse '{}'", x)))
+                    Err(ParseError::new(lexer.clone(), format!("Don't know how to parse '{}'", x)))
                 }
             },
-        }
+        };
+        VarDef::maybe_parse_raw(lexer.clone(), Cast::maybe_parse(target?, lexer, state.clone())?, state)
     }
     pub fn parse_paren(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
         let c = lexer.take_char().render();
@@ -124,6 +126,7 @@ impl ParserStateInternal {
         infix_fns.insert(">".to_string(), 50);
         infix_fns.insert("==".to_string(), 40);
         infix_fns.insert("=".to_string(), 25);
+        infix_fns.insert("as".to_string(), 5);
         ParserStateInternal { infix_fns, suffix_fns: vec![], prefix_fns: vec!["&".to_string(), "*".to_string()], upon_fns: vec![] }
     }
 }

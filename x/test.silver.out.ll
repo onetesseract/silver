@@ -27,31 +27,22 @@ entry_block:
   ret void
 }
 
-define { i64, i64* } @test() {
+define void @print(i8* %0) {
 entry_block:
-  %a = alloca { i64, i64* }, align 8
-  %struct_gep = getelementptr inbounds { i64, i64* }, { i64, i64* }* %a, i32 0, i32 0
-  call void @"=.1"(i64* %struct_gep, i64 67)
-  %a_variable_load = load { i64, i64* }, { i64, i64* }* %a, align 8
-  ret { i64, i64* } %a_variable_load
-}
-
-define void @primt({ i64, i64* } %0) {
-entry_block:
-  %a = alloca { i64, i64* }, align 8
-  store { i64, i64* } %0, { i64, i64* }* %a, align 8
-  %struct_gep = getelementptr inbounds { i64, i64* }, { i64, i64* }* %a, i32 0, i32 0
-  %struct_gep_deref = load i64, i64* %struct_gep, align 4
-  call void @putchar(i64 %struct_gep_deref)
+  %char = alloca i8*, align 8
+  store i8* %0, i8** %char, align 8
+  %char_variable_load = load i8*, i8** %char, align 8
+  %bitcast = bitcast i8* %char_variable_load to i64*
+  %deref_load = load i64, i64* %bitcast, align 4
+  call void @putchar(i64 %deref_load)
   ret void
 }
 
 define i64 @main() {
 entry_block:
-  %a = alloca { i64, i64* }, align 8
-  %test_call = call { i64, i64* } @test()
-  call void @"="({ i64, i64* }* %a, { i64, i64* } %test_call)
-  %a_variable_load = load { i64, i64* }, { i64, i64* }* %a, align 8
-  call void @primt({ i64, i64* } %a_variable_load)
+  %a = alloca i64, align 8
+  call void @"=.1"(i64* %a, i64 75)
+  %bitcast = bitcast i64* %a to i8*
+  call void @print(i8* %bitcast)
   ret i64 0
 }

@@ -1,24 +1,13 @@
 putchar(c u64);
 
 #prec 10;
-(a &{u u64, a &u64}) = (b {u u64, a &u64}) = #AS("store_in a b");
-
-#prec 10;
 (a &u64) = (b u64) = #AS("store_in a b");
 
-test() : {u u64, a &u64} = {
-  a {u u64, a &u64};
-  &(a.u) = 67;
-  a
-};
-
-primt(a {u u64, a &u64}) = {
-  putchar(a.u);
-};
+print(char &u8) = putchar(*(char as &u64));
 
 main() : u64 = {
-  a {u u64, a &u64};
-  &a = test();
-  a.primt();
+  a u64;
+  &a = 75;
+  print((&a) as &u8);
   0
 };

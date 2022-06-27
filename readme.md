@@ -9,7 +9,7 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] Struct access syntax (`x.y` with `y` a variable)
 - [ ] Typedefs
 - [X] Pointers and referencing/dereferencing
-- [ ] Bitcasting
+- [X] Bitcasting
 - [X] Struct function access syntax
 - [X] If statements
 - [ ] Loops!
@@ -20,3 +20,7 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] Including other files
 - [ ] string literals
 - [X] literally assigning
+- [ ] enums
+- [ ] macros of sorts
+- [ ] moving casting to macros
+- [ ] templated structs

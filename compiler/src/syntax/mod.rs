@@ -10,6 +10,7 @@ pub mod while_loop;
 pub mod boolean;
 pub mod if_expr;
 pub mod ret;
+pub mod cast;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
@@ -18,7 +19,7 @@ use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hin
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
-use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if, ret::compile_return};
+use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if, ret::compile_return, cast::compile_cast};
 
 pub type CompilationResult<'a> = Result<Value<'a>, CompilationError<'a>>;
 
@@ -104,6 +105,7 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
         parser::syntax::ExprVal::WhileLoop(while_expr) => compile_while_loop(while_expr, compiler),
         parser::syntax::ExprVal::IfExpr(if_expr) => compile_if(if_expr, compiler),
         parser::syntax::ExprVal::ReturnExpr(r) => compile_return(r, compiler),
+        parser::syntax::ExprVal::Cast(c) => compile_cast(c, compiler),
     }
 }
 
