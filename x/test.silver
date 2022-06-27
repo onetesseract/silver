@@ -3,11 +3,12 @@ putchar(c u64);
 #prec 10;
 (a &u64) = (b u64) = #AS("store_in a b");
 
-print(char &u8) = putchar(*(char as &u64));
+print(char &u64) = putchar(* *char);
 
 main() : u64 = {
   a u64;
-  &a = 75;
-  print((&a) as &u8);
+  a = 73;
+  print(a);
+  putchar(*a);
   0
 };

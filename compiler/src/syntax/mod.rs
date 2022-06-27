@@ -74,7 +74,7 @@ pub struct CompilerInstance<'ctx> {
     pub local_variables: Arc<RwLock<HashMap<&'ctx str, Value<'ctx>>>>,
     pub local_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
-    pub do_var_as_ptr: bool,
+    // pub do_var_as_ptr: bool,
 
     pub builder: Arc<Builder<'ctx>>,
     pub function: Option<FunctionValue<'ctx>>
@@ -82,7 +82,7 @@ pub struct CompilerInstance<'ctx> {
 
 impl<'ctx> CompilerInstance<'ctx> {
     pub fn new(compiler: Arc<RwLock<CompilerInternal<'ctx>>>) -> Self {
-        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new() }
+        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), /* do_var_as_ptr: false, */ builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new() }
     }
 }
 
