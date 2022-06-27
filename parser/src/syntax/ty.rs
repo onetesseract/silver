@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 
-use crate::lexer::{LexString, Lexer};
+use crate::lexer::Lexer;
 
 use super::{ParserState, ParseResult, ParseError, proto::FnProto, vardef::VarDef};
 //
@@ -53,6 +52,7 @@ impl<'a> Ty<'a> {
                     }
                     lexer.take_char();
                 }
+                lexer.take_char(); // eat the }
                 Ok(Ty {val: TypeVariants::Struct(members)})
             }
             _ => {

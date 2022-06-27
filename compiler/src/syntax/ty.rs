@@ -1,7 +1,7 @@
 use inkwell::{types::{BasicTypeEnum, AnyTypeEnum, BasicType, AnyType}, AddressSpace};
 use parser::syntax::ty::Ty;
 
-use crate::value::{CompilerType, TypeEnum};
+use crate::value::{CompilerType, TypeEnum, StructType};
 
 use super::{CompilerInstance, CompilationError, proto::compile_proto};
 
@@ -17,7 +17,26 @@ pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Res
             }
         },
         parser::syntax::ty::TypeVariants::PtrTo(target) => {let val = compile_basic_type(*target, compiler)?; Ok(CompilerType::new_ptr_to(val.clone(), get_ptr_type(val.underlying).as_any_type_enum()))},
-        parser::syntax::ty::TypeVariants::Struct(_) => todo!(),
+        parser::syntax::ty::TypeVariants::Struct(s_ty) => {
+            let mut types = vec![];
+            let mut struct_name_pairs = vec![];
+            for i in s_ty {
+                let t = compile_basic_type(i.ty, compiler.clone())?;
+                types.push(t.clone());
+
+                struct_name_pairs.push((i.varname, t.ty));
+            }
+
+            let basic_types: Vec<BasicTypeEnum> = types.iter().map(|t| t.try_basic_type().unwrap()).collect();
+
+            let struct_type = compiler.compiler.read().unwrap().context.struct_type(&basic_types, false); // TODO: packing
+            
+
+            
+            let comp_ty = CompilerType::new(struct_type.as_any_type_enum(), TypeEnum::StructType(StructType {values: struct_name_pairs}));
+
+            Ok(comp_ty)
+        },
         parser::syntax::ty::TypeVariants::FnTy(fnproto) => {let (fnty, _, args_ty, ret_ty) = compile_proto(*fnproto, compiler)?; Ok(CompilerType::new(fnty.as_any_type_enum(), TypeEnum::FunctionType(args_ty, Box::new(ret_ty))))},
     }
     // match compiler.compiler.read().unwrap().global_types.get(ty.ty.render()) {

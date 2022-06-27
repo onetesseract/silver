@@ -1,23 +1,24 @@
 putchar(c u64);
 
 #prec 10;
+(a &{u u64, a &u64}) = (b {u u64, a &u64}) = #AS("store_in a b");
+
+#prec 10;
 (a &u64) = (b u64) = #AS("store_in a b");
 
-#prec 75;
-(a u64) - (b u64) : u64 = #AS("int_sub a b");
+test() : {u u64, a &u64} = {
+  a {u u64, a &u64};
+  &(a.u) = 67;
+  a
+};
 
-#prec 75;
-(a u64) + (b u64) : u64 = #AS("int_add a b");
-
-#prec 25;
-(a u64) != (b u64) : bool = #AS("int_cmp_neq a b");
+primt(a {u u64, a &u64}) = {
+  putchar(a.u);
+};
 
 main() : u64 = {
-  count u64;
-  (&count) = 65;
-  while count != (65 + 26) {
-    putchar(count);
-    (&count) = count + 1;
-  };
+  a {u u64, a &u64};
+  &a = test();
+  a.primt();
   0
 };

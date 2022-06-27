@@ -5,12 +5,12 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 ---
 
 #### Todo List:
-- [ ] Structs
-- [ ] Struct access syntax (`x.y` with `y` a variable)
+- [X] Structs
+- [X] Struct access syntax (`x.y` with `y` a variable)
 - [ ] Typedefs
-- [ ] Pointers and referencing/dereferencing
+- [X] Pointers and referencing/dereferencing
 - [ ] Bitcasting
-- [ ] Struct function access syntax
+- [X] Struct function access syntax
 - [X] If statements
 - [ ] Loops!
   - [X] While loops - Done but untested - ~~update: they break everything~~ no it was me
@@ -19,4 +19,4 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] Comments
 - [ ] Including other files
 - [ ] string literals
-- [ ] literally assigning
+- [X] literally assigning

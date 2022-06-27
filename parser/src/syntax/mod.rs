@@ -115,6 +115,7 @@ pub struct ParserStateInternal {
 impl ParserStateInternal {
     pub fn new() -> Self {
         let mut infix_fns = HashMap::new();
+        infix_fns.insert(".".to_string(), 200);
         infix_fns.insert("*".to_string(), 100);
         infix_fns.insert("/".to_string(), 100);
         infix_fns.insert("+".to_string(), 75);
