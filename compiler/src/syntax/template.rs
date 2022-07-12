@@ -1,13 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use inkwell::{types::BasicTypeEnum, values::FunctionValue};
+use inkwell::{types::{BasicTypeEnum, AnyType}, values::FunctionValue};
 use parser::lexer::LexString;
 
-use crate::{syntax::CompilerInternal, value::CompilerType};
+use crate::{syntax::{CompilerInternal, ty::compile_basic_type}, value::CompilerType};
 
 use super::{CompilationError, CompilerInstance, compile_fn};
 
-pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<FunctionValue<'a>, CompilationError<'a>> {
+pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<(FunctionValue<'a>, CompilerType<'a>), CompilationError<'a>> {
     if !compiler.compiler.read().unwrap().global_fn_templates.contains_key(name.render()) {
         return Err(CompilationError::new(format!("Unable to find template function {}", name.render()), name))
     }
@@ -25,7 +25,7 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
                 }
             }
             if let Some(s) = fn_cached {
-                return Ok(*s);
+                return Ok(s.clone());
             }
         }
         None => {},
@@ -65,6 +65,7 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
     new_compiler_internal.global_fn_hints = compiler.compiler.read().unwrap().global_fn_hints.clone();
     new_compiler_internal.global_overloadables = compiler.compiler.read().unwrap().global_overloadables.clone();
     new_compiler_internal.global_fn_templates = compiler.compiler.read().unwrap().global_fn_templates.clone();
+    new_compiler_internal.global_ty_templates = compiler.compiler.read().unwrap().global_ty_templates.clone();
 
     let mut new_compiler = CompilerInstance::new(Arc::new(RwLock::new(new_compiler_internal)));
 
@@ -72,9 +73,15 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
         new_compiler.local_types.insert(val.clone().name, types[index].clone());
     }
 
-    let val = compile_fn(proto.unwrap(), body, hints, new_compiler, true)?;
+    let val = compile_fn(proto.clone().unwrap(), body, hints, new_compiler, true)?;
 
     println!("hello");
+
+    let ret_ty = if let Some(s) = proto.unwrap().return_ty {
+        compile_basic_type(s, compiler)?
+    } else {
+        CompilerType { ty: crate::value::TypeEnum::VoidType, underlying: compiler.compiler.read().unwrap().context.void_type().as_any_type_enum() }
+    };
 
 
     // match compiler.compiler.read().unwrap().global_cached_fn_templates.contains_key(name.render()) {
@@ -84,5 +91,5 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
 
     println!("ok on {}", name.render());
 
-    Ok(val)
+    Ok((val, ret_ty))
 }

@@ -7,7 +7,14 @@ type test = &u64;
 
 print(char test) = putchar(* *char);
 
+<T> type x = T;
+
+<T> im_losing_my_mind(somevar x<T>) = print(somevar);
+
 main() : u64 = {
+  K x<u64>;
+  K = 80;
+  im_losing_my_mind<u64>(*K);
   a u64;
   a = 73;
   print(a);

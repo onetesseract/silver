@@ -165,6 +165,8 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
         _ => None,
     };
 
+    lexer.eat_wsp();
+
     println!("p: {}", lexer.peek_identifier().render());
 
     if lexer.peek_identifier().render() == "type" {

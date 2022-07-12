@@ -3,13 +3,13 @@ use crate::lexer::Lexer;
 use super::{proto::FnProto, ty::Ty, ParserState, ParseResult, ParseError};
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Template<'ctx> {
     // proto: FnProto<'ctx>,
     pub params: Vec<TypeParam<'ctx>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeParam<'ctx> {
     pub name: Ty<'ctx>,
     limits: Vec<FnProto<'ctx>>,

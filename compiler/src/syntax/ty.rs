@@ -7,12 +7,20 @@ use super::{CompilerInstance, CompilationError, proto::compile_proto};
 
 pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
     match ty.val {
-        parser::syntax::ty::TypeVariants::Plain(name) => { // TODO: should search local b4 global?
-            match compiler.compiler.read().unwrap().global_types.get(&ty) {
+        parser::syntax::ty::TypeVariants::Plain(name) => {
+            match compiler.local_types.get(&ty) {
                 Some(s) => Ok(s.clone()),
-                None => match compiler.local_types.get(&ty) {
+                None => match compiler.compiler.read().unwrap().global_types.get(&ty) {
                     Some(s) => Ok(s.clone()),
-                    None => Err(CompilationError::new_anon(format!("Unable to find type {:?}", name))),
+                    None => if let Some(s) = ty.template {
+                        let mut comp_tys = vec![];
+                        for i in s.params {
+                            comp_tys.push(compile_basic_type(i.name, compiler.clone())?);
+                        }
+                        compile_ty_template(name, comp_tys, compiler.clone())
+                    } else {
+                        Err(CompilationError::new_anon(format!("Unable to find type {:?}", name)))
+                    },
                 }
             }
         },
@@ -59,6 +67,32 @@ fn get_ptr_type<'a>(ty: AnyTypeEnum<'a>) -> BasicTypeEnum<'a> {
         AnyTypeEnum::VectorType(v) => v.ptr_type(AddressSpace::Generic).as_basic_type_enum(),
         AnyTypeEnum::VoidType(_) => todo!(),
     }
+}
+
+pub fn compile_ty_template<'a>(name: &'a str, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
+    let read = compiler.compiler.read().unwrap();
+    let ty = if let Some(s) = read.global_ty_templates.get(name) {
+        s
+    } else {
+        return Err(CompilationError::new_anon(format!("Unable to find template type {}", name)));
+    };
+
+    if types.len() != ty.template.clone().unwrap().params.len() {
+        return Err(CompilationError::new_anon(format!("Expected {} type params but got {} for {}", ty.template.as_ref().unwrap().params.len(), types.len(), name)));
+    }
+
+    let mut compiler = compiler.clone();
+
+    let mut pairs = vec![];
+
+    for (index, i) in types.iter().enumerate() {
+        pairs.push((ty.template.as_ref().unwrap().params[index].clone(), i));
+        compiler.local_types.insert(ty.template.as_ref().unwrap().params[index].name.clone(), i.clone());
+    }
+
+    let t = compile_basic_type(ty.typedef.as_ref().unwrap().1.clone(), compiler);
+
+    return t;
 }
 
 //

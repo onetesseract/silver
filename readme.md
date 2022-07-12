@@ -24,3 +24,4 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] macros of sorts
 - [ ] moving casting to macros
 - [ ] templated structs
+- [ ] proper cacheing of templated fns

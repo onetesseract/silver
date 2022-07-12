@@ -3,7 +3,7 @@ use parser::syntax::{call::{CallExpr, CallType}, ExprVal};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
-use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, vardef::entry_block_alloca};
+use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, vardef::entry_block_alloca, template::compile_fn_template, ty::compile_basic_type};
 
 pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     // TODO: allow overriding & and * fns
@@ -137,10 +137,17 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
         let targ = match var {
             Ok(s) => (Some(s.into_ptr_value()), Some(s.ty)),
             Err(_) => match expr.types {
-                Some(s) => todo!("types for overloaded or FnVal")/* match compiler.compiler.read().unwrap().global_fn_templates.contains_key(expr.target.name.render()) {
-                    true => compile_fn_template(expr.target.name.clone(), types, compiler.clone())?.as_global_value().as_pointer_value(),
+                Some(_) => match compiler.compiler.read().unwrap().global_fn_templates.contains_key(expr.target.name.render()) {
+                    true => {
+                        let mut types = vec![];
+                        for i in expr.types.unwrap() {
+                            types.push(compile_basic_type(i, compiler.clone())?);
+                        }
+                        let template_fn = compile_fn_template(expr.target.name.clone(), types, compiler.clone())?;
+                        (Some(template_fn.0.as_global_value().as_pointer_value()), Some(template_fn.1))
+                    },
                     false => return Err(CompilationError::new(format!("Unable to find function {}", expr.target.name.render()), expr.target.name)),
-                } */,
+                },
                 None => {
                     return Err(CompilationError::new(format!("Fell back to templating but no type params exist! You sure the function `{}` exists?", expr.target.name.render()), expr.target.name));
                 }

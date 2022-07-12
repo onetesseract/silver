@@ -1,4 +1,4 @@
-use crate::lexer::{LexString, Lexer};
+use crate::{lexer::{LexString, Lexer}, syntax::template::Template};
 
 use super::{ty::Ty, Expr, ParserState, ParseResult, ExprVal, ParseError};
 
@@ -17,7 +17,18 @@ impl<'a> VarDef<'a> {
             println!("s: {:?}", s);
             // TODO: unmess plz
             if (s != "" || lexer.peek_char().render() == "{") && !state.data.read().unwrap().suffix_fns.contains(&s.to_string()) && !state.data.read().unwrap().infix_fns.contains_key(&s.to_string()) /* TODO: add other forms */ {
-                let ty = Ty::parse(lexer, state)?;
+                let ty = Ty::parse(lexer.clone(), state.clone())?;
+
+                lexer.eat_wsp();
+
+                if lexer.peek_char().render() == "<" {
+                    // is template
+                    let template = Template::parse(lexer, state)?;
+                    let mut ty = ty;
+                    ty.template = Some(template);
+                    return Ok(Expr::new(ExprVal::VarDef(VarDef { varname: v.name.clone(), ty })))
+                }
+
                 return Ok(Expr::new(ExprVal::VarDef(VarDef { varname: v.name.clone(), ty })))
             }
         }

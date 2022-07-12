@@ -54,17 +54,18 @@ pub struct CompilerInternal<'ctx> {
     pub global_overloadables: HashMap<&'ctx str, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>, CompilerType<'ctx>)>>,
 
     pub global_fn_templates: HashMap<&'ctx str, TlExpr<'ctx>>,
-    pub global_cached_fn_templates: HashMap<&'ctx str, Vec<(Vec<BasicTypeEnum<'ctx>>, FunctionValue<'ctx>)>>,
+    pub global_ty_templates: HashMap<&'ctx str, TlExpr<'ctx>>,
+    pub global_cached_fn_templates: HashMap<&'ctx str, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
 }
 
 impl<'ctx> CompilerInternal<'ctx> {
     pub fn new(context: &'ctx Context, module: Arc<Module<'ctx>>) -> Self {
         let mut global_types = HashMap::new();
-        global_types.insert(Ty { val: TypeVariants::Plain("u8")}, CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
-        global_types.insert(Ty { val: TypeVariants::Plain("u64")}, CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
-        global_types.insert(Ty { val: TypeVariants::Plain("f64")}, CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
-        global_types.insert(Ty { val: TypeVariants::Plain("bool")}, CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
-        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new() }
+        global_types.insert(Ty { val: TypeVariants::Plain("u8"), template: None }, CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert(Ty { val: TypeVariants::Plain("u64"), template: None }, CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert(Ty { val: TypeVariants::Plain("f64"), template: None }, CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
+        global_types.insert(Ty { val: TypeVariants::Plain("bool"), template: None }, CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
+        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new() }
     }
 }
 
@@ -180,8 +181,13 @@ pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Res
         if e.proto.is_some() {
             Ok(Some(compile_fn(e.proto.unwrap(), e.body, e.hints, compiler, true)?))
         } else {
-            let basic_ty = compile_basic_type(e.typedef.clone().unwrap().1, compiler.clone())?;
-            compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(e.typedef.unwrap().0.render()) }, basic_ty);
+            if e.template.is_some() {
+                println!("Adding {}", e.typedef.clone().unwrap().0.render());
+                compiler.compiler.write().unwrap().global_ty_templates.insert(e.typedef.clone().unwrap().0.render(), e);
+            } else {
+                let basic_ty = compile_basic_type(e.typedef.clone().unwrap().1, compiler.clone())?;
+                compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(e.typedef.unwrap().0.render()), template: None }, basic_ty);
+            }
             Ok(None)
         }
     }

@@ -1,7 +1,7 @@
 
 use crate::lexer::Lexer;
 
-use super::{ParserState, ParseResult, ParseError, proto::FnProto, vardef::VarDef};
+use super::{ParserState, ParseResult, ParseError, proto::FnProto, vardef::VarDef, template::Template};
 //
 // #[derive(Debug, Clone)]
 // pub struct Ty<'a> {
@@ -25,14 +25,18 @@ use super::{ParserState, ParseResult, ParseError, proto::FnProto, vardef::VarDef
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Ty<'a> {
     pub val: TypeVariants<'a>,
+    pub template: Option<Template<'a>>,
 }
 impl<'a> Ty<'a> {
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
+        let template = if lexer.peek_char().render() == "<" {
+            Some(Template::parse(lexer.clone(), state.clone())?)
+        } else { None };
         lexer.eat_wsp();
         match lexer.peek_char().render() {
             "&" => {
                 lexer.take_char();
-                Ok(Ty {val: TypeVariants::PtrTo(Box::new(Ty::parse(lexer, state)?))})
+                Ok(Ty {val: TypeVariants::PtrTo(Box::new(Ty::parse(lexer, state)?)), template})
             }
             "{" => {
                 lexer.take_char();
@@ -53,14 +57,14 @@ impl<'a> Ty<'a> {
                     lexer.take_char();
                 }
                 lexer.take_char(); // eat the }
-                Ok(Ty {val: TypeVariants::Struct(members)})
+                Ok(Ty {val: TypeVariants::Struct(members), template})
             }
             _ => {
                 let name = lexer.peek_identifier();
 
                 if name.render() == "" {
                     let proto = FnProto::parse(lexer, state)?;
-                    Ok(Ty {val: TypeVariants::FnTy(Box::new(proto))})
+                    Ok(Ty {val: TypeVariants::FnTy(Box::new(proto)), template})
                 } else {
                     lexer.take_identifier();
                     lexer.eat_wsp();
@@ -69,9 +73,9 @@ impl<'a> Ty<'a> {
                         // oh its a thing whatsit
                         // fn proto but named first
                         let proto = FnProto::parse_normal_named(lexer, state, name)?;
-                        Ok(Ty {val: TypeVariants::FnTy(Box::new(proto))})
+                        Ok(Ty {val: TypeVariants::FnTy(Box::new(proto)), template})
                     } else {
-                        Ok(Ty {val: TypeVariants::Plain(name.render())})
+                        Ok(Ty {val: TypeVariants::Plain(name.render()), template})
                     }
                 }
             }
