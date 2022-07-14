@@ -81,7 +81,7 @@ impl<'a> Expr<'a> {
             '#' => CDef::parse(lexer.clone(), state.clone()),
             '\"' => StringExpr::parse(lexer.clone(), state.clone()),
             x => {
-                if match_spec_id(x)  {
+                if match_spec_id(x) {
                     VariableExpr::parse(lexer.clone(), state.clone())
                 } else {
                     Err(ParseError::new(lexer.clone(), format!("Don't know how to parse '{}'", x)))
@@ -148,6 +148,38 @@ pub struct TlExpr<'a> {
     pub proto: Option<FnProto<'a>>,
     pub body: Option<Expr<'a>>,
     pub typedef: Option<(LexString<'a>, Ty<'a>)>,
+}
+
+fn take_comment<'a>(lexer: Lexer<'a>) -> bool {
+    lexer.eat_wsp();
+    let x = lexer.peek_char().render();
+    if x == "/" {
+        let lexer_ = lexer.clone();
+        lexer_.take_char();
+        if lexer_.peek_char().render() == "/" {
+            lexer.take_char();
+            lexer.take_char();
+            while lexer.take_char().render() != "\n" && !lexer.is_eof() {}
+            return true;
+        }
+        if lexer_.peek_char().render() == "*" {
+            lexer.take_char();
+            lexer.take_char();
+            let mut was_asterix_last = false;
+            while !lexer.is_eof() {
+                let t = lexer.take_char().render();
+                if t == "*" {
+                    was_asterix_last = true;
+                } else if t == "/" && was_asterix_last {
+                    break;
+                } else {
+                    was_asterix_last = false;
+                }
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {

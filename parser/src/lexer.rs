@@ -69,6 +69,38 @@ pub struct Lexer<'ctx> {
     pub data: Arc<RwLock<LexerInternal<'ctx>>>,
 }
 
+fn take_comment<'a>(lexer: Lexer<'a>) -> bool {
+    lexer.take_while(| c: char | c.is_whitespace());
+    let x = lexer.peek_char().render();
+    if x == "/" {
+        let lexer_ = lexer.clone();
+        lexer_.take_char();
+        if lexer_.peek_char().render() == "/" {
+            lexer.take_char();
+            lexer.take_char();
+            while lexer.take_char().render() != "\n" && !lexer.is_eof() {}
+            return true;
+        }
+        if lexer_.peek_char().render() == "*" {
+            lexer.take_char();
+            lexer.take_char();
+            let mut was_asterix_last = false;
+            while !lexer.is_eof() {
+                let t = lexer.take_char().render();
+                if t == "*" {
+                    was_asterix_last = true;
+                } else if t == "/" && was_asterix_last {
+                    break;
+                } else {
+                    was_asterix_last = false;
+                }
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 impl<'ctx> Lexer<'ctx> {
     pub fn new(s: &'ctx str) -> Self {
         Lexer {data: Arc::new(RwLock::new(LexerInternal{input:s, index: 0}))}
@@ -151,7 +183,14 @@ impl<'ctx> Lexer<'ctx> {
         ls
     }
     pub fn eat_wsp(&self) -> LexString<'ctx> {
-        self.take_while(| c: char | c.is_whitespace())
+        let start = self.data.read().unwrap().index;
+
+        while take_comment(self.clone()) {};
+
+
+        let r = LexString { lexer: self.clone(), start, end: self.data.read().unwrap().index };
+
+        return r;
     }
 }
 

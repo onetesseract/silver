@@ -4,9 +4,13 @@ printf(s &u8);
 #prec 10;
 (a &&u8) = (b &u8) = #AS("store_in a b");
 
+// this is a comment
+
 main() : u64 = {
   s &u8;
-  s = "aaaaa";
+  // this is also a comment
+  s = /* this is a inline comment */ // this is an until comment
+  "aaaaa"; // this is an afterword
   printf(*s);
   0
 };
