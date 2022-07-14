@@ -7,21 +7,22 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 #### Todo List:
 - [X] Structs
 - [X] Struct access syntax (`x.y` with `y` a variable)
-- [ ] Typedefs
+- [X] Typedefs - i still wanna rethink them maybe
 - [X] Pointers and referencing/dereferencing
 - [X] Bitcasting
 - [X] Struct function access syntax
 - [X] If statements
 - [ ] Loops!
   - [X] While loops - Done but untested - ~~update: they break everything~~ no it was me
-- [ ] Return statements - done, untested
+  - [ ] Break statements
+- [X] Return statements - done, untested
 - [X] Semicolons - done, ~~untested~~
 - [ ] Comments
 - [ ] Including other files
-- [ ] string literals
+- [X] string literals
 - [X] literally assigning
 - [ ] enums
 - [ ] macros of sorts
 - [ ] moving casting to macros
-- [ ] templated structs
+- [X] templated structs
 - [ ] proper cacheing of templated fns

@@ -110,6 +110,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
     // let types = inputs.iter().map(|val| val.ty.clone()).collect();
 
 
+    println!("Args types {:?}", args_types);
     let read = compiler.compiler.read().unwrap();
 
     let (mut target, mut target_ty) = match read.global_overloadables.get(expr.target.name.render()) {
@@ -149,6 +150,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
                     false => return Err(CompilationError::new(format!("Unable to find function {}", expr.target.name.render()), expr.target.name)),
                 },
                 None => {
+                    println!("Current fns: {:#?}", compiler.compiler.read().unwrap().global_overloadables);
                     return Err(CompilationError::new(format!("Fell back to templating but no type params exist! You sure the function `{}` exists?", expr.target.name.render()), expr.target.name));
                 }
             }
