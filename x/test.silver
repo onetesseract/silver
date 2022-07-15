@@ -1,15 +1,13 @@
-@include("string.silver");
-
 #prec 10;
 (a &&u8) = (b &u8) = @AS("store_in a b");
+
+<T> template_fn(a T) = {};
 
 // this is a comment
 
 main() : u64 = {
   s &u8;
-  // this is also a comment
-  s = /* this is a inline comment */ // this is an until comment
-  "aaaaa"; // this is an afterword
-  printf(*s);
+  template_fn<&u8>(*s);
+  template_fn<&u8>(*s);
   0
 };
