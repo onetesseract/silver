@@ -1,0 +1,2 @@
+putchar(c u64);
+printf(s &u8);

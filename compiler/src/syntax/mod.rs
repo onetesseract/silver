@@ -45,35 +45,37 @@ pub struct CompilerInternal<'ctx> {
     pub module: Arc<Module<'ctx>>,
 
         
-    pub global_variables: HashMap<&'ctx str, Value<'ctx>>,
+    pub global_variables: HashMap<String, Value<'ctx>>,
     pub global_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
-    pub global_fn_hints: HashMap<&'ctx str, Hints<'ctx>>,
+    pub global_fn_hints: HashMap<String, Hints<'ctx>>,
 
     // BasicMetadataTypeEnum doesn't hash. Look at this mess. TODO: fix. Look at what you have made
     // me do. TODO: switch to Values for functions
-    pub global_overloadables: HashMap<&'ctx str, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>, CompilerType<'ctx>)>>,
+    pub global_overloadables: HashMap<String, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>, CompilerType<'ctx>)>>,
 
-    pub global_fn_templates: HashMap<&'ctx str, TlExpr<'ctx>>,
-    pub global_ty_templates: HashMap<&'ctx str, TlExpr<'ctx>>,
-    pub global_cached_fn_templates: HashMap<&'ctx str, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
+    pub global_fn_templates: HashMap<String, TlExpr<'ctx>>,
+    pub global_ty_templates: HashMap<String, TlExpr<'ctx>>,
+    pub global_cached_fn_templates: HashMap<String, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
+
+    pub sources: HashMap<String, String>,
 }
 
 impl<'ctx> CompilerInternal<'ctx> {
     pub fn new(context: &'ctx Context, module: Arc<Module<'ctx>>) -> Self {
         let mut global_types = HashMap::new();
-        global_types.insert(Ty { val: TypeVariants::Plain("u8"), template: None }, CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
-        global_types.insert(Ty { val: TypeVariants::Plain("u64"), template: None }, CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
-        global_types.insert(Ty { val: TypeVariants::Plain("f64"), template: None }, CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
-        global_types.insert(Ty { val: TypeVariants::Plain("bool"), template: None }, CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
-        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new() }
+        global_types.insert(Ty { val: TypeVariants::Plain("u8".to_string()), template: None }, CompilerType::new(context.i8_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert(Ty { val: TypeVariants::Plain("u64".to_string()), template: None }, CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
+        global_types.insert(Ty { val: TypeVariants::Plain("f64".to_string()), template: None }, CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
+        global_types.insert(Ty { val: TypeVariants::Plain("bool".to_string()), template: None }, CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
+        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new() }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct CompilerInstance<'ctx> {
     pub compiler: Arc<RwLock<CompilerInternal<'ctx>>>,
-    pub local_variables: Arc<RwLock<HashMap<&'ctx str, Value<'ctx>>>>,
+    pub local_variables: Arc<RwLock<HashMap<String, Value<'ctx>>>>,
     pub local_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
     // pub do_var_as_ptr: bool,
@@ -113,7 +115,7 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
 
 pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option<Hints>, compiler: CompilerInstance<'a>, _named: bool) -> Result<FunctionValue<'a>, CompilationError<'a>> {
     let (fn_ty, args_ty, _, _) = compile_proto(proto.clone(), compiler.clone())?;
-    let fn_val = compiler.compiler.read().unwrap().module.add_function(proto.name.render(), fn_ty, None);
+    let fn_val = compiler.compiler.read().unwrap().module.add_function(proto.name.render().as_str(), fn_ty, None);
 
 
     // compiler.compiler.write().unwrap().global_variables.insert(proto.name.render(), fn_val.as_global_value().as_pointer_value());
@@ -125,8 +127,9 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
         None => CompilerType::new(compiler.compiler.read().unwrap().context.void_type().as_any_type_enum(), TypeEnum::VoidType),
     };
 
-    if compiler.compiler.read().unwrap().global_overloadables.contains_key(proto.name.render()) {
-        compiler.compiler.write().unwrap().global_overloadables.get_mut(proto.name.render()).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty));
+    if compiler.compiler.read().unwrap().global_overloadables.contains_key(proto.name.render().as_str()) {
+        let mut write = compiler.compiler.write().unwrap();
+        write.global_overloadables.get_mut(proto.name.render().as_str()).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty));
     } else {
         compiler.clone().compiler.write().unwrap().global_overloadables.insert(proto.name.render(), vec![(args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty)]);
     }
@@ -144,7 +147,7 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
 
     for (i, arg) in fn_val.get_param_iter().enumerate() {
         let arg_name = proto.args[i].varname.render();
-        let varspace = entry_block_alloca(arg.get_type(), compiler.clone(), arg_name);
+        let varspace = entry_block_alloca(arg.get_type(), compiler.clone(), arg_name.clone());
 
         compiler.builder.build_store(varspace, arg);
         compiler.clone().local_variables.write().unwrap().insert(arg_name, Value::from(varspace.as_basic_value_enum(), CompilerType::new_ptr_to(compile_basic_type(proto.args[i].ty.clone(), compiler.clone())?, varspace.get_type().as_any_type_enum())));
@@ -175,6 +178,10 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
 }
 
 pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Result<Option<FunctionValue<'a>>, CompilationError<'a>> {
+    if e.cdef.is_some() {
+        compile_cdef(e.cdef.unwrap(), compiler)?;
+        return Ok(None);
+    }
     if e.template.is_some() && e.proto.is_some() {
         compiler.compiler.write().unwrap().global_fn_templates.insert(e.proto.clone().unwrap().name.render(), e);
         Ok(None)

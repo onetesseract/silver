@@ -33,7 +33,7 @@ impl<'a> Ty<'a> {
             Some(Template::parse(lexer.clone(), state.clone())?)
         } else { None };
         lexer.eat_wsp();
-        match lexer.peek_char().render() {
+        match lexer.peek_char().render().as_str() {
             "&" => {
                 lexer.take_char();
                 Ok(Ty {val: TypeVariants::PtrTo(Box::new(Ty::parse(lexer, state)?)), template})
@@ -85,7 +85,7 @@ impl<'a> Ty<'a> {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum TypeVariants<'a> {
-    Plain(&'a str),
+    Plain(String),
     PtrTo(Box<Ty<'a>>),
     Struct(Vec<VarDef<'a>>),
     FnTy(Box<FnProto<'a>>),

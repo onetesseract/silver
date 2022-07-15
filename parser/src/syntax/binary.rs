@@ -42,7 +42,7 @@ pub mod BinaryExpr {
                 Some(s) => *s,
                 None => return maybe_suffix_fn(lexer, lhs, op, state),
             };
-            if prec > parsed_prec || op.render() == "" {
+            if prec > parsed_prec || op.render().as_str() == "" {
                 return Ok(lhs);
             }
             drop(read);

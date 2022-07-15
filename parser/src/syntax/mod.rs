@@ -51,7 +51,8 @@ pub struct ParseError<'a> {
 impl<'a> ParseError<'a> {
     pub fn new(lexer: Lexer<'a>, message: String) -> Self {
         let index = lexer.data.read().unwrap().index;
-        let (a_split, b_split) = lexer.data.read().unwrap().input.split_at(index);
+        let read = lexer.data.read().unwrap();
+        let (a_split, b_split) = read.input.split_at(index);
         println!("{}<--\n{}", a_split, b_split);
         panic!("{}: {}", index, message);
         ParseError { lexer: lexer.clone(), message, offset: lexer.data.read().unwrap().index }
@@ -78,7 +79,7 @@ impl<'a> Expr<'a> {
             '0'..='9' => NumberExpr::parse(lexer.clone()),
             'A'..='Z' | 'a'..='z' | '_' => VariableExpr::parse(lexer.clone(), state.clone()),
             '{' => Block::parse(lexer.clone(), state.clone()),
-            '#' => CDef::parse(lexer.clone(), state.clone()),
+            '@' => CDef::parse(lexer.clone(), state.clone()),
             '\"' => StringExpr::parse(lexer.clone(), state.clone()),
             x => {
                 if match_spec_id(x) {
@@ -148,6 +149,7 @@ pub struct TlExpr<'a> {
     pub proto: Option<FnProto<'a>>,
     pub body: Option<Expr<'a>>,
     pub typedef: Option<(LexString<'a>, Ty<'a>)>,
+    pub cdef: Option<CDef<'a>>,
 }
 
 fn take_comment<'a>(lexer: Lexer<'a>) -> bool {
@@ -185,14 +187,26 @@ fn take_comment<'a>(lexer: Lexer<'a>) -> bool {
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
     lexer.eat_wsp();
 
-    let hints = match lexer.peek_char().render() {
+    if lexer.peek_char().render() == "@" {
+        let cdef = Some(CDef::parse_raw(lexer.clone(), state)?);
+
+        match lexer.peek_char().render().as_str() {
+            ";" => {},
+            x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
+        }
+        lexer.take_char();
+
+        return Ok(TlExpr { hints: None, template: None, proto: None, body: None, typedef: None, cdef});
+    }
+
+    let hints = match lexer.peek_char().render().as_str() {
         "#" => Some(Hints::parse(lexer.clone())?),
         _ => None,
     };
 
     lexer.eat_wsp();
 
-    let template = match lexer.peek_char().render() {
+    let template = match lexer.peek_char().render().as_str() {
         "<" => Some(Template::parse(lexer.clone(), state.clone())?),
         _ => None,
     };
@@ -213,13 +227,13 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
         lexer.eat_wsp();
         let ty = Ty::parse(lexer.clone(), state)?;
 
-        match lexer.peek_char().render() {
+        match lexer.peek_char().render().as_str() {
             ";" => {},
             x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
         }
         lexer.take_char();
 
-        return Ok(TlExpr {proto: None, body: None, template, typedef: Some((name, ty)), hints})
+        return Ok(TlExpr {proto: None, body: None, template, typedef: Some((name, ty)), hints, cdef: None})
     }
 
     let proto = FnProto::parse(lexer.clone(), state.clone())?;
@@ -252,8 +266,8 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     };
     drop(write);
     lexer.eat_wsp();
-    match lexer.peek_char().render() {
-        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, proto: Some(proto), body: None, typedef: None })},
+    match lexer.peek_char().render().as_str() {
+        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, proto: Some(proto), body: None, typedef: None, cdef: None })},
         "=" => (),
         x => return Err(ParseError::new(lexer, format!("Expected = or ;, found `{}`", x))),
     }
@@ -262,8 +276,8 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     let body = Expr::parse(lexer.clone(), state)?;
     lexer.eat_wsp();
 
-    let t = match lexer.peek_char().render() {
-        ";" => Ok(TlExpr { hints, template, proto: Some(proto), body: Some(body) /* that I used to know */, typedef: None }),
+    let t = match lexer.peek_char().render().as_str() {
+        ";" => Ok(TlExpr { hints, template, proto: Some(proto), body: Some(body) /* that I used to know */, typedef: None, cdef: None }),
         x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
     };
     lexer.take_char();

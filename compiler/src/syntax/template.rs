@@ -8,14 +8,14 @@ use crate::{syntax::{CompilerInternal, ty::compile_basic_type}, value::CompilerT
 use super::{CompilationError, CompilerInstance, compile_fn};
 
 pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<(FunctionValue<'a>, CompilerType<'a>), CompilationError<'a>> {
-    if !compiler.compiler.read().unwrap().global_fn_templates.contains_key(name.render()) {
+    if !compiler.compiler.read().unwrap().global_fn_templates.contains_key(name.render().as_str()) {
         return Err(CompilationError::new(format!("Unable to find template function {}", name.render()), name))
     }
 
     let basic_types: Vec<BasicTypeEnum> = types.iter().map(|f| f.try_basic_type().unwrap()).collect();
 
     // TODO: given that we already store overloads, do we needc this caching?
-    match compiler.compiler.read().unwrap().global_cached_fn_templates.get(name.render()) {
+    match compiler.compiler.read().unwrap().global_cached_fn_templates.get(name.render().as_str()) {
         Some(s) => {
             let mut fn_cached = None; // GOT HERE
             for (args, fv) in s {
@@ -35,7 +35,7 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
     
     let read = compiler.compiler.read().unwrap();
     
-    let template = read.global_fn_templates.get(name.render()).unwrap();
+    let template = read.global_fn_templates.get(name.render().as_str()).unwrap();
 
     let proto = template.proto.clone();
     let body = template.body.clone();

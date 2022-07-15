@@ -22,19 +22,19 @@ impl<'a> CallExpr<'a> {
     pub fn parse_raw(lexer: Lexer<'a>, target: VariableExpr<'a>, state: ParserState) -> ParseResult<'a, Self> {
         let c = lexer.peek_char().render();
 
-        let types = match c {
+        let types = match c.as_str() {
             "(" => None,
             "<" => {
                 lexer.take_char(); // eat <
                 let mut types = vec![];
-                if lexer.peek_char().render() != ">" {
+                if lexer.peek_char().render().as_str() != ">" {
                     loop {
                         types.push(Ty::parse(lexer.clone(), state.clone())?);
                         lexer.eat_wsp();
-                        if lexer.peek_char().render() == ">" {
+                        if lexer.peek_char().render().as_str() == ">" {
                             break;
                         }
-                        if lexer.peek_char().render() != "," {
+                        if lexer.peek_char().render().as_str() != "," {
                             return Err(ParseError::new(lexer, format!("Expected , to separate template params")));
                         }
                         lexer.take_char(); // eat ,
@@ -50,18 +50,18 @@ impl<'a> CallExpr<'a> {
         lexer.eat_wsp();
         let mut inputs: Vec<Expr> = vec![];
         let c = lexer.peek_char().render();
-        if c != "(" {
+        if c.as_str() != "(" {
             return Err(ParseError::new(lexer, format!("Expected `(` to initiate call, got {}", c)))
         }
         lexer.take_char();
-        if lexer.peek_char().render() != ")" {
+        if lexer.peek_char().render().as_str() != ")" {
             loop {
                 inputs.push(Expr::parse(lexer.clone(), state.clone())?);
                 lexer.eat_wsp();
-                if lexer.peek_char().render() == ")" {
+                if lexer.peek_char().render().as_str() == ")" {
                     break;
                 }
-                if lexer.peek_char().render() != "," {
+                if lexer.peek_char().render().as_str() != "," {
                     println!("{}", lexer.peek_char().render());
                     return Err(ParseError::new(lexer, format!("Expected , to separate args")));
                 }

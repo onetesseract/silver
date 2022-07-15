@@ -11,7 +11,7 @@ pub struct Block<'a> {
 impl<'a> Block<'a> {
     pub fn parse_raw(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
         let c = lexer.take_char().render();
-        if c != "{" {
+        if c.as_str() != "{" {
             return Err(ParseError::new(lexer, format!("Expected {{ to start block, found `{}`", c)));
         }
         lexer.eat_wsp();
@@ -21,8 +21,8 @@ impl<'a> Block<'a> {
             loop {
                 exprs.push(Expr::parse(lexer.clone(), state.clone())?);
                 lexer.eat_wsp();
-                if lexer.peek_char().render() != ";" {
-                    if lexer.peek_char().render() == "}" {
+                if lexer.peek_char().render().as_str() != ";" {
+                    if lexer.peek_char().render().as_str() == "}" {
                         use_last_val = true;
                         break;
                     } else {
@@ -32,7 +32,7 @@ impl<'a> Block<'a> {
                 lexer.take_char(); // eat ;
                 lexer.eat_wsp();
 
-                if lexer.peek_char().render() == "}" {
+                if lexer.peek_char().render().as_str() == "}" {
                     break;
                 }
             }
@@ -41,7 +41,7 @@ impl<'a> Block<'a> {
         // lexer.eat_wsp();
         //
         let c = lexer.take_char().render();
-        if c != "}" {
+        if c.as_str() != "}" {
             return Err(ParseError::new(lexer, format!("Expected }} to end block, found `{}`", c)));
         }        
 

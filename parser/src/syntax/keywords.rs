@@ -12,7 +12,7 @@ pub struct Boolean<'a> {
 }
 
 pub fn parse_keywords<'a>(lexer: Lexer<'a>, state: ParserState, kwd: LexString<'a>) -> ParseResult<'a, Expr<'a>> {
-    match kwd.render() {
+    match kwd.render().as_str() {
         "true"  => Ok(Expr { val: Box::new(ExprVal::Boolean(Boolean { val: true, raw: kwd}))}),
         "false" => Ok(Expr { val: Box::new(ExprVal::Boolean(Boolean { val: false, raw: kwd}))}),
         "if" => IfExpr::parse(lexer, state, kwd),

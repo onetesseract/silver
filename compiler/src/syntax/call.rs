@@ -3,7 +3,7 @@ use parser::syntax::{call::{CallExpr, CallType}, ExprVal};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
-use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, vardef::entry_block_alloca, template::compile_fn_template, ty::compile_basic_type};
+use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, template::compile_fn_template, ty::compile_basic_type};
 
 pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     // TODO: allow overriding & and * fns
@@ -113,7 +113,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
     println!("Args types {:?}", args_types);
     let read = compiler.compiler.read().unwrap();
 
-    let (mut target, mut target_ty) = match read.global_overloadables.get(expr.target.name.render()) {
+    let (mut target, mut target_ty) = match read.global_overloadables.get(expr.target.name.render().as_str()) {
         Some(s) => {
             let mut ret = (None, None);
             for (k, val, ty) in s {
@@ -138,7 +138,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
         let targ = match var {
             Ok(s) => (Some(s.into_ptr_value()), Some(s.ty)),
             Err(_) => match expr.types {
-                Some(_) => match compiler.compiler.read().unwrap().global_fn_templates.contains_key(expr.target.name.render()) {
+                Some(_) => match compiler.compiler.read().unwrap().global_fn_templates.contains_key(expr.target.name.render().as_str()) {
                     true => {
                         let mut types = vec![];
                         for i in expr.types.unwrap() {

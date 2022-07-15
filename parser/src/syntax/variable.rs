@@ -14,7 +14,7 @@ impl<'a> VariableExpr<'a> {
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Expr> {
         let v = Self::parse_raw(lexer.clone());
         
-        if KEYWORDS.contains(&v.name.render()) {
+        if KEYWORDS.contains(&v.name.render().as_str()) {
             return parse_keywords(lexer, state, v.name);
         }
 

@@ -7,7 +7,7 @@ use super::{CompilerInstance, CompilationError, proto::compile_proto};
 
 pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
     match ty.val {
-        parser::syntax::ty::TypeVariants::Plain(name) => {
+        parser::syntax::ty::TypeVariants::Plain(ref name) => {
             match compiler.local_types.get(&ty) {
                 Some(s) => Ok(s.clone()),
                 None => match compiler.compiler.read().unwrap().global_types.get(&ty) {
@@ -17,7 +17,7 @@ pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Res
                         for i in s.params {
                             comp_tys.push(compile_basic_type(i.name, compiler.clone())?);
                         }
-                        compile_ty_template(name, comp_tys, compiler.clone())
+                        compile_ty_template(name.to_string(), comp_tys, compiler.clone())
                     } else {
                         Err(CompilationError::new_anon(format!("Unable to find type {:?}", name)))
                     },
@@ -69,9 +69,9 @@ fn get_ptr_type<'a>(ty: AnyTypeEnum<'a>) -> BasicTypeEnum<'a> {
     }
 }
 
-pub fn compile_ty_template<'a>(name: &'a str, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
+pub fn compile_ty_template<'a>(name: String, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
     let read = compiler.compiler.read().unwrap();
-    let ty = if let Some(s) = read.global_ty_templates.get(name) {
+    let ty = if let Some(s) = read.global_ty_templates.get(&name) {
         s
     } else {
         return Err(CompilationError::new_anon(format!("Unable to find template type {}", name)));

@@ -1,9 +1,10 @@
-use std::{sync::{RwLock, Arc}, fmt, hash::Hash};
+use std::{sync::{RwLock, Arc}, fmt, hash::Hash, marker::PhantomData};
 
 #[derive(Debug, Clone)]
 pub struct LexerInternal<'ctx> {
-    pub input: &'ctx str,
+    pub input: String,
     pub index: usize,
+    phantom: PhantomData<&'ctx str>,
 }
 
 // TODO: proper Eqs
@@ -25,14 +26,14 @@ impl<'ctx> Eq for LexString<'ctx> {
 }
 
 impl<'ctx> LexString<'ctx> {
-    pub fn render(&self) -> &'ctx str {
+    pub fn render(&self) -> String {
         // i sorry
         if self.start >= self.lexer.data.read().unwrap().input.len() {
-            return ""
+            return "".to_string();
         } else {
             return self.lexer.data.read().unwrap().input
             .split_at(self.start).1
-            .split_at(self.end - self.start).0
+            .split_at(self.end - self.start).0.to_string()
 
         }
     }
@@ -102,8 +103,8 @@ fn take_comment<'a>(lexer: Lexer<'a>) -> bool {
 }
 
 impl<'ctx> Lexer<'ctx> {
-    pub fn new(s: &'ctx str) -> Self {
-        Lexer {data: Arc::new(RwLock::new(LexerInternal{input:s, index: 0}))}
+    pub fn new(s: String) -> Self {
+        Lexer {data: Arc::new(RwLock::new(LexerInternal{input:s, index: 0, phantom: PhantomData {} }))}
     }
     pub fn take_while<F>(&self, mut f: F) -> LexString<'ctx> 
     where F: FnMut(char) -> bool 

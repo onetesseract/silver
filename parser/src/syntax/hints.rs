@@ -7,12 +7,12 @@ use super::{ParseResult, ParseError};
 
 #[derive(Debug, Clone)]
 pub struct Hints<'a> {
-    pub hints: HashMap<&'a str, Vec<LexString<'a>>>,
+    pub hints: HashMap<String, Vec<LexString<'a>>>,
 }
 
 impl<'a> Hints<'a> {
     pub fn parse(lexer: Lexer<'a>) -> ParseResult<'a, Self> {
-        match lexer.take_char().render() {
+        match lexer.take_char().render().as_str() {
             "#" => (),
             x => return Err(ParseError::new(lexer, format!("Expected # for a hint, got {}", x))),
         }

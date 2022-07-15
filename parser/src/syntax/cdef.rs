@@ -12,8 +12,8 @@ pub struct CDef<'a> {
 
 impl<'a> CDef<'a> {
     pub fn parse_raw(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
-        if lexer.take_char().render() != "#" {
-            return Err(ParseError::new(lexer, format!("Expected # for macro")));
+        if lexer.take_char().render() != "@" {
+            return Err(ParseError::new(lexer, format!("Expected @ for macro")));
         }
         lexer.eat_wsp();
         let name = lexer.take_identifier();

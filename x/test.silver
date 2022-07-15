@@ -1,8 +1,7 @@
-putchar(c u64);
-printf(s &u8);
+@include("string.silver");
 
 #prec 10;
-(a &&u8) = (b &u8) = #AS("store_in a b");
+(a &&u8) = (b &u8) = @AS("store_in a b");
 
 // this is a comment
 
