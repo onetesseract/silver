@@ -9,7 +9,7 @@ pub struct StringExpr<'a> {
 }
 
 impl<'a> StringExpr<'a> {
-    pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Expr> {
+    pub fn parse(lexer: Lexer<'a>, _state: ParserState) -> ParseResult<'a, Expr> {
         let begin: LexString<'a> = lexer.take_char();
         if begin.render() != "\"" {
             return Err(ParseError::new(lexer, "Expected `\"`".to_string()));

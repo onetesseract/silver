@@ -62,7 +62,6 @@ impl<'a> CallExpr<'a> {
                     break;
                 }
                 if lexer.peek_char().render().as_str() != "," {
-                    println!("{}", lexer.peek_char().render());
                     return Err(ParseError::new(lexer, format!("Expected , to separate args")));
                 }
                 lexer.take_char(); // eat ,

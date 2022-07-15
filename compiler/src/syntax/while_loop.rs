@@ -28,8 +28,10 @@ pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a
     compiler.builder.build_conditional_branch(cond, body_block, cont_block);
 
     // we done with checking condition, now compile the body
-    compiler.builder.position_at_end(body_block);
-    expr_codegen(expr.body, compiler.clone())?;
+    let mut compiler_ = compiler.clone();
+    compiler_.break_to = Some(cont_block);
+    compiler_.builder.position_at_end(body_block);
+    expr_codegen(expr.body, compiler_)?;
 
     // back to the top
     compiler.builder.build_unconditional_branch(cond_check_block);

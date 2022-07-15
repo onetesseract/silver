@@ -1,13 +1,14 @@
-#prec 10;
-(a &&u8) = (b &u8) = @AS("store_in a b");
+@include("asm.silver");
 
 <T> template_fn(a T) = {};
 
 // this is a comment
 
-main() : u64 = {
-  s &u8;
-  template_fn<&u8>(*s);
-  template_fn<&u8>(*s);
+main(argc u64, argv &&u8) : u64 = {
+  while true {
+    if *argc == 1 {
+      break;
+    };
+  }; 
   0
 };

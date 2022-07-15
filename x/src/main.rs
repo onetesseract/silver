@@ -24,16 +24,12 @@ fn main() {
 
     let compiler = CompilerInternal::new(&context, Arc::new(module));
     let compiler = Arc::new(RwLock::new(compiler));
-    println!("aaaaaaaa");
     // println!("{} {}", file, lexer.is_eof());
     while !lexer.is_eof() {
-        println!("o");
         let res = parse_tl_expr(lexer.clone(), state.clone());
         println!("> {:#?}", res.clone().unwrap());
         let instance = CompilerInstance::new(compiler.clone());
-        println!("1");
         compile_tl_expr(res.unwrap(), instance).unwrap();
-        println!("2");
         lexer.eat_wsp();
     }
 

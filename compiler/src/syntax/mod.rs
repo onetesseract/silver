@@ -15,7 +15,7 @@ pub mod string;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
-use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}};
+use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}, basic_block::BasicBlock, passes::PassManager};
 use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints, ty::{Ty, TypeVariants}}};
 
 use crate::value::{Value, CompilerType, TypeEnum};
@@ -59,6 +59,8 @@ pub struct CompilerInternal<'ctx> {
     pub global_cached_fn_templates: HashMap<String, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
 
     pub sources: HashMap<String, String>,
+
+    pub fpm: Arc<PassManager<FunctionValue<'ctx>>>,
 }
 
 impl<'ctx> CompilerInternal<'ctx> {
@@ -68,7 +70,22 @@ impl<'ctx> CompilerInternal<'ctx> {
         global_types.insert(Ty { val: TypeVariants::Plain("u64".to_string()), template: None }, CompilerType::new(context.i64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::IntType));
         global_types.insert(Ty { val: TypeVariants::Plain("f64".to_string()), template: None }, CompilerType::new(context.f64_type().as_basic_type_enum().as_any_type_enum(), TypeEnum::FloatType));
         global_types.insert(Ty { val: TypeVariants::Plain("bool".to_string()), template: None }, CompilerType::new(context.custom_width_int_type(1).as_basic_type_enum().as_any_type_enum(), TypeEnum::BoolType));
-        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new() }
+        // setup the fpm
+
+        let fpm = PassManager::create(module.clone());
+        fpm.initialize();
+        fpm.add_instruction_combining_pass();
+        fpm.add_instruction_simplify_pass();
+        fpm.add_gvn_pass();
+        fpm.add_cfg_simplification_pass();
+        fpm.add_basic_alias_analysis_pass();
+        fpm.add_demote_memory_to_register_pass();
+        fpm.add_instruction_simplify_pass();
+        fpm.add_reassociate_pass();
+
+        fpm.finalize();
+
+        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new(), fpm: Arc::new(fpm) }
     }
 }
 
@@ -81,12 +98,14 @@ pub struct CompilerInstance<'ctx> {
     // pub do_var_as_ptr: bool,
 
     pub builder: Arc<Builder<'ctx>>,
-    pub function: Option<FunctionValue<'ctx>>
+    pub function: Option<FunctionValue<'ctx>>,
+
+    pub break_to: Option<BasicBlock<'ctx>>,
 }
 
 impl<'ctx> CompilerInstance<'ctx> {
     pub fn new(compiler: Arc<RwLock<CompilerInternal<'ctx>>>) -> Self {
-        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), /* do_var_as_ptr: false, */ builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new() }
+        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), /* do_var_as_ptr: false, */ builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new(), break_to: None }
     }
 }
 
@@ -110,6 +129,14 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
         parser::syntax::ExprVal::IfExpr(if_expr) => compile_if(if_expr, compiler),
         parser::syntax::ExprVal::ReturnExpr(r) => compile_return(r, compiler),
         parser::syntax::ExprVal::Cast(c) => compile_cast(c, compiler),
+        parser::syntax::ExprVal::Break(kwd) => {
+            if let Some(s) = compiler.break_to {
+                compiler.builder.build_unconditional_branch(s);
+                Ok(Value::void_value(compiler.compiler.read().unwrap().context))
+            } else {
+                return Err(CompilationError::new(format!("Cannot break here"), kwd))
+            }
+        },
     }
 }
 
@@ -173,7 +200,10 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
         // TODO: fpm
         return Ok(fn_val)
     } else {
-        return Err(CompilationError::new("Bad function!".to_string(), proto.name))
+        compiler.compiler.read().unwrap().module.print_to_stderr();
+        println!("WARNING: BAD FUNCTION, but ignoring lol");
+        return Ok(fn_val);
+        // return Err(CompilationError::new("Bad function!".to_string(), proto.name))
     }
 }
 
@@ -190,7 +220,6 @@ pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Res
             Ok(Some(compile_fn(e.proto.unwrap(), e.body, e.hints, compiler, true)?))
         } else {
             if e.template.is_some() {
-                println!("Adding {}", e.typedef.clone().unwrap().0.render());
                 compiler.compiler.write().unwrap().global_ty_templates.insert(e.typedef.clone().unwrap().0.render(), e);
             } else {
                 let basic_ty = compile_basic_type(e.typedef.clone().unwrap().1, compiler.clone())?;

@@ -1,4 +1,4 @@
-use inkwell::{values::{BasicMetadataValueEnum, CallableValue, BasicValue}, types::{BasicMetadataTypeEnum, BasicTypeEnum, AnyType}};
+use inkwell::{values::{BasicMetadataValueEnum, CallableValue, BasicValue}, types::{BasicMetadataTypeEnum, AnyType}};
 use parser::syntax::{call::{CallExpr, CallType}, ExprVal};
 
 use crate::value::{Value, CompilerType, TypeEnum};
@@ -17,7 +17,6 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
             }
         }
         if expr.target.name.render() == "&" {
-            let mut compiler = compiler;
             // compiler.do_var_as_ptr = true;
             return expr_codegen(expr.clone().inputs[0].clone(), compiler);
 
@@ -44,7 +43,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
             // boiiiii
             match &*expr.inputs[1].val {
                 ExprVal::Variable(var) => {
-                    let mut compiler_ = compiler.clone();
+                    let compiler_ = compiler.clone();
                     // compiler_.do_var_as_ptr = true;
                     let parent = expr_codegen(expr.inputs[0].clone(), compiler_.clone())?;
                     // compiler_.do_var_as_ptr = false;
@@ -92,7 +91,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
         }
     }
 
-    let mut compiler = compiler;
+    let compiler = compiler;
 
     let mut inputs = vec![];
     for i in expr.inputs {
@@ -106,11 +105,9 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
     let argsv: Vec<BasicMetadataValueEnum> = inputs.iter().by_ref().map(|val| val.get_basic_value().into()).collect();
     // TODO: feels hacky
     let args_types: Vec<BasicMetadataTypeEnum> = inputs.iter().by_ref().map(|val| val.get_basic_value().get_type().into()).collect();
-    let basic_types: Vec<BasicTypeEnum> = inputs.iter().map(|val| val.get_basic_value().get_type()).collect();
+    // let basic_types: Vec<BasicTypeEnum> = inputs.iter().map(|val| val.get_basic_value().get_type()).collect();
     // let types = inputs.iter().map(|val| val.ty.clone()).collect();
 
-
-    println!("Args types {:?}", args_types);
     let read = compiler.compiler.read().unwrap();
 
     let (mut target, mut target_ty) = match read.global_overloadables.get(expr.target.name.render().as_str()) {
@@ -138,19 +135,20 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
         let targ = match var {
             Ok(s) => (Some(s.into_ptr_value()), Some(s.ty)),
             Err(_) => match expr.types {
-                Some(_) => match compiler.compiler.read().unwrap().global_fn_templates.contains_key(expr.target.name.render().as_str()) {
-                    true => {
+                Some(_) => {
+                    if compiler.compiler.read().unwrap().global_fn_templates.contains_key(expr.target.name.render().as_str()) {
                         let mut types = vec![];
                         for i in expr.types.unwrap() {
                             types.push(compile_basic_type(i, compiler.clone())?);
                         }
                         let template_fn = compile_fn_template(expr.target.name.clone(), types, compiler.clone())?;
                         (Some(template_fn.0.as_global_value().as_pointer_value()), Some(template_fn.1))
-                    },
-                    false => return Err(CompilationError::new(format!("Unable to find function {}", expr.target.name.render()), expr.target.name)),
+                    } else {
+                        return Err(CompilationError::new(format!("Unable to find function {}", expr.target.name.render()), expr.target.name))
+                    }
                 },
                 None => {
-                    println!("Current fns: {:#?}", compiler.compiler.read().unwrap().global_overloadables);
+                    // println!("Current fns: {:#?}", compiler.compiler.read().unwrap().global_overloadables);
                     return Err(CompilationError::new(format!("Fell back to templating but no type params exist! You sure the function `{}` exists?", expr.target.name.render()), expr.target.name));
                 }
             }

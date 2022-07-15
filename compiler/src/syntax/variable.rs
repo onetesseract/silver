@@ -1,7 +1,5 @@
 use parser::{syntax::variable::VariableExpr, lexer::LexString};
 
-use crate::value::{Value, TypeEnum};
-
 use super::{CompilerInstance, CompilationError, CompilationResult};
 
 pub fn compile_variable<'a>(expr: VariableExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {

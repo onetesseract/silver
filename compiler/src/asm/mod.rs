@@ -31,7 +31,7 @@ pub fn compile_asm<'a>(compiler: CompilerInstance<'a>, asm: String, error_at: Le
         "float_div" => Value::from_float_value(compiler.builder.build_float_div(variables[0].into_float_value(), variables[1].into_float_value(), "asm_float_div")),
         "int_sub" => Value::from_int_value(compiler.builder.build_int_sub(variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_sub")),
         "float_sub" => Value::from_float_value(compiler.builder.build_float_sub(variables[0].into_float_value(), variables[1].into_float_value(), "asm_float_sub")),
-        "int_cmp_eq" => Value::from_bool_value(compiler.builder.build_int_compare(inkwell::IntPredicate::EQ, variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_cmp_eq")),
+        "int_cmp_eq" => Value::from_bool_value(compiler.builder.build_int_compare(inkwell::IntPredicate::EQ, compiler.builder.build_load(variables[0].into_ptr_value(), "tmp_load").into_int_value(), compiler.builder.build_load(variables[1].into_ptr_value(), "tmp_load").into_int_value(), "asm_int_cmp_eq")),
         "int_cmp_neq" => Value::from_bool_value(compiler.builder.build_int_compare(inkwell::IntPredicate::NE, variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_cmp_eq")),
         "store_in" => { compiler.builder.build_store(compiler.builder.build_load(variables[0].into_ptr_value(), "store_in_load").into_pointer_value(), compiler.builder.build_load(variables[1].get_basic_value().into_pointer_value(), "")); Value::void_value(compiler.compiler.read().unwrap().context)}
         unknown => return Err(CompilationError::new(format!("Unknown opcode {}", unknown), error_at)),

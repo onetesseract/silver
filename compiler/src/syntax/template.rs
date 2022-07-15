@@ -49,15 +49,8 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
 
     let compiler = compiler.clone();
 
-   
-
-    println!("types {:?}", types);
-
-
     drop(read);
 
-    // let old_read
-    //
     let mut new_compiler_internal = CompilerInternal::new(compiler.compiler.read().unwrap().context, compiler.compiler.read().unwrap().module.clone());
 
     new_compiler_internal.global_variables = compiler.compiler.read().unwrap().global_variables.clone();
@@ -73,23 +66,23 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
         new_compiler.local_types.insert(val.clone().name, types[index].clone());
     }
 
-    let val = compile_fn(proto.clone().unwrap(), body, hints, new_compiler, true)?;
-
-    println!("hello");
+    let val = compile_fn(proto.clone().unwrap(), body, hints, new_compiler.clone(), true)?;
 
     let ret_ty = if let Some(s) = proto.unwrap().return_ty {
-        compile_basic_type(s, compiler)?
+        compile_basic_type(s, compiler.clone())?
     } else {
         CompilerType { ty: crate::value::TypeEnum::VoidType, underlying: compiler.compiler.read().unwrap().context.void_type().as_any_type_enum() }
     };
 
+    drop(new_compiler);
 
-    // match compiler.compiler.read().unwrap().global_cached_fn_templates.contains_key(name.render()) {
-    //     true  => compiler.compiler.write().unwrap().global_cached_fn_templates.get_mut(name.render()).unwrap().push((types, val)),
-    //     false => { println!("hi"); panic!(); compiler.compiler.write().unwrap().global_cached_fn_templates.insert(name.render(), vec![(types, val)]); println!("ayo"); },
-    // }
+    let b = compiler.compiler.read().unwrap().global_cached_fn_templates.contains_key(name.render().as_str());
 
-    println!("ok on {}", name.render());
+    if !b {
+        compiler.compiler.write().unwrap().global_cached_fn_templates.insert(name.render(), vec![]);
+    }
+
+    compiler.compiler.write().unwrap().global_cached_fn_templates.get_mut(name.render().as_str()).unwrap().push((basic_types, (val, ret_ty.clone())));
 
     Ok((val, ret_ty))
 }

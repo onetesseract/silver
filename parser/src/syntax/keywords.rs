@@ -2,7 +2,7 @@ use crate::lexer::{LexString, Lexer};
 
 use super::{Expr, ExprVal, ParseResult, ParserState, if_expr::IfExpr, ParseError, while_loop::WhileLoop, ret::ReturnExpr};
 
-pub const KEYWORDS: [&str; 5] = ["true", "false", "if", "return", "while"];
+pub const KEYWORDS: [&str; 6] = ["true", "false", "if", "return", "while", "break"];
 
 
 #[derive(Debug, Clone)]
@@ -18,6 +18,7 @@ pub fn parse_keywords<'a>(lexer: Lexer<'a>, state: ParserState, kwd: LexString<'
         "if" => IfExpr::parse(lexer, state, kwd),
         "while" => WhileLoop::parse(lexer, state, kwd),
         "return" => ReturnExpr::parse(lexer, state, kwd),
+        "break" => Ok(Expr { val: Box::new(ExprVal::Break(kwd))}),
         _ => return Err(ParseError::new(lexer, format!("Unknown keyword {}", kwd.render())))
     }
 }

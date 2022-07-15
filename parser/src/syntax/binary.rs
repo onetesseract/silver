@@ -9,11 +9,11 @@
 //     rhs: Expr<'a>,
 // }
 
+#[allow(non_snake_case)]
 pub mod BinaryExpr {
     use crate::{lexer::{Lexer, LexString}, syntax::{ParserState, ParseResult, Expr, ExprVal, call::CallExpr, variable::VariableExpr}};
 
     pub fn maybe_suffix_fn<'a>(lexer: Lexer<'a>, lhs: Expr<'a>, op: LexString<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
-        // println!("OP: {}, {:?}", op.render());
         if state.data.read().unwrap().suffix_fns.contains(&op.render().to_string()) {
             // it is a suffix fn
             lexer.take_identifier(); // eat the op
@@ -47,7 +47,7 @@ pub mod BinaryExpr {
             }
             drop(read);
             // ok its a binop, eat it
-            println!("ate `{}`", lexer.take_identifier().render());
+            lexer.take_identifier().render();
 
             lexer.eat_wsp();
             let mut rhs = Expr::parse_primary(lexer.clone(), state.clone())?;

@@ -52,10 +52,3 @@ impl<'a> CDef<'a> {
         Ok(Expr { val: Box::new(ExprVal::CDef(Self::parse_raw(lexer, state)?)) })
     }
 }
-// mod tests {
-//     #[test]
-//     fn cdef_parsing() {
-//         let lexer = crate::lexer::Lexer::new("#AS(\"uuuu\")");
-//         println!("cfde {:#?}", crate::syntax::cdef::CDef::parse(lexer, crate::syntax::ParserState::new()));
-//     }
-// }

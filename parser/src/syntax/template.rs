@@ -83,11 +83,3 @@ impl<'ctx> Template<'ctx> {
         Ok(Template { params: inputs })
     }
 }
-
-mod tests {
-    #[test]
-    fn templ_parsing() {
-        let lexer = crate::lexer::Lexer::new("<t, t where somfunk() : vd>");
-        println!("cfde {:#?}", crate::syntax::template::Template::parse(lexer, crate::syntax::ParserState::new()));
-    }
-}

@@ -14,15 +14,16 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] If statements
 - [ ] Loops!
   - [X] While loops - Done but untested - ~~update: they break everything~~ no it was me
-  - [ ] Break statements
+  - [X] Break statements, done but not "safe" because multiple terminators
 - [X] Return statements - done, untested
 - [X] Semicolons - done, ~~untested~~
-- [ ] Comments
-- [ ] Including other files
+- [X] Comments
+- [X] Including other files
 - [X] string literals
 - [X] literally assigning
 - [ ] enums
 - [ ] macros of sorts
 - [ ] moving casting to macros
 - [X] templated structs
-- [ ] proper cacheing of templated fns
+- [X] proper cacheing of templated fns
+- [ ] Array indexing syntax

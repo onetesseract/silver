@@ -10,9 +10,7 @@ pub fn compile_other_file<'a>(source_name: String, compiler: CompilerInstance<'a
     lexer.eat_wsp();
 
     while !lexer.is_eof() {
-        println!("a");
         let res = parse_tl_expr(lexer.clone(), state.clone());
-        // println!("> {:#?}", res.clone().unwrap());
         compile_tl_expr(res.unwrap(), compiler.clone()).unwrap();
         lexer.eat_wsp();
     }
@@ -29,7 +27,6 @@ pub fn compile_cdef<'a>(cdef: CDef<'a>, compiler: CompilerInstance<'a>) -> Compi
             }
         }
         "include" => {
-            println!("incl");
             match &*cdef.inputs[0].val {
                 ExprVal::String(s) => {
                     // TODO: don't unwrap

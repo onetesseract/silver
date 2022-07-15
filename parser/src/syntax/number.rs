@@ -15,11 +15,3 @@ impl<'a> NumberExpr<'a> {
         Ok(Expr::new(ExprVal::Number(Self::parse_raw(lexer))))
     }
 }
-
-// mod tests {
-//     #[test]
-//     fn numberparsertest() {
-//         let l = crate::lexer::Lexer::new("9.6473");
-//         println!("{:?}", crate::syntax::number::NumberExpr::parse(l));
-//     }
-// }

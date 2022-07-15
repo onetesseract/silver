@@ -56,11 +56,3 @@ impl<'a> Hints<'a> {
         }
     }
 }
-
-// mod tests {
-//     #[test]
-//     fn hints_parsing() {
-//         let lexer = crate::lexer::Lexer::new("#inline, linkage internal, poggers true;");
-//         println!("hints {:#?}", super::Hints::parse(lexer).unwrap());
-//     }
-// }

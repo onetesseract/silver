@@ -29,7 +29,6 @@ pub enum ExprVal<'a> {
     Number(NumberExpr<'a>),
     Variable(VariableExpr<'a>),
     Call(CallExpr<'a>),
-    // Binary(BinaryExpr<'a>),
     Block(Block<'a>),
     VarDef(VarDef<'a>),
     CDef(CDef<'a>),
@@ -39,13 +38,14 @@ pub enum ExprVal<'a> {
     IfExpr(IfExpr<'a>),
     ReturnExpr(ReturnExpr<'a>),
     Cast(Cast<'a>),
+    Break(LexString<'a>),
 }
 
 #[derive(Debug, Clone)]
 pub struct ParseError<'a> {
-    lexer: Lexer<'a>,
-    offset: usize,
-    message: String,
+    pub lexer: Lexer<'a>,
+    pub offset: usize,
+    pub message: String,
 }
 
 impl<'a> ParseError<'a> {
@@ -53,8 +53,7 @@ impl<'a> ParseError<'a> {
         let index = lexer.data.read().unwrap().index;
         let read = lexer.data.read().unwrap();
         let (a_split, b_split) = read.input.split_at(index);
-        println!("{}<--\n{}", a_split, b_split);
-        panic!("{}: {}", index, message);
+        let message = format!("{}:\n{}<--\n{}", message, a_split, b_split);
         ParseError { lexer: lexer.clone(), message, offset: lexer.data.read().unwrap().index }
     }
 }
@@ -152,38 +151,6 @@ pub struct TlExpr<'a> {
     pub cdef: Option<CDef<'a>>,
 }
 
-fn take_comment<'a>(lexer: Lexer<'a>) -> bool {
-    lexer.eat_wsp();
-    let x = lexer.peek_char().render();
-    if x == "/" {
-        let lexer_ = lexer.clone();
-        lexer_.take_char();
-        if lexer_.peek_char().render() == "/" {
-            lexer.take_char();
-            lexer.take_char();
-            while lexer.take_char().render() != "\n" && !lexer.is_eof() {}
-            return true;
-        }
-        if lexer_.peek_char().render() == "*" {
-            lexer.take_char();
-            lexer.take_char();
-            let mut was_asterix_last = false;
-            while !lexer.is_eof() {
-                let t = lexer.take_char().render();
-                if t == "*" {
-                    was_asterix_last = true;
-                } else if t == "/" && was_asterix_last {
-                    break;
-                } else {
-                    was_asterix_last = false;
-                }
-            }
-            return true;
-        }
-    }
-    return false;
-}
-
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
     lexer.eat_wsp();
 
@@ -212,8 +179,6 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     };
 
     lexer.eat_wsp();
-
-    println!("p: {}", lexer.peek_identifier().render());
 
     if lexer.peek_identifier().render() == "type" {
         lexer.take_identifier();
@@ -284,11 +249,3 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     return t;
 
 }
-//
-// mod tests {
-//     #[test]
-//     fn parsing_prim() {
-//         let l = crate::lexer::Lexer::new("f(x int) : int = 2 * x;");
-//         println!("{:#?}", super::parse_tl_expr(l, super::ParserState::new()));
-//     }
-// }

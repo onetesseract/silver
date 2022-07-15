@@ -14,7 +14,6 @@ impl<'a> VarDef<'a> {
             lexer.eat_wsp();
             let possible_type = lexer.peek_identifier();
             let s = possible_type.render();
-            println!("s: {:?}", s);
             // TODO: unmess plz
             if (s != "" || lexer.peek_char().render() == "{") && !state.data.read().unwrap().suffix_fns.contains(&s.to_string()) && !state.data.read().unwrap().infix_fns.contains_key(&s.to_string()) /* TODO: add other forms */ {
                 let ty = Ty::parse(lexer.clone(), state.clone())?;

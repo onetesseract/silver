@@ -2,7 +2,7 @@ use parser::syntax::ret::ReturnExpr;
 
 use crate::value::Value;
 
-use super::{CompilationError, CompilerInstance, CompilationResult, expr_codegen};
+use super::{CompilerInstance, CompilationResult, expr_codegen};
 
 pub fn compile_return<'a>(expr: ReturnExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     let ret_val = expr_codegen(expr.val, compiler.clone())?;
