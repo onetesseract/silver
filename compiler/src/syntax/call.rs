@@ -3,7 +3,7 @@ use parser::syntax::{call::{CallExpr, CallType}, ExprVal};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
-use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, template::compile_fn_template, ty::compile_basic_type};
+use super::{CompilerInstance, CompilationError, variable::compile_variable, expr_codegen, CompilationResult, template::compile_fn_template, ty::compile_basic_type, vardef::entry_block_alloca};
 
 pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
     // TODO: allow overriding & and * fns
@@ -18,24 +18,29 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
         }
         if expr.target.name.render() == "&" {
             // compiler.do_var_as_ptr = true;
-            return expr_codegen(expr.clone().inputs[0].clone(), compiler);
+            // return expr_codegen(expr.clone().inputs[0].clone(), compiler);
 
-            // match &*expr.clone().inputs[0].val {
-            //     ExprVal::Variable(v) => {
-            //         let mut compiler = compiler;
-            //         compiler.do_var_as_ptr = true;
-            //         return Ok(compile_variable(v.clone(), compiler)?);
-            //     },
-            //     _ => {
-            //         let val = expr_codegen(expr.inputs[0].clone(), compiler.clone())?;
-            //         let space = entry_block_alloca(val.get_basic_type().unwrap(), compiler.clone(), "deref_space");
-            //         compiler.builder.build_store(space, val.get_basic_value());
-            //
-            //         let val = Value::from(space.as_basic_value_enum(), CompilerType::new_ptr_to(val.ty, space.get_type().as_any_type_enum()));
-            //
-            //         return Ok(val);
-            //     }
-            // }
+            match &*expr.clone().inputs[0].val {
+                ExprVal::Variable(v) => {
+                    let mut compiler = compiler;
+                    compiler.do_var_as_ptr = true;
+                    return Ok(compile_variable(v.clone(), compiler)?);
+                },
+                ExprVal::Call(call) => {
+                    if call.target.name.render() == "." {
+
+                    }
+                }
+                _ => {},
+            }
+            let val = expr_codegen(expr.inputs[0].clone(), compiler.clone())?;
+            let space = entry_block_alloca(val.get_basic_type().unwrap(), compiler.clone(), "deref_space".to_string());
+            compiler.builder.build_store(space, val.get_basic_value());
+
+            let val = Value::from(space.as_basic_value_enum(), CompilerType::new_ptr_to(val.ty, space.get_type().as_any_type_enum()));
+
+            return Ok(val);
+
         }
     }
     if let CallType::Infix = expr.calltype {
@@ -43,10 +48,10 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
             // boiiiii
             match &*expr.inputs[1].val {
                 ExprVal::Variable(var) => {
-                    let compiler_ = compiler.clone();
-                    // compiler_.do_var_as_ptr = true;
+                    let mut compiler_ = compiler.clone();
+                    compiler_.do_var_as_ptr = true;
                     let parent = expr_codegen(expr.inputs[0].clone(), compiler_.clone())?;
-                    // compiler_.do_var_as_ptr = false;
+                    compiler_.do_var_as_ptr = false;
                     let st = match parent.ty.ty {
                         TypeEnum::PointerType(ref x) => {
                             match &x.ty {
@@ -73,13 +78,13 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
 
                     let x = compiler.builder.build_struct_gep(parent.into_ptr_value(), index.try_into().unwrap(), "struct_gep").unwrap();
 
-                    // if compiler.do_var_as_ptr {
+                    if compiler.do_var_as_ptr {
                         return Ok(Value::from(x.as_basic_value_enum(), CompilerType::new_ptr_to(CompilerType {ty: elem_ty.unwrap().clone(), underlying: x.get_type().as_any_type_enum()}, x.get_type().as_any_type_enum())))
-                    // } else {
-                    //     let load = compiler.builder.build_load(x, "struct_gep_deref");
-                    //
-                    //     return Ok(Value::from(load, CompilerType {ty: elem_ty.unwrap().clone(), underlying: load.get_type().as_any_type_enum()}))
-                    // }
+                    } else {
+                        let load = compiler.builder.build_load(x, "struct_gep_deref");
+
+                        return Ok(Value::from(load, CompilerType {ty: elem_ty.unwrap().clone(), underlying: load.get_type().as_any_type_enum()}))
+                    }
                 },
                 ExprVal::Call(call) => {
                     let mut call = call.clone();
@@ -107,6 +112,8 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
     let args_types: Vec<BasicMetadataTypeEnum> = inputs.iter().by_ref().map(|val| val.get_basic_value().get_type().into()).collect();
     // let basic_types: Vec<BasicTypeEnum> = inputs.iter().map(|val| val.get_basic_value().get_type()).collect();
     // let types = inputs.iter().map(|val| val.ty.clone()).collect();
+    
+    println!("args_types: {:?}", args_types);
 
     let read = compiler.compiler.read().unwrap();
 
@@ -128,7 +135,7 @@ pub fn compile_call<'a>(expr: CallExpr<'a>, compiler: CompilerInstance<'a>) -> C
 
     drop(read);
 
-    if !target.is_some() {
+    if !target.is_some() { // TODO: check this logic
         // compiler.do_var_as_ptr = true;
         let var = compile_variable(expr.target.clone(), compiler.clone());
         // compiler.do_var_as_ptr = false;  

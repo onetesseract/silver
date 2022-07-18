@@ -1,5 +1,7 @@
 use parser::{syntax::variable::VariableExpr, lexer::LexString};
 
+use crate::value::{Value, TypeEnum};
+
 use super::{CompilerInstance, CompilationError, CompilationResult};
 
 pub fn compile_variable<'a>(expr: VariableExpr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
@@ -16,13 +18,13 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
             None => return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at)),
         }
     };
-    let val = // if compiler.do_var_as_ptr {
-        var.clone();
-    // } else {
-    //     Value::from(compiler.builder.build_load(var.get_basic_value().into_pointer_value(), format!("{}_variable_load", name).as_str()), match var.ty.ty.clone() {
-    //         TypeEnum::PointerType(ptr) => *ptr,
-    //         _ => panic!(),
-    //     })
-    // };
+    let val = if compiler.do_var_as_ptr {
+        var.clone()
+    } else {
+        Value::from(compiler.builder.build_load(var.get_basic_value().into_pointer_value(), format!("{}_variable_load", name).as_str()), match var.ty.ty.clone() {
+            TypeEnum::PointerType(ptr) => *ptr,
+            _ => panic!(),
+        })
+    };
     return Ok(val)
 }

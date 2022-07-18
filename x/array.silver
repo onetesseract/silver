@@ -1,0 +1,9 @@
+@include("asm.silver");
+
+get_ref(array &u8, index u64) : &u8 = {
+  &(@AS("single_gep array index"))
+};
+
+get(array &u8, index u64) : u8 = {
+  *get_ref(array, index)
+};

@@ -1,14 +1,18 @@
-@include("asm.silver");
+@include ("asm.silver");
+/* @include ("array.silver"); */
 
-<T> template_fn(a T) = {};
+printf(str &u8);
+putchar(char u8);
 
-// this is a comment
+type strcontainer = {data &u8, len u64};
 
-main(argc u64, argv &&u8) : u64 = {
-  while true {
-    if *argc == 1 {
-      break;
-    };
-  }; 
+<T> test(var T) = {
+  printf(var.data);
+};
+
+main() : u64 = {
+  string strcontainer;
+  &(string.data) = "ello";
+  printf(string.data);
   0
 };

@@ -8,6 +8,7 @@ pub enum FnType {
     Suffix,
     Prefix,
     Upon,
+    Brackets,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -72,6 +73,11 @@ impl<'a> FnProto<'a> {
 
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
         lexer.eat_wsp();
+
+        // let fn_type = match lexer.t
+
+
+
         if lexer.peek_char().render() != "(" {
             // it's going to be a normal fn yay
         

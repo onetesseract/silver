@@ -27,3 +27,22 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] templated structs
 - [X] proper cacheing of templated fns
 - [ ] Array indexing syntax
+
+
+
+note:
+ use : for vardefs now
+ omit type for inference
+ arr : &u8 = [1, 2, 3];
+ arr : = [1, 2, 3];
+
+ a(b u64);
+ (a u64) x (b u64);
+ (a u64)b;
+ (a u64) [];
+
+ funct
+ prefix
+ suffix
+ brack
+ infix
