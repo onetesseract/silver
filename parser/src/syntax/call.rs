@@ -1,13 +1,44 @@
-use crate::lexer::Lexer;
+use crate::lexer::{Lexer, LexString};
 
 use super::{variable::VariableExpr, Expr, ParseResult, ParseError, ParserState, ty::Ty};
 
 #[derive(Debug, Clone)]
 pub struct CallExpr<'a> {
-    pub target: VariableExpr<'a>,
+    pub target: TargetType<'a>,
     pub inputs: Vec<Expr<'a>>,
     pub types: Option<Vec<Ty<'a>>>,
     pub calltype: CallType,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TargetType<'a> {
+    Named(VariableExpr<'a>),
+    Brackets(LexString<'a>, LexString<'a>),
+}
+
+impl<'a> TargetType<'a> {
+    pub fn get_location(&self) -> LexString<'a> {
+        match self {
+            TargetType::Named(n) => n.name.clone(),
+            TargetType::Brackets(a, _) => a.clone(),
+        }
+    }
+}
+
+impl<'a> TargetType<'a> {
+    pub fn unwrap_named(&self) -> VariableExpr<'a> {
+        match self {
+            Self::Named(n) => n.clone(),
+            Self::Brackets(..) => panic!(),
+        }
+    }
+
+    pub fn unwrap_brackets(&self) -> (LexString<'a>, LexString<'a>) {
+        match self {
+            Self::Named(_) => panic!(),
+            Self::Brackets(a, b) => (a.clone(), b.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -16,6 +47,7 @@ pub enum CallType {
     Suffix,
     Normal,
     Infix,
+    Brackets,
 }
 
 impl<'a> CallExpr<'a> {
@@ -69,6 +101,6 @@ impl<'a> CallExpr<'a> {
         }
         // eat the )
         lexer.take_char();
-        Ok(CallExpr { target, inputs, types, calltype: CallType::Normal })
+        Ok(CallExpr { target: TargetType::Named(target), inputs, types, calltype: CallType::Normal })
     }
 }

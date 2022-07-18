@@ -1,21 +1,20 @@
 use std::sync::{Arc, RwLock};
 
 use inkwell::{types::{BasicTypeEnum, AnyType}, values::FunctionValue};
-use parser::lexer::LexString;
 
 use crate::{syntax::{CompilerInternal, ty::compile_basic_type}, value::CompilerType};
 
-use super::{CompilationError, CompilerInstance, compile_fn};
+use super::{CompilationError, CompilerInstance, compile_fn, TargetType};
 
-pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<(FunctionValue<'a>, CompilerType<'a>), CompilationError<'a>> {
-    if !compiler.compiler.read().unwrap().global_fn_templates.contains_key(name.render().as_str()) {
-        return Err(CompilationError::new(format!("Unable to find template function {}", name.render()), name))
+pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<(FunctionValue<'a>, CompilerType<'a>), CompilationError<'a>> {
+    if !compiler.compiler.read().unwrap().global_fn_templates.contains_key(&name) {
+        return Err(CompilationError::new_anon(format!("Unable to find template function {:?}", name)))
     }
 
     let basic_types: Vec<BasicTypeEnum> = types.iter().map(|f| f.try_basic_type().unwrap()).collect();
 
     // TODO: given that we already store overloads, do we needc this caching?
-    match compiler.compiler.read().unwrap().global_cached_fn_templates.get(name.render().as_str()) {
+    match compiler.compiler.read().unwrap().global_cached_fn_templates.get(&name) {
         Some(s) => {
             let mut fn_cached = None; // GOT HERE
             for (args, fv) in s {
@@ -35,7 +34,7 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
     
     let read = compiler.compiler.read().unwrap();
     
-    let template = read.global_fn_templates.get(name.render().as_str()).unwrap();
+    let template = read.global_fn_templates.get(&name).unwrap();
 
     let proto = template.proto.clone();
     let body = template.body.clone();
@@ -44,7 +43,7 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
     let params = template.template.clone().unwrap().params;
 
     if params.len() != types.len() {
-        return Err(CompilationError::new(format!("Expected {} type params but got {} for {}", params.len(), types.len(), name.render()), name));
+        return Err(CompilationError::new_anon(format!("Expected {} type params but got {} for {}", params.len(), types.len(), name.render())));
     }
 
     let compiler = compiler.clone();
@@ -76,13 +75,13 @@ pub fn compile_fn_template<'a>(name: LexString<'a>, types: Vec<CompilerType<'a>>
 
     drop(new_compiler);
 
-    let b = compiler.compiler.read().unwrap().global_cached_fn_templates.contains_key(name.render().as_str());
+    let b = compiler.compiler.read().unwrap().global_cached_fn_templates.contains_key(&name);
 
     if !b {
-        compiler.compiler.write().unwrap().global_cached_fn_templates.insert(name.render(), vec![]);
+        compiler.compiler.write().unwrap().global_cached_fn_templates.insert(name.clone(), vec![]);
     }
 
-    compiler.compiler.write().unwrap().global_cached_fn_templates.get_mut(name.render().as_str()).unwrap().push((basic_types, (val, ret_ty.clone())));
+    compiler.compiler.write().unwrap().global_cached_fn_templates.get_mut(&name).unwrap().push((basic_types, (val, ret_ty.clone())));
 
     Ok((val, ret_ty))
 }

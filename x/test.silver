@@ -1,18 +1,17 @@
-@include ("asm.silver");
-/* @include ("array.silver"); */
+@include("asm.silver");
 
-printf(str &u8);
-putchar(char u8);
+func printf(str: &u8);
+func putchar(char: u8);
 
-type strcontainer = {data &u8, len u64};
+type strcontainer = {data: &u8, len: u64};
 
-<T> test(var T) = {
+<T> func test(var: T) = {
   printf(var.data);
 };
 
-main() : u64 = {
-  string strcontainer;
-  &(string.data) = "ello";
-  printf(string.data);
+func main() : u64 = {
+  string : strcontainer;
+  &(string.data) = "hella";
+  test<strcontainer>(string);
   0
 };

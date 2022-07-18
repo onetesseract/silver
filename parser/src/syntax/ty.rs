@@ -2,25 +2,6 @@
 use crate::lexer::Lexer;
 
 use super::{ParserState, ParseResult, ParseError, proto::FnProto, vardef::VarDef, template::Template};
-//
-// #[derive(Debug, Clone)]
-// pub struct Ty<'a> {
-//     pub ty: LexString<'a>,
-// }
-//
-// impl<'ctx> Ty<'ctx> {
-//     pub fn parse(lexer: Lexer<'ctx>, state: ParserState) -> ParseResult<'ctx, Self> {
-//         let possible_type = lexer.peek_identifier();
-//         let s = possible_type.render();
-//         if s != "" && !state.data.read().unwrap().suffix_fns.contains(&s.to_string()) && !state.data.read().unwrap().infix_fns.contains_key(&s.to_string()) /* TODO: add other forms */ {
-//             lexer.take_identifier(); // eat it
-//             Ok(Ty { ty: possible_type })
-//         } else {
-//             return Err(ParseError::new(lexer, format!("{} is not a type.", s)))
-//         }
-//
-//     }
-// }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Ty<'a> {
@@ -69,14 +50,16 @@ impl<'a> Ty<'a> {
                     lexer.take_identifier();
                     lexer.eat_wsp();
 
-                    if lexer.peek_char().render() == "(" {
-                        // oh its a thing whatsit
-                        // fn proto but named first
-                        let proto = FnProto::parse_normal_named(lexer, state, name)?;
-                        Ok(Ty {val: TypeVariants::FnTy(Box::new(proto)), template})
-                    } else {
+                    // TODO: function parsing
+
+                    // if lexer.peek_char().render() == "(" {
+                    //     // oh its a thing whatsit
+                    //     // fn proto but named first
+                    //     let proto = FnProto::parse_normal_named(lexer, state, name)?;
+                    //     Ok(Ty {val: TypeVariants::FnTy(Box::new(proto)), template})
+                    // } else {
                         Ok(Ty {val: TypeVariants::Plain(name.render()), template})
-                    }
+                    // }
                 }
             }
         }

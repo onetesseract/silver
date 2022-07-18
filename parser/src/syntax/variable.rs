@@ -1,8 +1,8 @@
 use crate::lexer::{LexString, Lexer};
 
-use super::{Expr, ExprVal, ParseResult, call::CallExpr, ParserState, keywords::{KEYWORDS, parse_keywords}};
+use super::{Expr, ExprVal, ParseResult, call::{CallExpr, TargetType}, ParserState, keywords::{KEYWORDS, parse_keywords}};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct VariableExpr<'a> {
     pub name: LexString<'a>
 }
@@ -24,7 +24,7 @@ impl<'a> VariableExpr<'a> {
         } else {
             if state.data.read().unwrap().prefix_fns.contains(&v.name.render().to_string()) {
                 // is a Prefix Fn
-                Ok(Expr::new(ExprVal::Call(CallExpr { target: v, inputs: vec![Expr::parse_primary(lexer, state)?], types: None, calltype: super::call::CallType::Prefix})))
+                Ok(Expr::new(ExprVal::Call(CallExpr { target: TargetType::Named(v), inputs: vec![Expr::parse_primary(lexer, state)?], types: None, calltype: super::call::CallType::Prefix})))
             }
             // else if state.data.read().unwrap().infix_fns.contains_key(lexer.peek_identifier().render()) {
             //     // is an Infix Fn first argument
@@ -32,7 +32,7 @@ impl<'a> VariableExpr<'a> {
             // } 
             else if state.data.read().unwrap().suffix_fns.contains(&lexer.peek_identifier().render().to_string()) {
                 // is a Suffix FirstArg
-                Ok(Expr::new(ExprVal::Call(CallExpr {target: VariableExpr::parse_raw(lexer.clone()), inputs: vec![Expr::new(ExprVal::Variable(v))], types: None, calltype: super::call::CallType::Suffix})))
+                Ok(Expr::new(ExprVal::Call(CallExpr {target: TargetType::Named(VariableExpr::parse_raw(lexer.clone())), inputs: vec![Expr::new(ExprVal::Variable(v))], types: None, calltype: super::call::CallType::Suffix})))
             } else {
                 // infix fns are handled by binary parsing, hopefully
                 Ok(Expr::new(ExprVal::Variable(v)))

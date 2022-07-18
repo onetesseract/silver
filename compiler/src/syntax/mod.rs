@@ -39,6 +39,28 @@ impl<'a> CompilationError<'a> {
     }
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TargetType {
+    Named(String),
+    Bracket(String, String),
+}
+
+impl TargetType {
+    fn from(t: parser::syntax::call::TargetType) -> Self {
+        match t {
+            parser::syntax::call::TargetType::Named(n) => Self::Named(n.name.render()),
+            parser::syntax::call::TargetType::Brackets(a, b) => Self::Bracket(a.render(), b.render()),
+        }
+    }
+
+    fn render(&self) -> String {
+        match self {
+            Self::Named(n) => n.clone(),
+            Self::Bracket(a, b) => format!("brackets-{}-{}", a, b),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CompilerInternal<'ctx> {
     pub context: &'ctx Context, // TODO: async compilation
@@ -48,15 +70,15 @@ pub struct CompilerInternal<'ctx> {
     pub global_variables: HashMap<String, Value<'ctx>>,
     pub global_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
-    pub global_fn_hints: HashMap<String, Hints<'ctx>>,
+    pub global_fn_hints: HashMap<TargetType, Hints<'ctx>>,
 
     // BasicMetadataTypeEnum doesn't hash. Look at this mess. TODO: fix. Look at what you have made
     // me do. TODO: switch to Values for functions
-    pub global_overloadables: HashMap<String, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>, CompilerType<'ctx>)>>,
+    pub global_overloadables: HashMap<TargetType, Vec<(Vec<BasicMetadataTypeEnum<'ctx>>, PointerValue<'ctx>, CompilerType<'ctx>)>>,
 
-    pub global_fn_templates: HashMap<String, TlExpr<'ctx>>,
+    pub global_fn_templates: HashMap<TargetType, TlExpr<'ctx>>,
     pub global_ty_templates: HashMap<String, TlExpr<'ctx>>,
-    pub global_cached_fn_templates: HashMap<String, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
+    pub global_cached_fn_templates: HashMap<TargetType, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
 
     pub sources: HashMap<String, String>,
 
@@ -142,7 +164,7 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
 
 pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option<Hints>, compiler: CompilerInstance<'a>, _named: bool) -> Result<FunctionValue<'a>, CompilationError<'a>> {
     let (fn_ty, args_ty, _, _) = compile_proto(proto.clone(), compiler.clone())?;
-    let fn_val = compiler.compiler.read().unwrap().module.add_function(proto.name.render().as_str(), fn_ty, None);
+    let fn_val = compiler.compiler.read().unwrap().module.add_function(TargetType::from(proto.name.clone()).render().as_str(), fn_ty, None);
 
 
     // compiler.compiler.write().unwrap().global_variables.insert(proto.name.render(), fn_val.as_global_value().as_pointer_value());
@@ -154,11 +176,11 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
         None => CompilerType::new(compiler.compiler.read().unwrap().context.void_type().as_any_type_enum(), TypeEnum::VoidType),
     };
 
-    if compiler.compiler.read().unwrap().global_overloadables.contains_key(proto.name.render().as_str()) {
+    if compiler.compiler.read().unwrap().global_overloadables.contains_key(&TargetType::from(proto.name.clone())) {
         let mut write = compiler.compiler.write().unwrap();
-        write.global_overloadables.get_mut(proto.name.render().as_str()).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty));
+        write.global_overloadables.get_mut(&TargetType::from(proto.name.clone())).unwrap().push((args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty));
     } else {
-        compiler.clone().compiler.write().unwrap().global_overloadables.insert(proto.name.render(), vec![(args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty)]);
+        compiler.clone().compiler.write().unwrap().global_overloadables.insert(TargetType::from(proto.name.clone()), vec![(args_ty, fn_val.as_global_value().as_pointer_value(), ret_ty)]);
     }
 
     let body = match body {
@@ -184,12 +206,12 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
 
     if proto.return_ty.is_some() {
         let body = if body.is_void() {
-            return Err(CompilationError::new(format!("Trying to return void from a fn decl that wants {:?}", proto.return_ty.unwrap()), proto.name));
+            return Err(CompilationError::new(format!("Trying to return void from a fn decl that wants {:?}", proto.return_ty.unwrap()), proto.name.get_location()));
         } else {
             body
         };
         if body.ty != compile_basic_type(proto.return_ty.clone().unwrap(), compiler.clone())? {
-            return Err(CompilationError::new(format!("Type mismatch: trying to return {:?} from a fn decl that wants {:?}", body.ty, proto.return_ty.unwrap()), proto.name));
+            return Err(CompilationError::new(format!("Type mismatch: trying to return {:?} from a fn decl that wants {:?}", body.ty, proto.return_ty.unwrap()), proto.name.get_location()));
         }
         compiler.builder.build_return(Some(&body.get_basic_value()));
     } else {
@@ -213,7 +235,7 @@ pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Res
         return Ok(None);
     }
     if e.template.is_some() && e.proto.is_some() {
-        compiler.compiler.write().unwrap().global_fn_templates.insert(e.proto.clone().unwrap().name.render(), e);
+        compiler.compiler.write().unwrap().global_fn_templates.insert(TargetType::from(e.proto.clone().unwrap().name), e);
         Ok(None)
     } else {
         if e.proto.is_some() {

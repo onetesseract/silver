@@ -12,6 +12,14 @@ impl<'a> VarDef<'a> {
     pub fn maybe_parse_raw(lexer: Lexer<'a>, e: Expr<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
         if let ExprVal::Variable(v) = &*e.val {
             lexer.eat_wsp();
+
+            if lexer.peek_char().render() == ":" {
+                lexer.take_char();
+                lexer.eat_wsp();
+            } else {
+                return Ok(e);
+            }
+
             let possible_type = lexer.peek_identifier();
             let s = possible_type.render();
             // TODO: unmess plz

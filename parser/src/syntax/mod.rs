@@ -21,6 +21,7 @@ pub mod while_loop;
 pub mod if_expr;
 pub mod ret;
 pub mod cast;
+pub mod brackets;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 
@@ -109,7 +110,8 @@ pub struct ParserStateInternal {
     pub infix_fns: HashMap<String, isize>,
     pub suffix_fns: Vec<String>,
     pub prefix_fns: Vec<String>,
-    pub upon_fns: Vec<String>,
+    // pub upon_fns: Vec<String>,
+    pub brack_pairs: Vec<(String, String)>,
 }
 
 // TODO: better fn thype thingies
@@ -127,7 +129,7 @@ impl ParserStateInternal {
         infix_fns.insert("==".to_string(), 40);
         infix_fns.insert("=".to_string(), 25);
         infix_fns.insert("as".to_string(), 5);
-        ParserStateInternal { infix_fns, suffix_fns: vec![], prefix_fns: vec!["&".to_string(), "*".to_string()], upon_fns: vec![] }
+        ParserStateInternal { infix_fns, suffix_fns: vec![], prefix_fns: vec!["&".to_string(), "*".to_string()], brack_pairs: vec![] }
     }
 }
 
@@ -206,15 +208,15 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     let mut write = s.data.write().unwrap();
 
     match proto.class {
-        FnType::Upon => write.upon_fns.push(proto.name.render().to_string()),
-        FnType::Prefix => write.prefix_fns.push(proto.name.render().to_string()),
-        FnType::Suffix => write.suffix_fns.push(proto.name.render().to_string()),
+        // FnType::Upon => write.upon_fns.push(proto.name.render().to_string()),
+        FnType::Prefix | FnType::Normal => write.prefix_fns.push(proto.name.unwrap_named().name.render().to_string()),
+        FnType::Suffix => write.suffix_fns.push(proto.name.unwrap_named().name.render().to_string()),
         FnType::Infix => {
             if let Some(hints) = &hints {
                 if let Some(hint) = hints.hints.get("prec") {
                     if hint.len() != 0 {
                         if let Ok(val) = hint[0].render().parse::<isize>() {
-                            write.infix_fns.insert(proto.name.render().to_string(), val);
+                            write.infix_fns.insert(proto.name.unwrap_named().name.render().to_string(), val);
                         } else {
                             return Err(ParseError::new(lexer, format!("Expected valid integer, got {}", hint[0].render())))
                         }
@@ -227,6 +229,10 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
             } else {
                 return Err(ParseError::new(lexer, "Require a prec hint for infix functions".to_string()))
             }
+        },
+        FnType::Brackets => {
+            let unwrapped = proto.name.unwrap_brackets();
+            write.brack_pairs.push((unwrapped.0.render().to_string(), unwrapped.1.render().to_string()))
         },
     };
     drop(write);

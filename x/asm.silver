@@ -1,16 +1,16 @@
 // TODO: template all this garbage
 
 #prec 10;
-(a &&u8) = (b &u8) = @AS("store_in a b");
+infix =(a: &&u8, b: &u8) = @AS("store_in a b");
 #prec 10;
-(a &u8) = (b u8) = @AS("store_in a b");
+infix =(a: &u8, b: u8) = @AS("store_in a b");
 #prec 10;
-(a &&u64) = (b &u64) = @AS("store_in a b");
+infix =(a: &&u64, b: &u64) = @AS("store_in a b");
 #prec 10;
-(a &u64) = (b u64) = @AS("store_in a b");
+infix =(a: &u64, b: u64) = @AS("store_in a b");
 
-#prec 15;
-(a u64) == (b u64) : bool = @AS("int_cmp_eq a b");
-
-#prec 75;
-(a u64) + (b u64) : u64 = @AS("int_add a b");
+/* #prec 15; */
+/* (a u64) == (b u64) : bool = @AS("int_cmp_eq a b"); */
+/**/
+/* #prec 75; */
+/* (a u64) + (b u64) : u64 = @AS("int_add a b"); */
