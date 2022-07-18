@@ -81,7 +81,7 @@ impl<'a> FnProto<'a> {
             "prefix" => FnType::Prefix,
             "suffix" => FnType::Suffix,
             "infix" => FnType::Infix,
-            "brack" => FnType::Brackets,
+            "brackets" => FnType::Brackets,
             _ => return Err(ParseError::new(lexer, format!("Expected valid fn type"))),
         };
 

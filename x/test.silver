@@ -1,17 +1,50 @@
-@include("asm.silver");
+#prec 10;
+infix =(a: &&u8, b: &u8) = @AS("store_in a b");
+#prec 10;
+infix =(a: &u8, b: u8) = @AS("store_in a b");
 
 func printf(str: &u8);
 func putchar(char: u8);
 
-type strcontainer = {data: &u8, len: u64};
+func exit(code: u64);
 
-<T> func test(var: T) = {
-  printf(var.data);
+brackets [[ ]](string: &u8, other: &u8) = {
+  printf(string);
+  printf(other);
 };
 
+brackets [ ](string: &u8, index: u64): &u8 = {
+  @AS("single_gep string index")
+};
+
+prefix throw(err: &u8) = {
+  printf("Problem: ");
+  printf(err);
+  exit(1);
+};
+
+suffix test_suffix(something: &u8) = {
+  printf("Suffix called: ");
+  printf(something);
+};
+
+
 func main() : u64 = {
-  string : strcontainer;
-  &(string.data) = "hella";
-  test<strcontainer>(string);
+  str: &u8 = "eefee";
+
+  // printf's "eeefeaaa"
+  str[["aaa"]];
+
+  // sadly I cannot write into str[2]
+  // this is probably by design
+  // prints "f"
+  putchar(*str[2]);
+
+  // prints "Suffix called: aa"
+  "aa" test_suffix;
+
+  // prints "Problem: the child" then exits
+  throw "the child";
+
   0
 };

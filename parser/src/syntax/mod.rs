@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::{Lexer, match_spec_id, LexString};
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call};
 
 pub mod number;
 pub mod ty;
@@ -89,7 +89,8 @@ impl<'a> Expr<'a> {
                 }
             },
         };
-        VarDef::maybe_parse_raw(lexer.clone(), Cast::maybe_parse(target?, lexer, state.clone())?, state)
+        let target = maybe_bracket_call(lexer.clone(), state.clone(), target?)?;
+        VarDef::maybe_parse_raw(lexer.clone(), Cast::maybe_parse(target, lexer, state.clone())?, state)
     }
     pub fn parse_paren(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
         let c = lexer.take_char().render();

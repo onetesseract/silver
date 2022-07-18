@@ -49,9 +49,9 @@ unsafe fn compile_gep<'a>(compiler: CompilerInstance<'a>, obj: Value<'a>, index:
         _ => return Err(CompilationError::new(format!("Cannot GEP into {:?}", obj), error_at)),
     };
 
-    if compiler.do_var_as_ptr {
+/*     if compiler.do_var_as_ptr { */
         Ok(Value::from(compiler.builder.build_gep(obj.into_ptr_value(), &[index.into_int_value()], "asm_gep").as_basic_value_enum(), obj.ty))
-    } else {
-        Ok(Value::from(compiler.builder.build_load(compiler.builder.build_gep(obj.into_ptr_value(), &[index.into_int_value()], "asm_gep"), "asm_gep_load"), *ty.clone()))
-    }
+    // } else {
+    //     Ok(Value::from(compiler.builder.build_load(compiler.builder.build_gep(obj.into_ptr_value(), &[index.into_int_value()], "asm_gep"), "asm_gep_load"), *ty.clone()))
+    // }
 }
