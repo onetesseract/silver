@@ -15,7 +15,18 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
         Some(s) => s,
         None => match read.global_variables.get(name.as_str()) {
             Some(s) => s,
-            None => return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at)),
+            None => {
+                match read.global_consts.get(&name) {
+                    Some(s) => {
+                        if compiler.do_var_as_ptr {
+                            panic!()
+                        }
+                        return Ok(s.clone());
+                    },
+                    None => return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at))
+                }
+            },
+            //return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at)),
         }
     };
     let val = if compiler.do_var_as_ptr {

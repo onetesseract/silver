@@ -12,15 +12,16 @@ pub mod if_expr;
 pub mod ret;
 pub mod cast;
 pub mod string;
+pub mod enumeration;
 
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}, basic_block::BasicBlock, passes::PassManager};
-use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints, ty::{Ty, TypeVariants}}};
+use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints, ty::{Ty, TypeVariants}, Tl, enumeration::Enum}};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
-use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if, ret::compile_return, cast::compile_cast, string::compile_string};
+use self::{number::compile_number, variable::compile_variable, call::compile_call, vardef::{compile_vardef, entry_block_alloca}, proto::compile_proto, ty::compile_basic_type, cdef::compile_cdef, boolean::compile_boolean, while_loop::compile_while_loop, if_expr::compile_if, ret::compile_return, cast::compile_cast, string::compile_string, enumeration::compile_enum};
 
 pub type CompilationResult<'a> = Result<Value<'a>, CompilationError<'a>>;
 
@@ -69,6 +70,7 @@ pub struct CompilerInternal<'ctx> {
         
     pub global_variables: HashMap<String, Value<'ctx>>,
     pub global_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
+    pub global_consts: HashMap<String, Value<'ctx>>,
 
     pub global_fn_hints: HashMap<TargetType, Hints<'ctx>>,
 
@@ -107,7 +109,7 @@ impl<'ctx> CompilerInternal<'ctx> {
 
         fpm.finalize();
 
-        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new(), fpm: Arc::new(fpm) }
+        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new(), fpm: Arc::new(fpm), global_consts: HashMap::new() }
     }
 }
 
@@ -166,10 +168,6 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
     let (fn_ty, args_ty, _, _) = compile_proto(proto.clone(), compiler.clone())?;
     let fn_val = compiler.compiler.read().unwrap().module.add_function(TargetType::from(proto.name.clone()).render().as_str(), fn_ty, None);
 
-
-    // compiler.compiler.write().unwrap().global_variables.insert(proto.name.render(), fn_val.as_global_value().as_pointer_value());
-    // compiler.compiler.write().unwrap().global_fn_types.insert(proto.name.render(), args_ty);
-    // if named {
     
     let ret_ty = match proto.return_ty.clone() {
         Some(s) => compile_basic_type(s, compiler.clone())?,
@@ -230,28 +228,27 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
 }
 
 pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Result<Option<FunctionValue<'a>>, CompilationError<'a>> {
-    if e.cdef.is_some() {
-        compile_cdef(e.cdef.unwrap(), compiler)?;
-        return Ok(None);
+    if let Tl::CDef(c) = e.tl {
+        compile_cdef(c, compiler)?;
+        return Ok(None)
     }
-    if e.template.is_some() && e.proto.is_some() {
-        compiler.compiler.write().unwrap().global_fn_templates.insert(TargetType::from(e.proto.clone().unwrap().name), e);
+    if e.template.is_some() {
+        match e.tl {
+            Tl::Function(ref proto, _) => compiler.compiler.write().unwrap().global_fn_templates.insert(TargetType::from(proto.name.clone()), e),
+            Tl::Typedef(ref typedef, _) => compiler.compiler.write().unwrap().global_ty_templates.insert(typedef.render(), e),
+            Tl::CDef(_) => todo!(),
+            Tl::Enum(_) => todo!(),
+        };
         Ok(None)
     } else {
-        if e.proto.is_some() {
-            Ok(Some(compile_fn(e.proto.unwrap(), e.body, e.hints, compiler, true)?))
-        } else {
-            if e.template.is_some() {
-                compiler.compiler.write().unwrap().global_ty_templates.insert(e.typedef.clone().unwrap().0.render(), e);
-            } else {
-                let basic_ty = compile_basic_type(e.typedef.clone().unwrap().1, compiler.clone())?;
-                compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(e.typedef.unwrap().0.render()), template: None }, basic_ty);
-            }
-            Ok(None)
+        match e.tl {
+            Tl::Function(proto, body) => Ok(Some(compile_fn(proto, body, e.hints, compiler, true)?)),
+            Tl::Typedef(name, ty) => {compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(name.render()), template: None }, compile_basic_type(ty, compiler.clone())?); Ok(None)},
+            Tl::CDef(_) => todo!(),
+            Tl::Enum(e) => {
+                let enumer = compile_enum(e, compiler)?;
+                Ok(None)
+            },
         }
     }
-    // match e {
-    //     TlExpr::Extern(hints, proto) => compile_fn(proto, None, hints, compiler),
-    //     TlExpr::Func(hints, proto, body) => compile_fn(proto, Some(body), /* that I used to know */ hints, compiler),
-    // }
 }

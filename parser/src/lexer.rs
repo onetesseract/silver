@@ -59,7 +59,7 @@ impl<'ctx> Hash for LexString<'ctx> {
 }
 
 pub fn match_identifier(c: char) -> bool {
-    c.is_alphabetic() || c == '_'
+    c.is_alphabetic() || c == '_' || c == '#'
 }
 pub fn match_spec_id(c: char) -> bool {
     "+-><*/=%!&.[]".contains(c)
@@ -136,7 +136,7 @@ impl<'ctx> Lexer<'ctx> {
         }
         let mut first = true;
         let begin = self.data.read().unwrap().index;
-        while self.peek_char().render().as_bytes()[0].is_ascii_alphanumeric() || self.peek_char().render().as_bytes()[0] as char == '_' {
+        while match_identifier(self.peek_char().render().as_bytes()[0] as char) ||  self.peek_char().render().as_bytes()[0].is_ascii_alphanumeric() {
             if first {
                 if "0123456789".contains(self.peek_char().render().as_bytes()[0] as char) {
                     break;

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::{Lexer, match_spec_id, LexString};
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call, enumeration::Enum};
 
 pub mod number;
 pub mod ty;
@@ -22,6 +22,7 @@ pub mod if_expr;
 pub mod ret;
 pub mod cast;
 pub mod brackets;
+pub mod enumeration;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 
@@ -144,21 +145,27 @@ impl ParserState {
     }
 }
 
+
 #[derive(Debug, Clone)]
 pub struct TlExpr<'a> {
     pub hints: Option<Hints<'a>>,
     pub template: Option<Template<'a>>,
-    pub proto: Option<FnProto<'a>>,
-    pub body: Option<Expr<'a>>,
-    pub typedef: Option<(LexString<'a>, Ty<'a>)>,
-    pub cdef: Option<CDef<'a>>,
+    pub tl: Tl<'a>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Tl<'a> {
+    Function(FnProto<'a>, Option<Expr<'a>>),
+    Typedef(LexString<'a>, Ty<'a>),
+    CDef(CDef<'a>),
+    Enum(Enum<'a>),
 }
 
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
     lexer.eat_wsp();
 
     if lexer.peek_char().render() == "@" {
-        let cdef = Some(CDef::parse_raw(lexer.clone(), state)?);
+        let cdef = CDef::parse_raw(lexer.clone(), state)?;
 
         match lexer.peek_char().render().as_str() {
             ";" => {},
@@ -166,7 +173,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
         }
         lexer.take_char();
 
-        return Ok(TlExpr { hints: None, template: None, proto: None, body: None, typedef: None, cdef});
+        return Ok(TlExpr { hints: None, template: None, tl: Tl::CDef(cdef)});
     }
 
     let hints = match lexer.peek_char().render().as_str() {
@@ -201,7 +208,18 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
         }
         lexer.take_char();
 
-        return Ok(TlExpr {proto: None, body: None, template, typedef: Some((name, ty)), hints, cdef: None})
+        return Ok(TlExpr {template, tl: Tl::Typedef(name, ty), hints})
+    }
+    if lexer.peek_identifier().render() == "enum" {
+        let enumer = Enum::parse(lexer.clone(), state)?;
+
+        match lexer.peek_char().render().as_str() {
+            ";" => {},
+            x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
+        }
+        lexer.take_char();
+
+        return Ok(TlExpr {template, tl: Tl::Enum(enumer), hints})
     }
 
     let proto = FnProto::parse(lexer.clone(), state.clone())?;
@@ -239,7 +257,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     drop(write);
     lexer.eat_wsp();
     match lexer.peek_char().render().as_str() {
-        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, proto: Some(proto), body: None, typedef: None, cdef: None })},
+        ";" => {lexer.take_char(); return Ok(TlExpr { hints, template, tl: Tl::Function(proto, None) })},
         "=" => (),
         x => return Err(ParseError::new(lexer, format!("Expected = or ;, found `{}`", x))),
     }
@@ -249,7 +267,7 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     lexer.eat_wsp();
 
     let t = match lexer.peek_char().render().as_str() {
-        ";" => Ok(TlExpr { hints, template, proto: Some(proto), body: Some(body) /* that I used to know */, typedef: None, cdef: None }),
+        ";" => Ok(TlExpr { hints, template, tl: Tl::Function(proto, Some(body)) }),
         x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
     };
     lexer.take_char();

@@ -36,8 +36,13 @@ pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, c
     
     let template = read.global_fn_templates.get(&name).unwrap();
 
-    let proto = template.proto.clone();
-    let body = template.body.clone();
+    let (proto, body) = match &template.tl {
+        parser::syntax::Tl::Function(proto, body) => (proto.clone(), body.clone()),
+        parser::syntax::Tl::Typedef(_, _) => todo!(),
+        parser::syntax::Tl::CDef(_) => todo!(),
+        parser::syntax::Tl::Enum(_) => todo!(),
+    };
+
     let hints = template.hints.clone();
 
     let params = template.template.clone().unwrap().params;
@@ -65,9 +70,9 @@ pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, c
         new_compiler.local_types.insert(val.clone().name, types[index].clone());
     }
 
-    let val = compile_fn(proto.clone().unwrap(), body, hints, new_compiler.clone(), true)?;
+    let val = compile_fn(proto.clone(), body, hints, new_compiler.clone(), true)?;
 
-    let ret_ty = if let Some(s) = proto.unwrap().return_ty {
+    let ret_ty = if let Some(s) = proto.return_ty {
         compile_basic_type(s, compiler.clone())?
     } else {
         CompilerType { ty: crate::value::TypeEnum::VoidType, underlying: compiler.compiler.read().unwrap().context.void_type().as_any_type_enum() }

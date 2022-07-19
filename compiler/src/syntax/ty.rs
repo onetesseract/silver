@@ -1,5 +1,5 @@
 use inkwell::{types::{BasicTypeEnum, AnyTypeEnum, BasicType, AnyType}, AddressSpace};
-use parser::syntax::ty::Ty;
+use parser::syntax::{ty::Ty, Tl};
 
 use crate::value::{CompilerType, TypeEnum, StructType};
 
@@ -47,13 +47,6 @@ pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Res
         },
         parser::syntax::ty::TypeVariants::FnTy(fnproto) => {let (fnty, _, args_ty, ret_ty) = compile_proto(*fnproto, compiler)?; Ok(CompilerType::new(fnty.as_any_type_enum(), TypeEnum::FunctionType(args_ty, Box::new(ret_ty))))},
     }
-    // match compiler.compiler.read().unwrap().global_types.get(ty.ty.render()) {
-    //     Some(s) => Ok(s.clone()),
-    //     None => match compiler.local_types.get(ty.ty.render()) {
-    //         Some(s) => Ok(s.clone()),
-    //         None => Err(CompilationError::new(format!("Unable to find type {}", ty.ty.render()), ty.ty)),
-    //     }
-    // }
 }
 
 fn get_ptr_type<'a>(ty: AnyTypeEnum<'a>) -> BasicTypeEnum<'a> {
@@ -90,18 +83,14 @@ pub fn compile_ty_template<'a>(name: String, types: Vec<CompilerType<'a>>, compi
         compiler.local_types.insert(ty.template.as_ref().unwrap().params[index].name.clone(), i.clone());
     }
 
-    let t = compile_basic_type(ty.typedef.as_ref().unwrap().1.clone(), compiler);
+    let typedef_ty = if let Tl::Typedef(_name, ty) = &ty.tl {
+        ty.clone()
+    } else {
+        panic!()
+    };
+
+    let t = compile_basic_type(typedef_ty, compiler);
 
     return t;
 }
 
-//
-// pub fn compile_any_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Result<AnyTypeEnum<'a>, CompilationError<'a>> {
-//     match compile_basic_type(ty.clone(), compiler.clone()) {
-//         Ok(s) => Ok(s.as_any_type_enum()),
-//         Err(e) => match compiler.compiler.read().unwrap().global_any_types.get(ty.ty.render()) {
-//             Some(s) => Ok(s.as_any_type_enum()),
-//             None => return Err(CompilationError::new(format!("Unable to find type {}", ty.ty.render()), ty.ty))
-//         }
-//     }
-// }

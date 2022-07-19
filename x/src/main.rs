@@ -29,11 +29,16 @@ fn main() {
         let res = parse_tl_expr(lexer.clone(), state.clone());
         if let Err(ref p) = res {
             println!("ERROR:\n{}", p.message);
-            panic!("{:?}", p)
+            panic!()
         }
         // println!("> {:#?}", res.clone().unwrap());
         let instance = CompilerInstance::new(compiler.clone());
-        compile_tl_expr(res.unwrap(), instance).unwrap();
+        let res = compile_tl_expr(res.unwrap(), instance);
+
+        if let Err(e) = res {
+            print!("Error: {}", e.message);
+            panic!();
+        }
         lexer.eat_wsp();
     }
 

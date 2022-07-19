@@ -21,7 +21,7 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] Including other files
 - [X] string literals
 - [X] literally assigning
-- [ ] enums
+- [X] enums
 - [ ] macros of sorts
 - [ ] moving casting to macros
 - [X] templated structs
