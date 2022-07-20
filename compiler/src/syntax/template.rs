@@ -41,6 +41,7 @@ pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, c
         parser::syntax::Tl::Typedef(_, _) => todo!(),
         parser::syntax::Tl::CDef(_) => todo!(),
         parser::syntax::Tl::Enum(_) => todo!(),
+        parser::syntax::Tl::Macro(_, _) => todo!(),
     };
 
     let hints = template.hints.clone();

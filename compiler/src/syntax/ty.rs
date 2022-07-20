@@ -6,6 +6,8 @@ use crate::value::{CompilerType, TypeEnum, StructType};
 use super::{CompilerInstance, CompilationError, proto::compile_proto};
 
 pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
+    println!("Compiling basic-type {:#?}", ty);
+
     match ty.val {
         parser::syntax::ty::TypeVariants::Plain(ref name) => {
             match compiler.local_types.get(&ty) {
@@ -37,7 +39,11 @@ pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Res
 
             let basic_types: Vec<BasicTypeEnum> = types.iter().map(|t| t.try_basic_type().unwrap()).collect();
 
+            println!("reading");
+
             let struct_type = compiler.compiler.read().unwrap().context.struct_type(&basic_types, false); // TODO: packing
+
+            println!("done reading");
             
 
             
@@ -60,6 +66,7 @@ fn get_ptr_type<'a>(ty: AnyTypeEnum<'a>) -> BasicTypeEnum<'a> {
         AnyTypeEnum::VectorType(v) => v.ptr_type(AddressSpace::Generic).as_basic_type_enum(),
         AnyTypeEnum::VoidType(_) => todo!(),
     }
+    
 }
 
 pub fn compile_ty_template<'a>(name: String, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {

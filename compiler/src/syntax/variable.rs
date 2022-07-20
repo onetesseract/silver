@@ -9,9 +9,10 @@ pub fn compile_variable<'a>(expr: VariableExpr<'a>, compiler: CompilerInstance<'
 }
 
 pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, err_at: LexString<'a>) -> CompilationResult<'a> {
+    println!("Compiling var {}", name);
     let locals = compiler.local_variables.read().unwrap();
     let read = compiler.compiler.read().unwrap();
-    let var = match locals.get(name.as_str()) {
+    let var = match locals.vars.get(name.as_str()) {
         Some(s) => s,
         None => match read.global_variables.get(name.as_str()) {
             Some(s) => s,
@@ -32,6 +33,10 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
     let val = if compiler.do_var_as_ptr {
         var.clone()
     } else {
+        if !var.get_basic_value().is_pointer_value() {
+            panic!("this shouldnt happen");
+        }
+        println!("Loading var {} {:?}", name, var);
         Value::from(compiler.builder.build_load(var.get_basic_value().into_pointer_value(), format!("{}_variable_load", name).as_str()), match var.ty.ty.clone() {
             TypeEnum::PointerType(ptr) => *ptr,
             _ => panic!(),

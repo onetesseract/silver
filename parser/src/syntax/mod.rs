@@ -159,6 +159,7 @@ pub enum Tl<'a> {
     Typedef(LexString<'a>, Ty<'a>),
     CDef(CDef<'a>),
     Enum(Enum<'a>),
+    Macro(FnProto<'a>, Option<Expr<'a>>),
 }
 
 pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, TlExpr> {
@@ -221,6 +222,14 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
 
         return Ok(TlExpr {template, tl: Tl::Enum(enumer), hints})
     }
+    let mcro = if lexer.peek_identifier().render() == "macro" {
+        lexer.take_identifier();
+        lexer.eat_wsp();
+        println!("parsed macro");
+        true
+    } else {
+        false
+    };
 
     let proto = FnProto::parse(lexer.clone(), state.clone())?;
     let s = state.clone();
@@ -267,7 +276,15 @@ pub fn parse_tl_expr<'a>(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a
     lexer.eat_wsp();
 
     let t = match lexer.peek_char().render().as_str() {
-        ";" => Ok(TlExpr { hints, template, tl: Tl::Function(proto, Some(body)) }),
+        ";" => Ok(TlExpr { hints, template, tl: {
+                if mcro {
+                    println!("returned macro");
+                    Tl::Macro(proto, Some(body))
+                } else {
+                    Tl::Function(proto, Some(body))
+                }
+            }
+        }),
         x => return Err(ParseError::new(lexer, format!("Expected ;, found `{}`", x))),
     };
     lexer.take_char();

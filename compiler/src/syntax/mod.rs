@@ -17,7 +17,7 @@ pub mod enumeration;
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}, basic_block::BasicBlock, passes::PassManager};
-use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::FnProto, hints::Hints, ty::{Ty, TypeVariants}, Tl, enumeration::Enum}};
+use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::{FnProto, FnType}, hints::Hints, ty::{Ty, TypeVariants}, Tl, enumeration::Enum}};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
@@ -81,6 +81,7 @@ pub struct CompilerInternal<'ctx> {
     pub global_fn_templates: HashMap<TargetType, TlExpr<'ctx>>,
     pub global_ty_templates: HashMap<String, TlExpr<'ctx>>,
     pub global_cached_fn_templates: HashMap<TargetType, Vec<(Vec<BasicTypeEnum<'ctx>>, (FunctionValue<'ctx>, CompilerType<'ctx>))>>,
+    pub global_macros: HashMap<(TargetType, FnType), (FnProto<'ctx>, Expr<'ctx>)>,
 
     pub sources: HashMap<String, String>,
 
@@ -109,14 +110,19 @@ impl<'ctx> CompilerInternal<'ctx> {
 
         fpm.finalize();
 
-        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new(), fpm: Arc::new(fpm), global_consts: HashMap::new() }
+        CompilerInternal { context, module, global_variables: HashMap::new(), global_types, global_fn_hints: HashMap::new(), global_overloadables: HashMap::new(), global_fn_templates: HashMap::new(), global_cached_fn_templates: HashMap::new(), global_ty_templates: HashMap::new(), sources: HashMap::new(), fpm: Arc::new(fpm), global_consts: HashMap::new(), global_macros: HashMap::new() }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct VarWrapper<'a> {
+    vars: HashMap<String, Value<'a>>
 }
 
 #[derive(Debug, Clone)]
 pub struct CompilerInstance<'ctx> {
     pub compiler: Arc<RwLock<CompilerInternal<'ctx>>>,
-    pub local_variables: Arc<RwLock<HashMap<String, Value<'ctx>>>>,
+    pub local_variables: Arc<RwLock<VarWrapper<'ctx>>>,
     pub local_types: HashMap<Ty<'ctx>, CompilerType<'ctx>>,
 
     pub do_var_as_ptr: bool,
@@ -129,7 +135,7 @@ pub struct CompilerInstance<'ctx> {
 
 impl<'ctx> CompilerInstance<'ctx> {
     pub fn new(compiler: Arc<RwLock<CompilerInternal<'ctx>>>) -> Self {
-        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(HashMap::new())), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new(), break_to: None }
+        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(VarWrapper { vars: HashMap::new() })), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new(), break_to: None }
     }
 }
 
@@ -197,7 +203,7 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
         let varspace = entry_block_alloca(arg.get_type(), compiler.clone(), arg_name.clone());
 
         compiler.builder.build_store(varspace, arg);
-        compiler.clone().local_variables.write().unwrap().insert(arg_name, Value::from(varspace.as_basic_value_enum(), CompilerType::new_ptr_to(compile_basic_type(proto.args[i].ty.clone(), compiler.clone())?, varspace.get_type().as_any_type_enum())));
+        compiler.clone().local_variables.write().unwrap().vars.insert(arg_name, Value::from(varspace.as_basic_value_enum(), CompilerType::new_ptr_to(compile_basic_type(proto.args[i].ty.clone(), compiler.clone())?, varspace.get_type().as_any_type_enum())));
     }
 
     let body = expr_codegen(body, compiler.clone())?;
@@ -228,6 +234,7 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
 }
 
 pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Result<Option<FunctionValue<'a>>, CompilationError<'a>> {
+    println!("Compiling {:#?}", e);
     if let Tl::CDef(c) = e.tl {
         compile_cdef(c, compiler)?;
         return Ok(None)
@@ -238,15 +245,26 @@ pub fn compile_tl_expr<'a>(e: TlExpr<'a>, compiler: CompilerInstance<'a>) -> Res
             Tl::Typedef(ref typedef, _) => compiler.compiler.write().unwrap().global_ty_templates.insert(typedef.render(), e),
             Tl::CDef(_) => todo!(),
             Tl::Enum(_) => todo!(),
+            Tl::Macro(_, _) => todo!(),
         };
         Ok(None)
     } else {
         match e.tl {
             Tl::Function(proto, body) => Ok(Some(compile_fn(proto, body, e.hints, compiler, true)?)),
-            Tl::Typedef(name, ty) => {compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(name.render()), template: None }, compile_basic_type(ty, compiler.clone())?); Ok(None)},
+            Tl::Typedef(name, ty) => {
+                let ty = compile_basic_type(ty, compiler.clone())?;
+                println!("here");
+                compiler.compiler.write().unwrap().global_types.insert(Ty { val: TypeVariants::Plain(name.render()), template: None }, ty);
+                println!("here now");
+                Ok(None)
+            },
             Tl::CDef(_) => todo!(),
             Tl::Enum(e) => {
-                let enumer = compile_enum(e, compiler)?;
+                compile_enum(e, compiler)?;
+                Ok(None)
+            },
+            Tl::Macro(proto, body) => {
+                compiler.compiler.write().unwrap().global_macros.insert((TargetType::from(proto.name.clone()), proto.class.clone()), (proto, body.unwrap()));
                 Ok(None)
             },
         }

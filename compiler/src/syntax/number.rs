@@ -18,7 +18,7 @@ pub fn compile_number<'a>(expr: NumberExpr<'a>, compiler: CompilerInstance<'a>) 
             Ok(v) => v,
             Err(e) => return Err(CompilationError::new(format!("Invalid int value {} - {}", val, e), expr.value))
         };
-        let val = Value::from_int_value(compiler.compiler.read().unwrap().context.i64_type().const_int(i as u64, true));
+        let val = Value::from_int_value(compiler.compiler.read().unwrap().context.i8_type().const_int(i as u64, true));
         return Ok(val);
     }
 }

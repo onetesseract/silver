@@ -31,9 +31,10 @@ fn main() {
             println!("ERROR:\n{}", p.message);
             panic!()
         }
-        // println!("> {:#?}", res.clone().unwrap());
+        println!("> {:#?}", res.clone().unwrap());
         let instance = CompilerInstance::new(compiler.clone());
         let res = compile_tl_expr(res.unwrap(), instance);
+        println!("hereee");
 
         if let Err(e) = res {
             print!("Error: {}", e.message);

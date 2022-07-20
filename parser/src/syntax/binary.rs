@@ -11,13 +11,13 @@
 
 #[allow(non_snake_case)]
 pub mod BinaryExpr {
-    use crate::{lexer::{Lexer, LexString}, syntax::{ParserState, ParseResult, Expr, ExprVal, call::{CallExpr, TargetType}, variable::VariableExpr}};
+    use crate::{lexer::{Lexer, LexString}, syntax::{ParserState, ParseResult, Expr, ExprVal, call::{CallExpr, TargetType}, variable::VariableExpr, proto::FnType}};
 
     pub fn maybe_suffix_fn<'a>(lexer: Lexer<'a>, lhs: Expr<'a>, op: LexString<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
         if state.data.read().unwrap().suffix_fns.contains(&op.render().to_string()) {
             // it is a suffix fn
             lexer.take_identifier(); // eat the op
-            Ok(Expr::new(ExprVal::Call(CallExpr { target: TargetType::Named(VariableExpr { name: op }), inputs: vec![lhs], types: None, calltype: crate::syntax::call::CallType::Suffix})))
+            Ok(Expr::new(ExprVal::Call(CallExpr { target: TargetType::Named(VariableExpr { name: op }), inputs: vec![lhs], types: None, calltype: FnType::Suffix})))
         } else {
             Ok(lhs)
         }
@@ -61,7 +61,7 @@ pub mod BinaryExpr {
             if parsed_prec < peek_prec {
                 rhs = parse_binop_rhs(lexer.clone(), rhs, prec + 1, state.clone())?;
             }
-            lhs = Expr::new(ExprVal::Call(CallExpr { target: TargetType::Named(VariableExpr { name: op }), inputs: vec![lhs, rhs], types: None, calltype: crate::syntax::call::CallType::Infix}));
+            lhs = Expr::new(ExprVal::Call(CallExpr { target: TargetType::Named(VariableExpr { name: op }), inputs: vec![lhs, rhs], types: None, calltype: FnType::Infix}));
         }
     }
 }

@@ -1,0 +1,26 @@
+@include("sys.silver")
+
+type Lexer = {
+   index: u64,
+   content: &u8
+};
+
+prefix drop(l: Lexer) = {
+   free(l.content)
+};
+
+func lexer#new_move(content: &u8): Lexer = {
+   lexer: Lexer;
+   &(lexer.index) = 0;
+   &(lexer.content) = content;
+   lexer
+};
+
+func lexer#new_copy(content: &u8): Lexer = {
+   lexer: Lexer;
+   &(lexer.index) = 0;
+   strcpy(lexer.content, content);
+   lexer
+};
+
+func print(lexer: &Lexer, )

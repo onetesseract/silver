@@ -10,7 +10,7 @@ pub fn compile_vardef<'a>(expr: VarDef<'a>, compiler: CompilerInstance<'a>) -> C
     
     let ptr = entry_block_alloca(ty.try_basic_type().unwrap(), compiler.clone(), expr.varname.render());
     
-    compiler.local_variables.write().unwrap().insert(expr.varname.render(), Value::from(ptr.as_basic_value_enum(), CompilerType::new_ptr_to(ty.clone(), ptr.get_type().as_any_type_enum())));
+    compiler.local_variables.write().unwrap().vars.insert(expr.varname.render(), Value::from(ptr.as_basic_value_enum(), CompilerType::new_ptr_to(ty.clone(), ptr.get_type().as_any_type_enum())));
 
     return Ok(Value::from(ptr.as_basic_value_enum(), CompilerType::new_ptr_to(ty, ptr.get_type().as_any_type_enum())));
 }

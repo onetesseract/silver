@@ -1,0 +1,2 @@
+func free(val: &u8);
+func memcpy(dest: &u8, src: &u8): &u8;

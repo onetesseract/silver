@@ -1,6 +1,6 @@
 use crate::lexer::Lexer;
 
-use super::{ParserState, Expr, ParseError, ParseResult, call::{CallExpr, TargetType, CallType}, ExprVal};
+use super::{ParserState, Expr, ParseError, ParseResult, call::{CallExpr, TargetType}, ExprVal, proto::FnType};
 
 pub fn maybe_bracket_call<'a>(lexer: Lexer<'a>, state: ParserState, expr: Expr<'a>) -> ParseResult<'a, Expr<'a>> {
     let possible = lexer.peek_identifier();
@@ -35,5 +35,5 @@ pub fn maybe_bracket_call<'a>(lexer: Lexer<'a>, state: ParserState, expr: Expr<'
     }
     let second = lexer.take_identifier(); // eat second of pair
 
-    Ok(Expr {val: Box::new(ExprVal::Call(CallExpr {target: TargetType::Brackets(possible, second), inputs, calltype: CallType::Brackets, types: None }))})
+    Ok(Expr {val: Box::new(ExprVal::Call(CallExpr {target: TargetType::Brackets(possible, second), inputs, calltype: FnType::Brackets, types: None }))})
 }

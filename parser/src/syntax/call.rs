@@ -1,13 +1,13 @@
 use crate::lexer::{Lexer, LexString};
 
-use super::{variable::VariableExpr, Expr, ParseResult, ParseError, ParserState, ty::Ty};
+use super::{variable::VariableExpr, Expr, ParseResult, ParseError, ParserState, ty::Ty, proto::FnType};
 
 #[derive(Debug, Clone)]
 pub struct CallExpr<'a> {
     pub target: TargetType<'a>,
     pub inputs: Vec<Expr<'a>>,
     pub types: Option<Vec<Ty<'a>>>,
-    pub calltype: CallType,
+    pub calltype: FnType,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -40,15 +40,15 @@ impl<'a> TargetType<'a> {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-pub enum CallType {
-    Prefix,
-    Suffix,
-    Normal,
-    Infix,
-    Brackets,
-}
+//
+// #[derive(Debug, Clone)]
+// pub enum CallType {
+//     Prefix,
+//     Suffix,
+//     Normal,
+//     Infix,
+//     Brackets,
+// }
 
 impl<'a> CallExpr<'a> {
     pub fn parse_raw(lexer: Lexer<'a>, target: VariableExpr<'a>, state: ParserState) -> ParseResult<'a, Self> {
@@ -101,6 +101,6 @@ impl<'a> CallExpr<'a> {
         }
         // eat the )
         lexer.take_char();
-        Ok(CallExpr { target: TargetType::Named(target), inputs, types, calltype: CallType::Normal })
+        Ok(CallExpr { target: TargetType::Named(target), inputs, types, calltype: FnType::Normal })
     }
 }

@@ -11,14 +11,15 @@ pub fn compile_asm<'a>(compiler: CompilerInstance<'a>, asm: String, error_at: Le
         None => return Err(CompilationError::new("Expected an opcode".to_string(), error_at))
     };
 
-    // let mut compiler = compiler.clone();
+    let mut compiler = compiler.clone();
 
-    // compiler.do_var_as_ptr = false; TODO
+    compiler.do_var_as_ptr = false; // TODO
 
     let mut variables = vec![];
     while let Some(s) = words.next() {
         variables.push(compile_variable_name(s.to_string(), compiler.clone(), error_at.clone())?)
     }
+
     let mut args = vec![];
     while let Some(s) = words.next() {
         args.push(s);

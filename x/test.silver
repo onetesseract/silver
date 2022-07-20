@@ -1,24 +1,51 @@
 #prec 15;
 infix ==(a: u64, b: u64) : bool = @AS("int_cmp_eq a b");
 
+func assign_helper(x: &&&u8, y: &&u8) = {
+   @AS("store_in x y")
+};
+
+#prec 10;
+macro infix =(a_: &u8, b: &u8) = {
+   a: &&u8;
+   assign_helper(&a, &a_);
+   @AS("store_in a b");
+};
+
+/* func a_helper(x: &&u8, y: &u8) = { */
+/*    @AS("store_in x y") */
+/* }; */
+/**/
+/* #prec 10; */
+/* macro infix =(a_: u8, b: u8) = { */
+/*    aa: &u8; */
+/*    a_helper(&aa, &a_); */
+/*    @AS("store_in aa b"); */
+/* }; */
+
 func printf(str: &u8);
 
-enum a = {
-   b,
-   c
+type wrapper = {cont: &u8};
+
+func aaaa(wra: &wrapper) = {
+   printf(wra.cont);
 };
 
-func test_enum(enum: a) : a = {
-   if enum == a#c {
-      printf("C!");
-   };
-   a#b
-};
+func putchar(char: u8);
 
 
-func main() : u64 = {
+func main() : u8 = {
+   /* a: u8; */
+   /* a = 70; */
+   /*  */
+   /* putchar(a); */
+   
+   x: &u8;
+   x = "hello there";
+   printf(x);
 
-  test_enum(test_enum(a#c));
-
-  0
+   wra: wrapper;
+   &wra.cont = x;
+   printf(&wra.cont);
+   0
 };
