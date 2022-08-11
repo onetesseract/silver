@@ -20,7 +20,7 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
                 match read.global_consts.get(&name) {
                     Some(s) => {
                         if compiler.do_var_as_ptr {
-                            panic!()
+                            println!("INVARIANT VIOLATED");
                         }
                         return Ok(s.clone());
                     },
@@ -34,7 +34,8 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
         var.clone()
     } else {
         if !var.get_basic_value().is_pointer_value() {
-            panic!("this shouldnt happen");
+            // panic!("this shouldnt happen");
+            return Ok(var.clone())
         }
         println!("Loading var {} {:?}", name, var);
         Value::from(compiler.builder.build_load(var.get_basic_value().into_pointer_value(), format!("{}_variable_load", name).as_str()), match var.ty.ty.clone() {

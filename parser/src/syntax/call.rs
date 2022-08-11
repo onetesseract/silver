@@ -88,7 +88,9 @@ impl<'a> CallExpr<'a> {
         lexer.take_char();
         if lexer.peek_char().render().as_str() != ")" {
             loop {
-                inputs.push(Expr::parse(lexer.clone(), state.clone())?);
+                let e = Expr::parse(lexer.clone(), state.clone())?;
+                println!("Fn-arg parsed {:#?}", e);
+                inputs.push(e);
                 lexer.eat_wsp();
                 if lexer.peek_char().render().as_str() == ")" {
                     break;

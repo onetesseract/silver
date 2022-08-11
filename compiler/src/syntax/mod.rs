@@ -17,7 +17,7 @@ pub mod enumeration;
 use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 use inkwell::{values::{PointerValue, FunctionValue, BasicValue}, context::Context, module::Module, builder::Builder, types::{BasicTypeEnum, BasicType, BasicMetadataTypeEnum, AnyType}, basic_block::BasicBlock, passes::PassManager};
-use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::{FnProto, FnType}, hints::Hints, ty::{Ty, TypeVariants}, Tl, enumeration::Enum}};
+use parser::{lexer::LexString, syntax::{Expr, TlExpr, proto::{FnProto, FnType}, hints::Hints, ty::{Ty, TypeVariants}, Tl, ParseError}};
 
 use crate::value::{Value, CompilerType, TypeEnum};
 
@@ -29,14 +29,15 @@ pub type CompilationResult<'a> = Result<Value<'a>, CompilationError<'a>>;
 pub struct CompilationError<'a> {
     pub message: String,
     pub location: Option<LexString<'a>>,
+    pub parse_err: Option<ParseError<'a>>,
 }
 
 impl<'a> CompilationError<'a> {
     pub fn new(message: String, location: LexString<'a>) -> Self {
-        CompilationError { message, location: Some(location) }
+        CompilationError { message, location: Some(location), parse_err: None }
     }
     pub fn new_anon(message: String) -> Self {
-        CompilationError { message, location: None }
+        CompilationError { message, location: None, parse_err: None }
     }
 }
 
@@ -47,14 +48,14 @@ pub enum TargetType {
 }
 
 impl TargetType {
-    fn from(t: parser::syntax::call::TargetType) -> Self {
+    pub fn from(t: parser::syntax::call::TargetType) -> Self {
         match t {
             parser::syntax::call::TargetType::Named(n) => Self::Named(n.name.render()),
             parser::syntax::call::TargetType::Brackets(a, b) => Self::Bracket(a.render(), b.render()),
         }
     }
 
-    fn render(&self) -> String {
+    pub fn render(&self) -> String {
         match self {
             Self::Named(n) => n.clone(),
             Self::Bracket(a, b) => format!("brackets-{}-{}", a, b),
@@ -131,11 +132,13 @@ pub struct CompilerInstance<'ctx> {
     pub function: Option<FunctionValue<'ctx>>,
 
     pub break_to: Option<BasicBlock<'ctx>>,
+    pub cont_block: Option<BasicBlock<'ctx>>,
+    // pub return_to_this_block: Option<BasicBlock<'ctx>>,
 }
 
 impl<'ctx> CompilerInstance<'ctx> {
     pub fn new(compiler: Arc<RwLock<CompilerInternal<'ctx>>>) -> Self {
-        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(VarWrapper { vars: HashMap::new() })), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new(), break_to: None }
+        CompilerInstance { compiler: compiler.clone(), local_variables: Arc::new(RwLock::new(VarWrapper { vars: HashMap::new() })), do_var_as_ptr: false, builder: Arc::new(compiler.read().unwrap().context.create_builder()), function: None, local_types: HashMap::new(), break_to: None, cont_block: None /* return_to_this_block: None */ }
     }
 }
 
@@ -167,6 +170,7 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
                 return Err(CompilationError::new(format!("Cannot break here"), kwd))
             }
         },
+        parser::syntax::ExprVal::Char(c) => Ok(Value::from_int_value(compiler.compiler.read().unwrap().context.i8_type().const_int(c.rendered.as_bytes()[0] as u64, false))),
     }
 }
 
@@ -193,6 +197,7 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
     };
 
     let entry_block = compiler.clone().compiler.read().unwrap().context.append_basic_block(fn_val, "entry_block");
+    // let final_block = compiler.clone().compiler.read().unwrap().context.append_basic_block(fn_val, "final_block");
     compiler.clone().builder.position_at_end(entry_block);
 
     let mut compiler = compiler;
@@ -206,7 +211,14 @@ pub fn compile_fn<'a>(proto: FnProto<'a>, body: Option<Expr<'a>>, _hints: Option
         compiler.clone().local_variables.write().unwrap().vars.insert(arg_name, Value::from(varspace.as_basic_value_enum(), CompilerType::new_ptr_to(compile_basic_type(proto.args[i].ty.clone(), compiler.clone())?, varspace.get_type().as_any_type_enum())));
     }
 
+    // compiler.return_to_this_block = Some(final_block);
+
     let body = expr_codegen(body, compiler.clone())?;
+
+    // compiler.builder.position_at_end(entry_block);
+    // compiler.builder.build_unconditional_branch(final_block);
+    // 
+    // compiler.builder.position_at_end(final_block);
 
     if proto.return_ty.is_some() {
         let body = if body.is_void() {

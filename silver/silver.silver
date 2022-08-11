@@ -1,0 +1,593 @@
+// EXTERNS {{{
+
+func malloc(bytes: u64) : &u8;
+func strlen(str: &u8) : u64;
+prefix free(data: &u8);
+func strcpy(dest: &u8, src: &u8);
+func strncpy(dest: &u8, src: &u8, len: u64);
+func memcpy(dest: &u8, src: &u8, len: u64);
+func strcmp(a: &u8, b: &u8) : u64;
+func printf(str: &u8);
+/* func printf(str: &u8, val: u64); */
+/* func printf(str: &u8) = printf(str, 0); */
+func putchar(char: u8);
+func exit(code: u64);
+
+// little extern thing to help me debug
+// cuz i cant be asked to write it here
+// func print_addr(addr: &u8);
+
+// }}}
+
+
+// SYSTEM {{{
+
+#prec 25;
+infix ==(a: u64, b: u64) : bool = @AS("int_cmp_eq a b");
+
+#prec 25;
+infix !=(a: u64, b: u64) : bool = @AS("int_cmp_neq a b");
+
+#prec 30;
+infix <(a: u64, b: u64) : bool = @AS("int_cmp_ult a b");
+
+#prec 30;
+infix >(a: u64, b: u64) : bool = @AS("int_cmp_ugt a b");
+
+#prec 30;
+infix <=(a: u64, b: u64) : bool = @AS("int_cmp_ule a b");
+
+#prec 30;
+infix >=(a: u64, b: u64) : bool = @AS("int_cmp_uge a b");
+
+#prec 20;
+infix &&(a: u64, b: u64) : u64 = @AS("int_and a b");
+
+#prec 20;
+infix ||(a: u64, b: u64) : u64 = @AS("int_or a b");
+
+#prec 25;
+infix ==(a: u8, b: u8) : bool = @AS("int_cmp_eq a b");
+
+#prec 25;
+infix !=(a: u8, b: u8) : bool = @AS("int_cmp_neq a b");
+
+#prec 30;
+infix <(a: u8, b: u8) : bool = @AS("int_cmp_ult a b");
+
+#prec 30;
+infix >(a: u8, b: u8) : bool = @AS("int_cmp_ugt a b");
+
+#prec 30;
+infix <=(a: u8, b: u8) : bool = @AS("int_cmp_ule a b");
+
+#prec 30;
+infix >=(a: u8, b: u8) : bool = @AS("int_cmp_uge a b");
+
+#prec 20;
+infix &&(a: u8, b: u8) : u8 = @AS("int_and a b");
+
+#prec 20;
+infix ||(a: u8, b: u8) : u8 = @AS("int_or a b");
+
+#prec 20;
+infix &&(a: bool, b: bool) : bool = @AS("bool_and a b");
+
+#prec 20;
+infix ||(a: bool, b: bool) : bool = @AS("bool_or a b");
+
+#prec 10;
+macro infix =(a: _, b: _) = @AS("store_in a b");
+
+#prec 10;
+macro infix [=](a: _, b: _) = @AS("raw_store_in a b");
+
+prefix !(a: bool) : bool = @AS("bool_not a");
+
+#prec 75;
+infix +(a: u64, b: u64) : u64 = @AS("int_add a b");
+
+#prec 75;
+infix -(a: u64, b: u64) : u64 = @AS("int_sub a b");
+
+macro suffix ++(a: _) : _ = {
+   a = a + 1;
+   a
+};
+
+macro suffix --(a: _) : _ = {
+   a = a - 1;
+   a
+};
+
+#prec 10;
+macro infix +=(a: _, b: _) : _ = {
+   a = a + b;
+   a
+};
+
+/* prec 10; */
+/* macro infix -=(a: _, b: _) : _ = { */
+/*    a = a - b; */
+/*    a */
+/* }; */
+
+
+func assert(val: bool, message: &u8) = if !val {
+      printf("Assertion failed: ");
+      printf(message);
+      printf("\n");
+      exit(1)
+   };
+
+func assertVerbose(val: bool, message: &u8) = if val {
+      printf("Assertion succeeded: ");
+      printf(message);
+      printf("\n");
+   } else {
+      printf("Assertion failed: ");
+      printf(message);
+      printf("\n");
+      exit(1);
+   };
+
+func panic(message: &u8) = {
+   printf("Panic!\n");
+   printf(message);
+   exit(1);
+};
+
+func panic() = {
+   printf("Panic!\n");
+   exit(1);
+};
+
+// }}}
+
+
+// STRING {{{
+
+brackets [ ](str: &u8, index: u64) : &u8 = @AS("single_gep str index");
+
+#prec 15;
+infix ==(a: &u8, b: &u8) : bool = strcmp(a, b) == 0;
+
+#prec 15;
+infix !=(a: &u8, b: &u8) : bool = strcmp(a, b) != 0;
+
+prefix copy(str: &u8) : &u8 = {
+   dupl: &u8;
+   dupl = malloc(str.strlen() + 1);
+   strcpy(dupl, str);
+
+   // bad debug tiem
+   /* printf("Copied `"); */
+   /* printf(dupl); */
+   /* printf("` to `"); */
+   /* print_addr(dupl); */
+   /* printf("`\n"); */
+   dupl
+};
+
+/* func length(str: &u8) : u64 = strlen(str); */
+
+func contains(str: &u8, char: u8) : bool = {
+   // TODO: revert to old logic after signage is fixed
+   length: u64 = str.strlen();
+   index: u64 = 0;
+   while index != length {
+      if *(str[index]) == char {
+         return true 
+      };
+      index++;
+   };
+   false
+};
+
+func isNumeric(char: u8) : bool = (char >= '0') && (char <= '9');
+
+func isAlpha(char: u8) : bool = ((char >= 'A') && (char <= 'Z') || (char >= 'a') && (char <= 'z'));
+
+func isAlphanumeric(char: u8) : bool = char.isNumeric() || char.isAlpha();
+
+func isWhitespace(char: u8) : bool = " \t\n".contains(char);
+
+// }}}
+
+
+// LEXER {{{
+
+// type str = &u8;
+
+type Lexer = {
+   input: &u8,
+   index: u64,
+   input_len: u64,
+};
+
+// input is not copied
+func lexer#new(input: &u8) : Lexer = {
+   lexer: Lexer;
+   (&lexer).index = 0;
+   (&lexer).input = input;
+   (&lexer).input_len = (&lexer).input.strlen();
+   lexer
+};
+
+func peek(lexer: &Lexer) : Lexer = {
+   dupl: Lexer;
+   &dupl.input = lexer.input;
+   &dupl.index = lexer.index;
+   (&dupl).input_len = lexer.input_len;
+   dupl
+};
+
+func peekChar(lexer: &Lexer) : u8 = {
+   if lexer.index >= lexer.input_len {
+      return '\0';   
+   };
+   *((lexer.input)[lexer.index])
+};
+
+func takeChar(lexer: &Lexer) : u8 = {
+   a: u8 = lexer.peekChar();
+   lexer.index = lexer.index + 1;
+   a
+};
+
+type LexString = {
+   parent: &Lexer,
+   offset: u64,
+   len: u64
+};
+
+#prec 75;
+infix + (a: LexString, b: LexString) : LexString = {
+   result: LexString;
+   if ((&a).offset + (&a).len) != (&b).offset {
+      /* printf("%lu neq ", (&a).offset); */
+      /* printf("%lu\n", (&a).len); */
+      /* printf("%lu\n", (&b).offset); */
+      panic("Trying to add two non-contiguous LexStrings");
+   };
+   (&result).offset = (&a).offset;
+   (&result).len = (&a).len + (&b).len;
+   (&result).parent = (&a).parent;
+
+   result
+};
+
+// BIG TODO: implment lambdas for more monadic operation
+
+// must remember to free!
+func render(lexstring: &LexString) : &u8 = {
+   str: &u8;
+   str = malloc(lexstring.len + 1);
+   strncpy(str, (lexstring.parent.input)[lexstring.offset], lexstring.len);
+   str[lexstring.len] [=] '\0';
+   str
+};
+
+func debug(val: &LexString) = {
+   str: &u8 = val.render();
+   printf(str);
+   free str;
+};
+
+func takeNumber(lexer: &Lexer) : LexString = {
+   string: LexString;
+   &string.offset = lexer.index;
+   &string.len = 0;
+   &string.parent = lexer;
+   
+   first_dot: bool = true;
+   // TODO: this specific logic feels stupid. surely there's a better way?
+   while lexer.peekChar().isNumeric() || ((lexer.peekChar() == '.') && first_dot) {
+      (&string.len)++;
+      if lexer.takeChar() == '.' first_dot = false;
+   };
+   string
+};
+
+func isConventionalId(char: u8, first: bool) : bool = char.isAlpha() || (char.isNumeric() && !first) || (char == '_');
+
+func isSpecialId(char: u8) : bool = "+-><*/=%!&.[]|".contains(char);
+
+func takeIdentifier(lexer: &Lexer) : LexString = {
+   string: LexString;
+   &string.offset = lexer.index;
+   &string.len = 0;
+   &string.parent = lexer;
+   
+   first: bool = true;
+   while lexer.peekChar().isConventionalId(first) {
+      (&string.len)++;
+      if first { first = false; };
+      lexer.takeChar();
+   };
+
+   if &string.len == 0 {
+      while lexer.peekChar().isSpecialId() {
+         (&string.len)++;
+         lexer.takeChar();
+      };
+   };
+
+   string
+};
+
+func takeOnlyWhitespace(lexer: &Lexer) : LexString = {
+   string: LexString;
+   &string.offset = lexer.index;
+   &string.len = 0;
+   &string.parent = lexer;
+   
+   while lexer.peekChar().isWhitespace() {
+      (&string.len)++;
+      lexer.takeChar();
+   };
+
+   string
+};
+
+func takeComment(lexer: &Lexer) : LexString = {
+   string: LexString;
+   &string.offset = lexer.index;
+   &string.len = 0;
+   &string.parent = lexer;
+
+   if lexer.peekChar() == '/' {
+      peeked_: Lexer = lexer.peek();
+      peeked: &Lexer = &peeked_;
+      peeked.takeChar();
+      c: u8 = peeked.peekChar();
+      if c == '/' {
+         lexer.takeChar();
+         lexer.takeChar();
+
+         (&string.len) += 2;
+
+         while lexer.takeChar() != '\n' {
+            (&string.len)++;
+         };
+      } else if c == '*' {
+         lexer.takeChar();
+         lexer.takeChar();
+
+         (&string.len) += 2;
+
+         while true {
+            if lexer.takeChar() == '*' {
+               if lexer.peekChar() == '/' {
+                     lexer.takeChar();
+                     (&string.len) += 2;
+                     break;
+               };
+            };
+            (&string.len)++;
+         };
+      };
+   };
+
+   string
+};
+
+func takeWhitespace(lexer: &Lexer) : LexString = {
+   string: LexString = lexer.takeOnlyWhitespace();
+   while lexer.peekChar() == '/' {
+      string += lexer.takeComment();
+      string += lexer.takeOnlyWhitespace();
+   };
+
+   string
+};
+
+func require(lexer: &Lexer, char: u8) : LexString = {
+   lexer.takeWhitespace();
+   
+   string: LexString;
+   (&string).offset = lexer.index;
+   (&string).parent = lexer;
+   (&string.len) = 1;
+
+   if lexer.takeChar() != char {
+      printf("Expected `");
+      putchar(char);
+      printf("` but got `");
+      putchar(char);
+      printf("`\n");
+      panic("invalid character");
+   };
+   string
+};
+
+func require(lexer: &Lexer, str: &u8) : LexString = {
+   lexer.takeWhitespace();
+   
+   string: LexString = lexer.takeIdentifier();
+
+   if (&string).render() != str {
+      printf("Expected `");
+      printf(str);
+      printf("` but got `");
+      printf((&string).render());
+      printf("`\n");
+      panic("invalid character");
+   };
+   string
+};
+
+// }}}
+
+
+// PARSER {{{
+
+type Parser = {
+   lexer: &Lexer
+};
+
+// lexer is moved
+func parser#new(lexer: &Lexer) : Parser = {
+   parser: Parser;
+   (&parser).lexer = lexer;
+   parser
+};
+
+enum ExprType = {
+   Number,
+   Identifier,
+};
+
+func debug(val: &ExprType) = {
+   if *val == ExprType#Number {
+      printf("ExprType#Number");
+   }
+};
+
+type Expr = {
+   value: &u8, // something something data pointer
+   variant: ExprType
+};
+
+prefix drop(expr: Expr) = {
+   free (&expr.value);
+};
+
+type NumberExpr = {
+   source: LexString,
+   parsed: u64,
+};
+
+func debug(val: &NumberExpr) = {
+   debug(&(val.source));
+};
+
+func parseNumberExpr(parser: &Parser) : NumberExpr = {
+   number: LexString = parser.lexer.takeNumber();
+   if &number.len == 0 {
+      panic("Expected number");
+   };
+   expr: NumberExpr;
+   &expr.source = number;
+
+   // TODO: atoi
+
+   expr
+};
+
+prefix copy(val: NumberExpr) : &NumberExpr = {
+   data: &NumberExpr = malloc(@sizeof(NumberExpr)) as &NumberExpr;
+   memcpy((&val) as &u8, data as &u8, @sizeof(NumberExpr));
+
+   data
+};
+
+func asExpr(number: NumberExpr) : Expr = {
+   expr: Expr;
+   &expr.variant = ExprType#Number;
+
+   // TODO: make it more silvery
+   &expr.value = (copy number) as &u8;
+
+   expr
+};
+
+
+type IdentifierExpr = {
+   source: LexString,
+   // TODO: namespaces
+};
+
+func debug(val: &IdentifierExpr) = {
+   debug(&(val.source));
+};
+
+func parseIdentifierExpr(parser: &Parser) : IdentifierExpr = {
+   id: LexString = parser.lexer.takeIdentifier();
+   if &id.len == 0 {
+      panic("Expected valid identifier");
+   };
+   expr: IdentifierExpr;
+   &expr.source = id;
+
+   expr
+};
+
+prefix copy(val: IdentifierExpr) : &IdentifierExpr = {
+   data: &IdentifierExpr = malloc(@sizeof(IdentifierExpr)) as &IdentifierExpr;
+   memcpy((&val) as &u8, data as &u8, @sizeof(IdentifierExpr));
+
+   data
+};
+
+func asExpr(id: IdentifierExpr) : Expr = {
+   expr: Expr;
+   &expr.variant = ExprType#Identifier;
+
+   &expr.value = (copy id) as &u8;
+
+   expr
+};
+
+
+func parseExpr(parser: &Parser) : Expr = {
+   parser.lexer.takeWhitespace();
+
+   next_char: u8 = parser.lexer.peekChar();
+   printf("Peeked char: `");
+   putchar(next_char);
+   printf("`\n");
+   if next_char.isNumeric() {
+      parser.parseNumberExpr().asExpr()
+   } else if (next_char.isConventionalId(true) || next_char.isSpecialId()) {
+      parser.parseIdentifierExpr().asExpr()
+   } else {
+      expr: Expr;
+      printf("Cannot parse: `");
+      putchar(next_char);
+      printf("`\n");
+      panic();
+
+      expr
+   }
+};
+
+
+// }}}
+
+
+// MAIN {{{
+
+func main() : u64 = {
+   printf("begin\n");
+   code: &u8 = "178.7492 aa 786 bcd";
+   lexer: &Lexer = &lexer#new(code);
+   /**/
+   /*  */
+   /* string: &LexString = & &(lexer.takeWhitespace()); */
+   /* printf(string.render()); */
+   /**/
+   /* putchar('\n'); */
+
+   string: &LexString = & &(lexer.takeNumber());
+   printf(string.render());
+
+   putchar('\n');
+
+   lexer.takeWhitespace();
+
+   string = & &(lexer.takeIdentifier());
+   printf(string.render());
+   putchar('\n');
+
+   parser: &Parser = &parser#new(lexer);
+
+   parser.parseNumberExpr();
+   parser.parseNumberExpr();
+
+   exit(0);
+   0
+};
+
+
+// }}}

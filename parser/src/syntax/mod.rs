@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::{Lexer, match_spec_id, LexString};
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::StringExpr, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call, enumeration::Enum};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::{StringExpr, CharExpr}, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call, enumeration::Enum};
 
 pub mod number;
 pub mod ty;
@@ -41,6 +41,7 @@ pub enum ExprVal<'a> {
     ReturnExpr(ReturnExpr<'a>),
     Cast(Cast<'a>),
     Break(LexString<'a>),
+    Char(CharExpr<'a>),
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ impl<'a> ParseError<'a> {
         let read = lexer.data.read().unwrap();
         let (a_split, b_split) = read.input.split_at(index);
         let message = format!("{}:\n{}<--\n{}", message, a_split, b_split);
+        panic!("{}", message);
         ParseError { lexer: lexer.clone(), message, offset: lexer.data.read().unwrap().index }
     }
 }
@@ -82,6 +84,7 @@ impl<'a> Expr<'a> {
             '{' => Block::parse(lexer.clone(), state.clone()),
             '@' => CDef::parse(lexer.clone(), state.clone()),
             '\"' => StringExpr::parse(lexer.clone(), state.clone()),
+            '\'' => CharExpr::parse(lexer.clone(), state.clone()),
             x => {
                 if match_spec_id(x) {
                     VariableExpr::parse(lexer.clone(), state.clone())
@@ -90,8 +93,10 @@ impl<'a> Expr<'a> {
                 }
             },
         };
-        let target = maybe_bracket_call(lexer.clone(), state.clone(), target?)?;
-        VarDef::maybe_parse_raw(lexer.clone(), Cast::maybe_parse(target, lexer, state.clone())?, state)
+        lexer.eat_wsp();
+        let target = VarDef::maybe_parse_raw(lexer.clone(), Cast::maybe_parse(target?, lexer.clone(), state.clone())?, state.clone())?;
+
+        maybe_bracket_call(lexer.clone(), state.clone(), target)
     }
     pub fn parse_paren(lexer: Lexer<'a>, state: ParserState) -> ParseResult<Self> {
         let c = lexer.take_char().render();

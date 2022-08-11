@@ -1,27 +1,15 @@
 #prec 15;
 infix ==(a: u64, b: u64) : bool = @AS("int_cmp_eq a b");
 
-func assign_helper(x: &&&u8, y: &&u8) = {
-   @AS("store_in x y")
+#prec 10;
+macro infix =(x: _, y: _) = {
+   @AS("store_in x y");
 };
 
 #prec 10;
-macro infix =(a_: &u8, b: &u8) = {
-   a: &&u8;
-   assign_helper(&a, &a_);
-   @AS("store_in a b");
+macro infix [=](x: _, y: _) = {
+   @AS("raw_store_in x y");
 };
-
-/* func a_helper(x: &&u8, y: &u8) = { */
-/*    @AS("store_in x y") */
-/* }; */
-/**/
-/* #prec 10; */
-/* macro infix =(a_: u8, b: u8) = { */
-/*    aa: &u8; */
-/*    a_helper(&aa, &a_); */
-/*    @AS("store_in aa b"); */
-/* }; */
 
 func printf(str: &u8);
 
@@ -31,21 +19,40 @@ func aaaa(wra: &wrapper) = {
    printf(wra.cont);
 };
 
-func putchar(char: u8);
+func putchar(char: u64);
+
+type a = {str: &u8};
+type b = {x: &a};
 
 
-func main() : u8 = {
-   /* a: u8; */
-   /* a = 70; */
-   /*  */
-   /* putchar(a); */
-   
-   x: &u8;
-   x = "hello there";
-   printf(x);
+type LexString = {
+   parent: &u8,
+   offset: u64,
+   len: u64
+};
 
-   wra: wrapper;
-   &wra.cont = x;
-   printf(&wra.cont);
+#prec 75;
+infix +(a: u64, b: u64) : u64 = @AS("int_add a b");
+
+#prec 75;
+infix -(a: u64, b: u64) : u64 = @AS("int_sub a b");
+
+macro suffix ++(a: u64) : u64 = {
+   a = a + 1;
+   a
+};
+
+macro suffix --(a: u64) : u64 = {
+   a = a - 1;
+   a
+};
+
+
+func main() : u64 = {
+   a: u64 = 70;
+   putchar(a);
+   a++;
+   putchar(a);
+
    0
 };

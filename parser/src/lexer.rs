@@ -62,7 +62,7 @@ pub fn match_identifier(c: char) -> bool {
     c.is_alphabetic() || c == '_' || c == '#'
 }
 pub fn match_spec_id(c: char) -> bool {
-    "+-><*/=%!&.[]".contains(c)
+    "+-><*/=%!&.[]|".contains(c)
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 use crate::{lexer::{LexString, Lexer}, syntax::template::Template};
 
-use super::{ty::Ty, Expr, ParserState, ParseResult, ExprVal, ParseError};
+use super::{ty::Ty, Expr, ParserState, ParseResult, ExprVal, ParseError, variable::VariableExpr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct VarDef<'a> {
@@ -42,11 +42,17 @@ impl<'a> VarDef<'a> {
         Ok(e)
     }
     pub fn parse_raw(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
-        let val = Expr::parse_primary(lexer.clone(), state.clone())?;
-        if let ExprVal::VarDef(v) = &*val.clone().val {
-            Ok(v.clone())
-        } else {
-            return Err(ParseError::new(lexer, format!("Invalid vardef, found {:?}", val)))
+        lexer.eat_wsp();
+        let varname = VariableExpr::parse_raw(lexer.clone()).name;
+        lexer.eat_wsp();
+        if lexer.peek_char().render() != ":" {
+            return Err(ParseError::new(lexer, format!("Expected : for vardef")));
         }
+        lexer.take_char();
+        lexer.eat_wsp();
+
+        let ty = Ty::parse(lexer, state)?;
+
+        Ok(VarDef {ty, varname} )
     }
 }

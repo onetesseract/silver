@@ -38,7 +38,7 @@ fn main() {
 
         if let Err(e) = res {
             print!("Error: {}", e.message);
-            panic!();
+            panic!("Error: {}", e.message);
         }
         lexer.eat_wsp();
     }

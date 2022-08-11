@@ -8,7 +8,7 @@ use parser::syntax::{
 };
 
 use crate::{
-    syntax::TargetType,
+    syntax::{TargetType, vardef::compile_vardef},
     value::{CompilerType, TypeEnum, Value},
 };
 
@@ -68,6 +68,7 @@ pub fn compile_call<'a>(
                     _ => {}
                 }
                 let val = expr_codegen(expr.inputs[0].clone(), compiler.clone())?;
+                println!("Val 0th: {:#?} aaaa\n {:#?}", expr.inputs[0], val);
                 let space = entry_block_alloca(
                     val.get_basic_type().unwrap(),
                     compiler.clone(),
@@ -115,6 +116,7 @@ pub fn compile_call<'a>(
                         let mut index: isize = -1;
                         let mut elem_ty = None;
                         for (internal_index, (name, ty)) in st.values.iter().enumerate() {
+                            println!("Trying `{}` against `{}`", name.render(), var.name.render());
                             if name.render() == var.name.render() {
                                 index = internal_index.try_into().unwrap();
                                 elem_ty = Some(ty);
@@ -125,9 +127,10 @@ pub fn compile_call<'a>(
                         if index == -1 {
                             return Err(CompilationError::new(
                                 format!(
-                                    "Cannot find sub-value {} in {:?}",
+                                    "Cannot find sub-value {} in {:?}\nstruct is {:?}",
                                     var.name.render(),
-                                    expr
+                                    expr,
+                                    st
                                 ),
                                 expr.target.get_location(),
                             ));
@@ -191,41 +194,47 @@ pub fn compile_call<'a>(
         }
         let mut compiler = compiler.clone();
         // compiler.do_var_as_ptr = true;
-        let locals = compiler.local_variables.read().unwrap().clone();
+        let mut locals = compiler.local_variables.read().unwrap().clone();
         for (index, i) in expr.inputs.iter().enumerate() {
-            // if let ExprVal::Variable(var) = i {
-            //     compiler.do_var_as_ptr = true;
-            //     compiler.local_variables.insert(proto.args[index].varname.render(), compile_variable(var));
-            //     compiler.do_var_as_ptr = false;
-            // }
-            // compiler.local_variables.
+            // println!("Handling {:?} as {}", i, proto.args[index].varname.render());
             if let ExprVal::Variable(v) = &*i.val {
                 compiler.do_var_as_ptr = true;
                 let var = compile_variable(v.clone(), compiler.clone())?;
-                compiler.local_variables.write().unwrap().vars.insert(proto.args[index].varname.render(), var);
+                locals.vars.insert(proto.args[index].varname.render(), var);
                 compiler.do_var_as_ptr = false;
+                continue;
             } else if let ExprVal::Call(c) = &*i.val {
                 if let TargetType::Named(n) = TargetType::from(c.target.clone()) {
-                    if n == "." {
+                    if n == "." && matches!(&*c.inputs[1].val, ExprVal::Variable(_)) {
                         compiler.do_var_as_ptr = true;
                         let call = compile_call(c.clone(), compiler.clone())?;
                         compiler.do_var_as_ptr = false;
-                        compiler.local_variables.write().unwrap().vars.insert(proto.args[index].varname.render(), call);
+                        locals.vars.insert(proto.args[index].varname.render(), call);
                         continue;
                     }
                 }
-            } else {
-                let expr = expr_codegen(i.clone(), compiler.clone())?;
-                let space = entry_block_alloca(expr.get_basic_type().unwrap(), compiler.clone(), "macro_arg_space".to_string());
-                compiler.builder.build_store(space, expr.get_basic_value());
-                let value = Value::from(space.as_basic_value_enum(), CompilerType::new_ptr_to(expr.ty, space.get_type().as_any_type_enum()));
-                compiler.local_variables.write().unwrap().vars.insert(proto.args[index].varname.render(), value);
+            } else if let ExprVal::VarDef(v) = &*i.val {
+                let var = compile_vardef(v.clone(), compiler.clone())?;
+                locals.vars.insert(proto.args[index].varname.render(), var);
+                continue;
             }
+            let expr = expr_codegen(i.clone(), compiler.clone())?;
+            let space = entry_block_alloca(expr.get_basic_type().unwrap(), compiler.clone(), "macro_arg_space".to_string());
+            compiler.builder.build_store(space, expr.get_basic_value());
+            let value = Value::from(space.as_basic_value_enum(), CompilerType::new_ptr_to(expr.ty, space.get_type().as_any_type_enum()));
+            println!("Default-adding variable {}", proto.args[index].varname.render());
+            locals.vars.insert(proto.args[index].varname.render(), value);
         }
         compiler.do_var_as_ptr = false;
+
+        let original = compiler.local_variables.read().unwrap().clone();
+
+        compiler.local_variables.write().unwrap().vars = locals.vars;
+
+        println!("LOCALS: {:#?}", compiler.local_variables.write().unwrap().vars);
         
         let res = expr_codegen(body.clone(), compiler.clone())?;
-        compiler.local_variables.write().unwrap().vars = locals.vars;
+        compiler.local_variables.write().unwrap().vars = original.vars;
         return Ok(res);
     }
 

@@ -15,7 +15,11 @@ pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a
     let body_block = compiler.compiler.read().unwrap().context.append_basic_block(compiler.function.unwrap(), "while_loop_body_basic_block");
 
     // we make a continuation block
-    let cont_block = compiler.compiler.read().unwrap().context.append_basic_block(compiler.function.unwrap(), "while_loop_cont_basic_block");
+    let cont_block = if let Some(block) = compiler.cont_block {
+        block
+    } else {
+        compiler.compiler.read().unwrap().context.append_basic_block(compiler.function.unwrap(), "while_loop_cont_basic_block")
+    };
 
     // ok now evaulate the condition
     let cond = expr_codegen(expr.condition.clone(), compiler.clone())?;
@@ -38,6 +42,10 @@ pub fn compile_while_loop<'a>(expr: WhileLoop<'a>, compiler: CompilerInstance<'a
 
     // now lets put the builder where it should be
     compiler.builder.position_at_end(cont_block);
+
+    // if let Some(block) = compiler.return_to_this_block {
+    //     compiler.builder.build_unconditional_branch(block);
+    // }
 
     Ok(Value::void_value(compiler.compiler.read().unwrap().context))
 }
