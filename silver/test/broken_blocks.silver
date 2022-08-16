@@ -1,0 +1,15 @@
+func summat() : bool = true;
+
+func eep() = {
+   if false {
+      /* while true { */
+      /*    if summat() { */
+      /*       summat(); */
+      /*    }; */
+      /* }; */
+   } else {
+      while true {
+         summat();
+      };
+   };
+};

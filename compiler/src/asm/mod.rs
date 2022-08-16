@@ -65,6 +65,7 @@ pub fn compile_asm<'a>(compiler: CompilerInstance<'a>, asm: String, error_at: Le
         "bool_and" => Value::from_bool_value(compiler.builder.build_and(variables[0].into_int_value(), variables[1].into_int_value(), "asm_bool_and")),
         "bool_or" => Value::from_bool_value(compiler.builder.build_or(variables[0].into_int_value(), variables[1].into_int_value(), "asm_bool_or")),
         "bool_not" => Value::from_bool_value(compiler.builder.build_not(variables[0].into_int_value(), "asm_bool_not")),
+        "int_mul" => Value::from_int_value(compiler.builder.build_int_mul(variables[0].into_int_value(), variables[1].into_int_value(), "asm_int_mul")),
         unknown => return Err(CompilationError::new(format!("Unknown opcode {}", unknown), error_at)),
 
     };

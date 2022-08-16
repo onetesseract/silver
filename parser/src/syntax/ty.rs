@@ -10,6 +10,7 @@ pub struct Ty<'a> {
 }
 impl<'a> Ty<'a> {
     pub fn parse(lexer: Lexer<'a>, state: ParserState) -> ParseResult<'a, Self> {
+        lexer.eat_wsp();
         let template = if lexer.peek_char().render() == "<" {
             Some(Template::parse(lexer.clone(), state.clone())?)
         } else { None };

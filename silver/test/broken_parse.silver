@@ -1,0 +1,5 @@
+<T> type X = {};
+type Y = {};
+func y() = {
+   va: <Y> X;
+};

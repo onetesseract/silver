@@ -1,6 +1,7 @@
 // EXTERNS {{{
 
 func malloc(bytes: u64) : &u8;
+func realloc(data: &u8, bytes: u64) : &u8;
 func strlen(str: &u8) : u64;
 prefix free(data: &u8);
 func strcpy(dest: &u8, src: &u8);
@@ -89,6 +90,9 @@ infix +(a: u64, b: u64) : u64 = @AS("int_add a b");
 
 #prec 75;
 infix -(a: u64, b: u64) : u64 = @AS("int_sub a b");
+
+#prec 100;
+infix *(a: u64, b: u64) : u64 = @AS("int_mul a b");
 
 macro suffix ++(a: _) : _ = {
    a = a + 1;
@@ -415,6 +419,49 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
       panic("invalid character");
    };
    string
+};
+
+// }}}
+
+
+// LIST {{{
+
+<T> type VariableArray = {
+   used_size: u64,
+   set_size: u64,
+   data: &T
+};
+
+<T> func variablearray#new() : <T> VariableArray = {
+   va: <T> VariableArray;
+   
+   (&va).data = malloc(@sizeof(T) * 64);
+   (&va).used_size = 0;
+   (&va).set_size = @sizeof(T) * 64;
+
+   va
+};
+
+<T> func get(va: & <T> VariableArray, index: u64) : &T = {
+   @AS("single_gep val index") as &T
+};
+
+<T> func append(va: & <T> VariableArray) = {
+   va.used_size += @sizeof(T);
+   if va.used_size > va.set_size {
+      va.data = realloc(va.data, va.set_size + (@sizeof(T) * 64))
+   };
+};
+
+<T> prefix drop(va: <T> VariableArray) = {
+
+   free((&va).data);
+};
+
+func test() = {
+   va: <u8> VariableArray;
+   va = variablearray#new<u8>();
+   va.get<u8>(0);
 };
 
 // }}}

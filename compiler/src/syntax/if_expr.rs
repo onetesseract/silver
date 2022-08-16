@@ -55,9 +55,13 @@ pub fn compile_if<'a>(expr: IfExpr<'a>, compiler: CompilerInstance<'a>) -> Compi
 
     // compiler.return_to_this_block = None;
 
+    let then_bb = compiler.builder.get_insert_block().unwrap();
+
+
     compiler.builder.build_unconditional_branch(cont_block);
 
-    compiler.builder.position_at_end(then_block);
+
+    // compiler.builder.position_at_end(then_block);
     // back to continuation
     // compiler.builder.build_unconditional_branch(then_pickup_block);
     //
@@ -65,18 +69,20 @@ pub fn compile_if<'a>(expr: IfExpr<'a>, compiler: CompilerInstance<'a>) -> Compi
     // compiler.builder.position_at_end(then_pickup_block);
     // compiler.builder.build_unconditional_branch(cont_block);
 
-    let else_val = if let Some(else_expr) = expr.els {
+    let (else_val, else_bb) = if let Some(else_expr) = expr.els {
         compiler.builder.position_at_end(else_block.unwrap());
         // compiler.return_to_this_block = Some(else_pickup_block.unwrap());
         let else_val = expr_codegen(else_expr, compiler.clone())?;
+
+        compiler.builder.build_unconditional_branch(cont_block);
         // compiler.return_to_this_block = None;
-        compiler.builder.position_at_end(else_block.unwrap());
+        // compiler.builder.position_at_end(else_block.unwrap());
         // compiler.builder.build_unconditional_branch(else_pickup_block.unwrap());
         // compiler.builder.position_at_end(else_pickup_block.unwrap());
-        compiler.builder.build_unconditional_branch(cont_block);
-        else_val
+        // compiler.builder.build_unconditional_branch(cont_block);
+        (else_val, Some(compiler.builder.get_insert_block().unwrap()))
     } else {
-        Value::void_value(compiler.compiler.read().unwrap().context)
+        (Value::void_value(compiler.compiler.read().unwrap().context), None)
     };
 
     compiler.builder.position_at_end(cont_block);
@@ -87,8 +93,8 @@ pub fn compile_if<'a>(expr: IfExpr<'a>, compiler: CompilerInstance<'a>) -> Compi
             if else_val.ty == then_val.ty {
                 let phi = compiler.builder.build_phi(tv.value.get_type(), "if_phi");
                 phi.add_incoming(&[
-                    (&then_val.get_basic_value(), then_block),
-                    (&else_val.clone().get_basic_value(), else_block.unwrap())
+                    (&then_val.get_basic_value(), then_bb),
+                    (&else_val.clone().get_basic_value(), else_bb.unwrap())
                 ]);
                 return Ok(Value::from(phi.as_basic_value(), CompilerType::new(phi.as_basic_value().get_type().as_any_type_enum(), then_val.ty.ty)))
             } else {

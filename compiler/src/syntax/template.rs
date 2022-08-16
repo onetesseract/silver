@@ -64,6 +64,7 @@ pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, c
     new_compiler_internal.global_overloadables = compiler.compiler.read().unwrap().global_overloadables.clone();
     new_compiler_internal.global_fn_templates = compiler.compiler.read().unwrap().global_fn_templates.clone();
     new_compiler_internal.global_ty_templates = compiler.compiler.read().unwrap().global_ty_templates.clone();
+    new_compiler_internal.global_macros = compiler.compiler.read().unwrap().global_macros.clone();
 
     let mut new_compiler = CompilerInstance::new(Arc::new(RwLock::new(new_compiler_internal)));
 

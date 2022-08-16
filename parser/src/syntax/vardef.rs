@@ -11,9 +11,11 @@ pub struct VarDef<'a> {
 impl<'a> VarDef<'a> {
     pub fn maybe_parse_raw(lexer: Lexer<'a>, e: Expr<'a>, state: ParserState) -> ParseResult<'a, Expr<'a>> {
         if let ExprVal::Variable(v) = &*e.val {
+            println!("step 1");
             lexer.eat_wsp();
 
             if lexer.peek_char().render() == ":" {
+                println!("step 2");
                 lexer.take_char();
                 lexer.eat_wsp();
             } else {
@@ -23,7 +25,7 @@ impl<'a> VarDef<'a> {
             let possible_type = lexer.peek_identifier();
             let s = possible_type.render();
             // TODO: unmess plz
-            if (s != "" || lexer.peek_char().render() == "{") && !state.data.read().unwrap().suffix_fns.contains(&s.to_string()) && !state.data.read().unwrap().infix_fns.contains_key(&s.to_string()) /* TODO: add other forms */ {
+            if (s != "" || lexer.peek_char().render() == "{") /* && !state.data.read().unwrap().suffix_fns.contains(&s.to_string()) && !state.data.read().unwrap().infix_fns.contains_key(&s.to_string()) */ /* TODO: add other forms */ {
                 let ty = Ty::parse(lexer.clone(), state.clone())?;
 
                 lexer.eat_wsp();
@@ -33,8 +35,11 @@ impl<'a> VarDef<'a> {
                     let template = Template::parse(lexer, state)?;
                     let mut ty = ty;
                     ty.template = Some(template);
+                    println!("Returning templ");
                     return Ok(Expr::new(ExprVal::VarDef(VarDef { varname: v.name.clone(), ty })))
                 }
+
+                println!("Returning normal");
 
                 return Ok(Expr::new(ExprVal::VarDef(VarDef { varname: v.name.clone(), ty })))
             }
