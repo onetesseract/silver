@@ -143,7 +143,8 @@ impl<'ctx> CompilerInstance<'ctx> {
 }
 
 pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
-    println!("Compiling expr {:?}", e);
+    compiler.compiler.try_write().unwrap();
+    // println!("Compiling expr {:?}", e);
     match *e.val {
         parser::syntax::ExprVal::Number(num) => compile_number(num, compiler),
         parser::syntax::ExprVal::Variable(var) => compile_variable(var, compiler),

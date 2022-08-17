@@ -443,7 +443,7 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
 };
 
 <T> func get(va: & <T> VariableArray, index: u64) : &T = {
-   @AS("single_gep val index") as &T
+   @AS("single_gep va index") as &T
 };
 
 <T> func append(va: & <T> VariableArray) = {

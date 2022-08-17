@@ -22,6 +22,8 @@ pub fn compile_call<'a>(
     expr: CallExpr<'a>,
     compiler: CompilerInstance<'a>,
 ) -> CompilationResult<'a> {
+    compiler.compiler.try_write().unwrap();
+
     // TODO: allow overriding & and * fns
 
     if matches!(expr.calltype, FnType::Prefix | FnType::Normal) {
@@ -184,9 +186,20 @@ pub fn compile_call<'a>(
         }
     }
 
+    compiler.compiler.try_write().unwrap();
+
     println!("call");
 
-    if let Some((proto, body)) = compiler.compiler.read().unwrap().global_macros.get(&(TargetType::from(expr.target.clone()), expr.calltype)) {
+    let read = compiler.compiler.clone();
+    let read = read.read().unwrap();
+
+    if let Some((proto_, body_)) = read.global_macros.get(&(TargetType::from(expr.target.clone()), expr.calltype)) {
+        let proto = proto_.clone();
+        let body = body_.clone();
+        drop(proto_);
+        drop(body_);
+        drop(read);
+        compiler.compiler.try_write().unwrap();
         println!("MACRO");
         // hoo boy its a macro
         if proto.args.len() != expr.inputs.len() {
@@ -232,11 +245,15 @@ pub fn compile_call<'a>(
         compiler.local_variables.write().unwrap().vars = locals.vars;
 
         // println!("LOCALS: {:#?}", compiler.local_variables.write().unwrap().vars);
-        
+    
+        compiler.compiler.try_write().unwrap();
+
         let res = expr_codegen(body.clone(), compiler.clone())?;
         compiler.local_variables.write().unwrap().vars = original.vars;
         return Ok(res);
     }
+
+    drop(read);
 
     // let compiler = compiler;
     let mut compiler = compiler;
@@ -311,13 +328,14 @@ pub fn compile_call<'a>(
         if targ.0.is_none() {
             targ = match expr.types {
                 Some(_) => {
-                    if compiler
+                    let contains: bool = compiler
                         .compiler
                         .read()
                         .unwrap()
                         .global_fn_templates
-                        .contains_key(&TargetType::from(expr.target.clone()))
-                    {
+                        .contains_key(&TargetType::from(expr.target.clone()));
+
+                    if contains {
                         let mut types = vec![];
                         for i in expr.types.unwrap() {
                             types.push(compile_basic_type(i, compiler.clone())?);
