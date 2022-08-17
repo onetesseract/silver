@@ -427,7 +427,7 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
 // LIST {{{
 
 <T> type VariableArray = {
-   used_size: u64,
+   len: u64,
    set_size: u64,
    data: &T
 };
@@ -435,8 +435,8 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
 <T> func variablearray#new() : <T> VariableArray = {
    va: <T> VariableArray;
    
-   (&va).data = malloc(@sizeof(T) * 64);
-   (&va).used_size = 0;
+   (&va).data = malloc(@sizeof(T) * 64) as &T;
+   (&va).len = 0;
    (&va).set_size = @sizeof(T) * 64;
 
    va
@@ -446,11 +446,13 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
    @AS("single_gep va index") as &T
 };
 
-<T> func append(va: & <T> VariableArray) = {
-   va.used_size += @sizeof(T);
-   if va.used_size > va.set_size {
-      va.data = realloc(va.data, va.set_size + (@sizeof(T) * 64))
+<T> func append(va: & <T> VariableArray, val: T) = {
+   va.len += 1;
+   if (va.len * @sizeof(T)) > va.set_size {
+      va.data = (realloc((va.data) as &u8, va.set_size + (@sizeof(T) * 64)) as &T);
+      va.set_size += (@sizeof(T) * 64);
    };
+   (*(va.get<T>(va.len - 1))) = val;
 };
 
 <T> prefix drop(va: <T> VariableArray) = {
@@ -461,7 +463,7 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
 func test() = {
    va: <u8> VariableArray;
    va = variablearray#new<u8>();
-   va.get<u8>(0);
+   (&va).get<u8>(0);
 };
 
 // }}}
@@ -606,9 +608,9 @@ func parseExpr(parser: &Parser) : Expr = {
 // MAIN {{{
 
 func main() : u64 = {
-   printf("begin\n");
-   code: &u8 = "178.7492 aa 786 bcd";
-   lexer: &Lexer = &lexer#new(code);
+   /* printf("begin\n"); */
+   /* code: &u8 = "178.7492 aa 786 bcd"; */
+   /* lexer: &Lexer = &lexer#new(code); */
    /**/
    /*  */
    /* string: &LexString = & &(lexer.takeWhitespace()); */
@@ -616,21 +618,29 @@ func main() : u64 = {
    /**/
    /* putchar('\n'); */
 
-   string: &LexString = & &(lexer.takeNumber());
-   printf(string.render());
+   /* string: &LexString = & &(lexer.takeNumber()); */
+   /* printf(string.render()); */
+   /**/
+   /* putchar('\n'); */
+   /**/
+   /* lexer.takeWhitespace(); */
+   /**/
+   /* string = & &(lexer.takeIdentifier()); */
+   /* printf(string.render()); */
+   /* putchar('\n'); */
+   /**/
+   /* parser: &Parser = &parser#new(lexer); */
+   /**/
+   /* parser.parseNumberExpr(); */
+   /* parser.parseNumberExpr(); */
 
-   putchar('\n');
+   va: <&u8> VariableArray;
+   va = variablearray#new<&u8>();
 
-   lexer.takeWhitespace();
+   (&va).append<&u8>("he");
 
-   string = & &(lexer.takeIdentifier());
-   printf(string.render());
-   putchar('\n');
+   printf(*((&va).get<&u8>(0)));
 
-   parser: &Parser = &parser#new(lexer);
-
-   parser.parseNumberExpr();
-   parser.parseNumberExpr();
 
    exit(0);
    0
