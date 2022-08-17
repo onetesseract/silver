@@ -231,7 +231,7 @@ pub fn compile_call<'a>(
 
         compiler.local_variables.write().unwrap().vars = locals.vars;
 
-        println!("LOCALS: {:#?}", compiler.local_variables.write().unwrap().vars);
+        // println!("LOCALS: {:#?}", compiler.local_variables.write().unwrap().vars);
         
         let res = expr_codegen(body.clone(), compiler.clone())?;
         compiler.local_variables.write().unwrap().vars = original.vars;

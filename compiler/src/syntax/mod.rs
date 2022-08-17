@@ -34,10 +34,10 @@ pub struct CompilationError<'a> {
 
 impl<'a> CompilationError<'a> {
     pub fn new(message: String, location: LexString<'a>) -> Self {
-        CompilationError { message, location: Some(location), parse_err: None }
+        panic!("{:?}", CompilationError { message, location: Some(location), parse_err: None })
     }
     pub fn new_anon(message: String) -> Self {
-        CompilationError { message, location: None, parse_err: None }
+        panic!("{:?}", CompilationError { message, location: None, parse_err: None })
     }
 }
 
@@ -143,6 +143,7 @@ impl<'ctx> CompilerInstance<'ctx> {
 }
 
 pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> CompilationResult<'a> {
+    println!("Compiling expr {:?}", e);
     match *e.val {
         parser::syntax::ExprVal::Number(num) => compile_number(num, compiler),
         parser::syntax::ExprVal::Variable(var) => compile_variable(var, compiler),

@@ -7,6 +7,7 @@ use crate::{syntax::{CompilerInternal, ty::compile_basic_type}, value::CompilerT
 use super::{CompilationError, CompilerInstance, compile_fn, TargetType};
 
 pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, compiler: CompilerInstance<'a>) -> Result<(FunctionValue<'a>, CompilerType<'a>), CompilationError<'a>> {
+    println!("COMPILING TEMPLATE {:?}", name);
     if !compiler.compiler.read().unwrap().global_fn_templates.contains_key(&name) {
         return Err(CompilationError::new_anon(format!("Unable to find template function {:?}", name)))
     }
@@ -70,12 +71,13 @@ pub fn compile_fn_template<'a>(name: TargetType, types: Vec<CompilerType<'a>>, c
 
     for (index, val) in params.iter().enumerate() {
         new_compiler.local_types.insert(val.clone().name, types[index].clone());
+        println!("Just added {:?} with {:?}", val.clone().name, types[index].clone());
     }
 
     let val = compile_fn(proto.clone(), body, hints, new_compiler.clone(), true)?;
 
     let ret_ty = if let Some(s) = proto.return_ty {
-        compile_basic_type(s, compiler.clone())?
+        compile_basic_type(s, new_compiler.clone())?
     } else {
         CompilerType { ty: crate::value::TypeEnum::VoidType, underlying: compiler.compiler.read().unwrap().context.void_type().as_any_type_enum() }
     };

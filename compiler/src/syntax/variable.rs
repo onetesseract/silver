@@ -24,7 +24,8 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
                         }
                         return Ok(s.clone());
                     },
-                    None => return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at))
+                    // None => return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at))
+                    None => return Err(CompilationError {message: format!("Unable to find variable {}", name), location: Some(err_at), parse_err: None})
                 }
             },
             //return Err(CompilationError::new(format!("Unable to find variable {}", name), err_at)),
@@ -37,7 +38,7 @@ pub fn compile_variable_name<'a>(name: String, compiler: CompilerInstance<'a>, e
             // panic!("this shouldnt happen");
             return Ok(var.clone())
         }
-        println!("Loading var {} {:?}", name, var);
+        // println!("Loading var {} {:?}", name, var);
         Value::from(compiler.builder.build_load(var.get_basic_value().into_pointer_value(), format!("{}_variable_load", name).as_str()), match var.ty.ty.clone() {
             TypeEnum::PointerType(ptr) => *ptr,
             _ => panic!(),

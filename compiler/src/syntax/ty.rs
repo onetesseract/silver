@@ -6,7 +6,7 @@ use crate::value::{CompilerType, TypeEnum, StructType};
 use super::{CompilerInstance, CompilationError, proto::compile_proto};
 
 pub fn compile_basic_type<'a>(ty: Ty<'a>, compiler: CompilerInstance<'a>) -> Result<CompilerType<'a>, CompilationError<'a>> {
-    println!("Compiling basic-type {:#?}", ty);
+    // println!("Compiling basic-type {:#?}", ty);
 
     match ty.val {
         parser::syntax::ty::TypeVariants::Plain(ref name) => {
