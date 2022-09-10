@@ -192,11 +192,17 @@ func resize(data: &u8, bytes: u64) : &u8 = {
 
 <T> func get(va: & <T> VariableArray, index: u64) : &T = {
     data: &T = va.data;
+    if @AS("ptr_to_int data") == 0 { panic("Null data!"); };
     @AS("single_gep data index") as &T
 };
 
 <T> func set(va: & <T> VariableArray, index: u64, val: T) = {
-    memcpy((&val) as &u8, ((va.get<T>(index)) as &u8), @sizeof(T));
+    printint(val as u64);
+    printint((*(&val)) as u64);
+    data: &u64 = va.get<T>(index);
+    printint(@AS("ptr_to_int data"));
+    memcpy(((va.get<T>(index)) as &u8), (&val) as &u8, @sizeof(T));
+    printint((*(va.get<T>(0))) as u64);
 };
 
 <T> func append(va: & <T> VariableArray, val: T) = {
@@ -214,9 +220,13 @@ func resize(data: &u8, bytes: u64) : &u8 = {
     free((&va).data);
 };
 
-func try_get(va: <u64> VariableArray) : u64 = {
-    *((&va).get<u64>(0))
+func try_get(va: & <u64> VariableArray) : &u64 = {
+    /* if @AS("ptr_to_int data") == 0 panic("Proper null data"); */
+    (va.get<u64>(0))
 };
+
+func printint(val: u64);
+
 func test() : &u64 = {
     va: <u64> VariableArray;
     va = variablearray#new<u64>();
@@ -224,6 +234,10 @@ func test() : &u64 = {
     printf("made array\n");
     (&va).get<u64>(0);
     printf("got array\n");
+
+    if (&va).len != 1 {
+        panic("AAAA");
+      };
 
     (&va).get<u64>(0)
 };
@@ -234,6 +248,10 @@ func test2() : <u64> VariableArray = {
     va = variablearray#new<u64>();
     printf("here");
     (&va).append<u64>(88);
+
+    printint((&va).len);
+
+    printint(*((&va).get<u64>(0)));
 
     va
 };

@@ -426,10 +426,6 @@ func require(lexer: &Lexer, str: &u8) : LexString = {
 
 // LIST {{{
 
-func testt() = {
-    
-};
-
 <T> type VariableArray = {
     len: u64,
     set_size: u64,
@@ -452,7 +448,7 @@ func testt() = {
 };
 
 <T> func set(va: & <T> VariableArray, index: u64, val: T) = {
-    memcpy((&val) as &u8, ((va.get<T>(index)) as &u8), @sizeof(T));
+    memcpy(((va.get<T>(index)) as &u8), (&val) as &u8, @sizeof(T));
 };
 
 <T> func append(va: & <T> VariableArray, val: T) = {
@@ -468,26 +464,6 @@ func testt() = {
 <T> prefix drop(va: <T> VariableArray) = {
 
     free((&va).data);
-};
-
-func test() : &u64 = {
-    va: <u64> VariableArray;
-    va = variablearray#new<u64>();
-    (&va).append<u64>(66);
-    printf("made array\n");
-    (&va).get<u64>(0);
-    printf("got array\n");
-
-    (&va).get<u64>(0)
-};
-
-
-func test2() : <u64> VariableArray = {
-    va: <u64>VariableArray;
-    va = variablearray#new<u64>();
-    (&va).append<u64>(88);
-
-    va
 };
 // }}}
 
@@ -630,7 +606,7 @@ func parseExpr(parser: &Parser) : Expr = {
 
 // MAIN {{{
 
-func mainn() : u64 = {
+func main() : u64 = {
     /* printf("begin\n"); */
     /* code: &u8 = "178.7492 aa 786 bcd"; */
     /* lexer: &Lexer = &lexer#new(code); */
