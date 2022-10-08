@@ -185,6 +185,7 @@ pub fn compile_asm<'a>(
             },
         ),
         "single_gep" => unsafe {
+            println!("WARNING: UNSAFE UNSAFE UNSAFE");
             compile_gep(
                 compiler,
                 variables[0].clone(),

@@ -2,13 +2,10 @@ use inkwell::{
     types::{AnyType, BasicMetadataTypeEnum},
     values::{BasicMetadataValueEnum, BasicValue, CallableValue},
 };
-use parser::syntax::{
-    call::CallExpr,
-    ExprVal, proto::FnType,
-};
+use parser::syntax::{call::CallExpr, proto::FnType, ExprVal};
 
 use crate::{
-    syntax::{TargetType, vardef::compile_vardef},
+    syntax::{vardef::compile_vardef, TargetType},
     value::{CompilerType, TypeEnum, Value},
 };
 
@@ -51,7 +48,6 @@ pub fn compile_call<'a>(
         }
         if let parser::syntax::call::TargetType::Named(ref n) = expr.target {
             if n.name.render() == "&" {
-
                 match &*expr.clone().inputs[0].val {
                     ExprVal::Variable(v) => {
                         let mut compiler = compiler;
@@ -193,7 +189,10 @@ pub fn compile_call<'a>(
     let read = compiler.compiler.clone();
     let read = read.read().unwrap();
 
-    if let Some((proto_, body_)) = read.global_macros.get(&(TargetType::from(expr.target.clone()), expr.calltype)) {
+    if let Some((proto_, body_)) = read
+        .global_macros
+        .get(&(TargetType::from(expr.target.clone()), expr.calltype))
+    {
         let proto = proto_.clone();
         let body = body_.clone();
         drop(proto_);
@@ -203,7 +202,14 @@ pub fn compile_call<'a>(
         println!("MACRO");
         // hoo boy its a macro
         if proto.args.len() != expr.inputs.len() {
-            return Err(CompilationError::new(format!("Expected {} args for macro but got {}", proto.args.len(), expr.inputs.len()), proto.name.get_location()))
+            return Err(CompilationError::new(
+                format!(
+                    "Expected {} args for macro but got {}",
+                    proto.args.len(),
+                    expr.inputs.len()
+                ),
+                proto.name.get_location(),
+            ));
         }
         let mut compiler = compiler.clone();
         // compiler.do_var_as_ptr = true;
@@ -232,11 +238,23 @@ pub fn compile_call<'a>(
                 continue;
             }
             let expr = expr_codegen(i.clone(), compiler.clone())?;
-            let space = entry_block_alloca(expr.get_basic_type().unwrap(), compiler.clone(), "macro_arg_space".to_string());
+            let space = entry_block_alloca(
+                expr.get_basic_type().unwrap(),
+                compiler.clone(),
+                "macro_arg_space".to_string(),
+            );
             compiler.builder.build_store(space, expr.get_basic_value());
-            let value = Value::from(space.as_basic_value_enum(), CompilerType::new_ptr_to(expr.ty, space.get_type().as_any_type_enum()));
-            println!("Default-adding variable {}", proto.args[index].varname.render());
-            locals.vars.insert(proto.args[index].varname.render(), value);
+            let value = Value::from(
+                space.as_basic_value_enum(),
+                CompilerType::new_ptr_to(expr.ty, space.get_type().as_any_type_enum()),
+            );
+            println!(
+                "Default-adding variable {}",
+                proto.args[index].varname.render()
+            );
+            locals
+                .vars
+                .insert(proto.args[index].varname.render(), value);
         }
         compiler.do_var_as_ptr = false;
 
@@ -245,7 +263,7 @@ pub fn compile_call<'a>(
         compiler.local_variables.write().unwrap().vars = locals.vars;
 
         // println!("LOCALS: {:#?}", compiler.local_variables.write().unwrap().vars);
-    
+
         compiler.compiler.try_write().unwrap();
 
         let res = expr_codegen(body.clone(), compiler.clone())?;
@@ -299,7 +317,7 @@ pub fn compile_call<'a>(
             let mut ret = (None, None);
             for (k, val, ty) in s {
                 if args_types == *k {
-                    ret = (Some(*val), Some(ty.clone()));
+                    ret = (Some(*val), Some(ty.clone())); // uhh
                     break;
                 }
             }
@@ -317,7 +335,11 @@ pub fn compile_call<'a>(
         // compiler.do_var_as_ptr = true;
         let mut targ = (None, None);
         if let parser::syntax::call::TargetType::Named(ref n) = expr.target {
+            println!("Finding fn as variable {}", n.name.render());
+            compiler.do_var_as_ptr = true;
             let var = compile_variable(n.clone(), compiler.clone());
+            compiler.do_var_as_ptr = false;
+            println!("Done");
             // compiler.do_var_as_ptr = false;
             targ = match var {
                 Ok(s) => (Some(s.into_ptr_value()), Some(s.ty)),
@@ -340,8 +362,11 @@ pub fn compile_call<'a>(
                         for i in expr.types.unwrap() {
                             types.push(compile_basic_type(i, compiler.clone())?);
                         }
-                        let template_fn =
-                            compile_fn_template(TargetType::from(expr.target.clone()), types, compiler.clone())?;
+                        let template_fn = compile_fn_template(
+                            TargetType::from(expr.target.clone()),
+                            types,
+                            compiler.clone(),
+                        )?;
                         (
                             Some(template_fn.0.as_global_value().as_pointer_value()),
                             Some(template_fn.1),
@@ -372,8 +397,7 @@ pub fn compile_call<'a>(
             return Err(CompilationError::new(
                 format!(
                     "Cannot call {:?}, is it a function? (error {:?})",
-                    expr.target,
-                    e
+                    expr.target, e
                 ),
                 expr.target.get_location(),
             ))

@@ -135,13 +135,13 @@ func assertVerbose(val: bool, message: &u8) = if val {
         exit(1);
     };
 
-func panic(message: &u8) = {
+overloadable func panic(message: &u8) = {
     printf("Panic!\n");
     printf(message);
     exit(1);
 };
 
-func panic() = {
+overloadable func panic() = {
     printf("Panic!\n");
     exit(1);
 };
@@ -196,6 +196,18 @@ func isAlphanumeric(char: u8) : bool = char.isNumeric() || char.isAlpha();
 
 func isWhitespace(char: u8) : bool = " \t\n".contains(char);
 
+func printRepeatedChar(char: u8, repeat: u64) = {
+    while repeat != 0 {
+        putchar(' ');
+        repeat--;
+    };
+};
+
+func printIndentation(indentation: u64) = {
+    putchar('\n');
+    printRepeatedChar(' ', indentation);
+};
+
 // }}}
 
 
@@ -239,6 +251,8 @@ func takeChar(lexer: &Lexer) : u8 = {
     a
 };
 
+func isEof(lexer: &Lexer) : bool = lexer.index >= lexer.input_len;
+
 type LexString = {
     parent: &Lexer,
     offset: u64,
@@ -272,8 +286,9 @@ func render(lexstring: &LexString) : &u8 = {
     str
 };
 
-func debug(val: &LexString) = {
+func debug(val: &LexString, indentation: u64) = {
     str: &u8 = val.render();
+    printIndentation(indentation);
     printf(str);
     free str;
 };
@@ -486,9 +501,12 @@ enum ExprType = {
     Identifier,
 };
 
-func debug(val: &ExprType) = {
+func debug(val: &ExprType, indentation: u64) = {
+    printIndentation(indentation);
     if *val == ExprType#Number {
         printf("ExprType#Number");
+    } else {
+        panic("Debug expr not implmented yet");
     }
 };
 
@@ -496,6 +514,8 @@ type Expr = {
     value: &u8, // something something data pointer
     variant: ExprType
 };
+
+func debug(val: &Expr, indentation: u64) = debug(&(val.variant), indentation);
 
 prefix drop(expr: Expr) = {
     free (&expr.value);
@@ -506,8 +526,8 @@ type NumberExpr = {
     parsed: u64,
 };
 
-func debug(val: &NumberExpr) = {
-    debug(&(val.source));
+func debug(val: &NumberExpr, indentation: u64) = {
+    debug(&(val.source), indentation);
 };
 
 func parseNumberExpr(parser: &Parser) : NumberExpr = {
@@ -540,14 +560,13 @@ func asExpr(number: NumberExpr) : Expr = {
     expr
 };
 
-
 type IdentifierExpr = {
     source: LexString,
     // TODO: namespaces
 };
 
-func debug(val: &IdentifierExpr) = {
-    debug(&(val.source));
+func debug(val: &IdentifierExpr, indentation: u64) = {
+    debug(&(val.source), indentation);
 };
 
 func parseIdentifierExpr(parser: &Parser) : IdentifierExpr = {
@@ -573,6 +592,42 @@ func asExpr(id: IdentifierExpr) : Expr = {
     &expr.variant = ExprType#Identifier;
 
     &expr.value = (copy id) as &u8;
+
+    expr
+};
+
+type BlockExpr = {
+    source: LexString,
+    exprs: <Expr> VariableArray,
+    use_last_val: bool,
+};
+
+func debug(val: &BlockExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("Block: {");
+    i: u64 = 0;
+    while i < (&(val.exprs)).len {
+        debug(((&(val.exprs)).get<Expr>(i)), indentation + 2);    
+    };
+    printIndentation(indentation);
+    printf("}");
+};
+
+func parseBlockExpr(parser: &Parser) : BlockExpr = {
+    parser.lexer.takeWhitespace();
+    parser.lexer.require('{');
+    expr: BlockExpr;
+    exprs: <Expr> VariableArray = variablearray#new<Expr>();
+
+    while !(parser.lexer.isEof()) && (parser.lexer.peekChar() != '}') {
+        internal_expr: Expr = parser.parseExpr();
+        (&exprs).append<Expr>(internal_expr);
+        parser.lexer.takeWhitespace();
+        if parser.lexer.peekChar() == '}' {
+            break;
+        };
+        // GOT HERE
+    };
 
     expr
 };
