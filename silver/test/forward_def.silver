@@ -1,0 +1,9 @@
+func printf(str: &u8);
+
+func a();
+func b();
+
+func a() = {printf("a\n"); b()};
+func b() = {printf("b\n"); a()};
+
+func main() = a();

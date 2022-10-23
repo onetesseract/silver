@@ -401,7 +401,7 @@ func takeWhitespace(lexer: &Lexer) : LexString = {
     string
 };
 
-func require(lexer: &Lexer, char: u8) : LexString = {
+overloadable func require(lexer: &Lexer, char: u8) : LexString = {
     lexer.takeWhitespace();
     
     string: LexString;
@@ -420,7 +420,7 @@ func require(lexer: &Lexer, char: u8) : LexString = {
     string
 };
 
-func require(lexer: &Lexer, str: &u8) : LexString = {
+overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
     lexer.takeWhitespace();
     
     string: LexString = lexer.takeIdentifier();
@@ -501,7 +501,7 @@ enum ExprType = {
     Identifier,
 };
 
-func debug(val: &ExprType, indentation: u64) = {
+overloadable func debug(val: &ExprType, indentation: u64) = {
     printIndentation(indentation);
     if *val == ExprType#Number {
         printf("ExprType#Number");
@@ -515,7 +515,7 @@ type Expr = {
     variant: ExprType
 };
 
-func debug(val: &Expr, indentation: u64) = debug(&(val.variant), indentation);
+overloadable func debug(val: &Expr, indentation: u64) = debug(&(val.variant), indentation);
 
 prefix drop(expr: Expr) = {
     free (&expr.value);
@@ -526,7 +526,7 @@ type NumberExpr = {
     parsed: u64,
 };
 
-func debug(val: &NumberExpr, indentation: u64) = {
+overloadable func debug(val: &NumberExpr, indentation: u64) = {
     debug(&(val.source), indentation);
 };
 
@@ -550,7 +550,7 @@ prefix copy(val: NumberExpr) : &NumberExpr = {
     data
 };
 
-func asExpr(number: NumberExpr) : Expr = {
+overloadable func asExpr(number: NumberExpr) : Expr = {
     expr: Expr;
     &expr.variant = ExprType#Number;
 
@@ -565,7 +565,7 @@ type IdentifierExpr = {
     // TODO: namespaces
 };
 
-func debug(val: &IdentifierExpr, indentation: u64) = {
+overloadable func debug(val: &IdentifierExpr, indentation: u64) = {
     debug(&(val.source), indentation);
 };
 
@@ -587,7 +587,7 @@ prefix copy(val: IdentifierExpr) : &IdentifierExpr = {
     data
 };
 
-func asExpr(id: IdentifierExpr) : Expr = {
+overloadable func asExpr(id: IdentifierExpr) : Expr = {
     expr: Expr;
     &expr.variant = ExprType#Identifier;
 
@@ -602,7 +602,7 @@ type BlockExpr = {
     use_last_val: bool,
 };
 
-func debug(val: &BlockExpr, indentation: u64) = {
+overloadable func debug(val: &BlockExpr, indentation: u64) = {
     printIndentation(indentation);
     printf("Block: {");
     i: u64 = 0;

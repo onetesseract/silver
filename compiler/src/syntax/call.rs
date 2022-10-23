@@ -342,7 +342,19 @@ pub fn compile_call<'a>(
             println!("Done");
             // compiler.do_var_as_ptr = false;
             targ = match var {
-                Ok(s) => (Some(s.into_ptr_value()), Some(s.ty)),
+                Ok(s) => {
+                    if let TypeEnum::FunctionType(_args, ret_ty) = s.clone().ty.ty {
+                        (Some(s.into_ptr_value()), Some(ret_ty))
+                    } else {
+                        return Err(CompilationError::new(
+                            format!(
+                                "Cannot call variable {} as a function, because it isn't.",
+                                n.name.render()
+                            ),
+                            n.name.clone(),
+                        ));
+                    }
+                }
                 Err(_) => (None, None),
             };
         }
@@ -369,7 +381,7 @@ pub fn compile_call<'a>(
                         )?;
                         (
                             Some(template_fn.0.as_global_value().as_pointer_value()),
-                            Some(template_fn.1),
+                            Some(Box::new(template_fn.1)),
                         )
                     } else {
                         return Err(CompilationError::new(
@@ -386,7 +398,10 @@ pub fn compile_call<'a>(
         }
 
         target = targ.0;
-        target_ty = targ.1;
+        target_ty = match targ.1 {
+            Some(s) => Some(*s),
+            None => None,
+        };
     }
 
     let target = target.unwrap();

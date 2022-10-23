@@ -513,11 +513,13 @@ pub fn compile_fn<'a>(
             body
         };
         if body.ty != compile_basic_type(proto.return_ty.clone().unwrap(), compiler.clone())? {
+            println!("Body dump:\n\n{:#?}", body);
             return Err(CompilationError::new(
                 format!(
-                    "Type mismatch: trying to return {:?} from a fn decl that wants {:?}",
+                    "Type mismatch: trying to return {:?} from a fn decl that wants {:?}.\n\nFull body dump:\n{:?}",
                     body.ty,
-                    proto.return_ty.unwrap()
+                    proto.return_ty.unwrap(),
+                    body
                 ),
                 proto.name.get_location(),
             ));
