@@ -275,6 +275,15 @@ infix + (a: LexString, b: LexString) : LexString = {
     result
 };
 
+func lexstring#new(parent: &Lexer, start: u64, end: u64) : LexString = {
+    lexstring: LexString;
+    (&lexstring).parent = parent;
+    (&lexstring).offset = start;
+    (&lexstring).len = (end - start);
+
+    lexstring
+};
+
 // BIG TODO: implment lambdas for more monadic operation
 
 // must remember to free!
@@ -618,19 +627,33 @@ overloadable func debug(val: &BlockExpr, indentation: u64) = {
 
 func parseBlockExpr(parser: &Parser) : BlockExpr = {
     parser.lexer.takeWhitespace();
+
+    start: u64 = parser.lexer.index;
+    
     parser.lexer.require('{');
     expr: BlockExpr;
     exprs: <Expr> VariableArray = variablearray#new<Expr>();
+
+    last_semicolon: bool = true;
 
     while !(parser.lexer.isEof()) && (parser.lexer.peekChar() != '}') {
         internal_expr: Expr = parser.parseExpr();
         (&exprs).append<Expr>(internal_expr);
         parser.lexer.takeWhitespace();
         if parser.lexer.peekChar() == '}' {
+          last_semicolon = false;
             break;
         };
-        // GOT HERE
+        parser.lexer.require(';');
     };
+
+    parser.lexer.takeChar();
+
+    end: u64 = parser.lexer.index;
+
+    // GOT HERE (&expr).exprs = exprs
+    (&expr).source = lexstring#new(parser.lexer, start, end);
+    (&expr).use_last_val = !last_semicolon;
 
     expr
 };
@@ -713,6 +736,8 @@ func main() : u64 = {
     if (&va).len == 1 {
         printf("correct length\n");
     };
+
+    source: &u8 = "{test}";
 
 
     exit(0);

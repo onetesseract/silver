@@ -33,6 +33,7 @@ source_filename = "silver.silver"
 @global_str.59 = private unnamed_addr constant [5 x i8] c"yay\0A\00", align 1
 @global_str.60 = private unnamed_addr constant [5 x i8] c"noo\0A\00", align 1
 @global_str.61 = private unnamed_addr constant [16 x i8] c"correct length\0A\00", align 1
+@global_str.62 = private unnamed_addr constant [7 x i8] c"{test}\00", align 1
 
 declare i8* @malloc(i64)
 
@@ -746,6 +747,33 @@ if_cont_block:                                    ; preds = %if_then_block, %ent
   ret { { i8*, i64, i64 }*, i64, i64 } %result_variable_load
 }
 
+define { { i8*, i64, i64 }*, i64, i64 } @"lexstring#new"({ i8*, i64, i64 }* %0, i64 %1, i64 %2) {
+entry_block:
+  %macro_arg_space = alloca i64, align 8
+  %lexstring = alloca { { i8*, i64, i64 }*, i64, i64 }, align 8
+  %end = alloca i64, align 8
+  %start = alloca i64, align 8
+  %parent = alloca { i8*, i64, i64 }*, align 8
+  store { i8*, i64, i64 }* %0, { i8*, i64, i64 }** %parent, align 8
+  store i64 %1, i64* %start, align 4
+  store i64 %2, i64* %end, align 4
+  %struct_gep = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring, i32 0, i32 0
+  %b_variable_load = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %parent, align 8
+  store { i8*, i64, i64 }* %b_variable_load, { i8*, i64, i64 }** %struct_gep, align 8
+  %struct_gep1 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring, i32 0, i32 1
+  %b_variable_load2 = load i64, i64* %start, align 4
+  store i64 %b_variable_load2, i64* %struct_gep1, align 4
+  %struct_gep3 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring, i32 0, i32 2
+  %end_variable_load = load i64, i64* %end, align 4
+  %start_variable_load = load i64, i64* %start, align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 5950, end: 5951, rendered-as: \22-\22 } })_call" = call i64 @-(i64 %end_variable_load, i64 %start_variable_load)
+  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 5950, end: 5951, rendered-as: \22-\22 } })_call", i64* %macro_arg_space, align 4
+  %b_variable_load4 = load i64, i64* %macro_arg_space, align 4
+  store i64 %b_variable_load4, i64* %struct_gep3, align 4
+  %lexstring_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring, align 8
+  ret { { i8*, i64, i64 }*, i64, i64 } %lexstring_variable_load
+}
+
 define i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %0) {
 entry_block:
   %macro_arg_space17 = alloca i8, align 1
@@ -757,9 +785,9 @@ entry_block:
   %lexstring_variable_load = load { { i8*, i64, i64 }*, i64, i64 }*, { { i8*, i64, i64 }*, i64, i64 }** %lexstring, align 8
   %struct_gep = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring_variable_load, i32 0, i32 2
   %struct_gep_deref = load i64, i64* %struct_gep, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 5930, end: 5931, rendered-as: \22+\22 } })_call" = call i64 @"+"(i64 %struct_gep_deref, i64 1)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 5909, end: 5915, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 5930, end: 5931, rendered-as: \22+\22 } })_call")
-  store i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 5909, end: 5915, rendered-as: \22malloc\22 } })_call", i8** %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6153, end: 6154, rendered-as: \22+\22 } })_call" = call i64 @"+"(i64 %struct_gep_deref, i64 1)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6132, end: 6138, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6153, end: 6154, rendered-as: \22+\22 } })_call")
+  store i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6132, end: 6138, rendered-as: \22malloc\22 } })_call", i8** %macro_arg_space, align 8
   %b_variable_load = load i8*, i8** %macro_arg_space, align 8
   store i8* %b_variable_load, i8** %str, align 8
   %str_variable_load = load i8*, i8** %str, align 8
@@ -771,17 +799,17 @@ entry_block:
   %lexstring_variable_load6 = load { { i8*, i64, i64 }*, i64, i64 }*, { { i8*, i64, i64 }*, i64, i64 }** %lexstring, align 8
   %struct_gep7 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring_variable_load6, i32 0, i32 1
   %struct_gep_deref8 = load i64, i64* %struct_gep7, align 4
-  %"Brackets(LexString { lexer: \22...\22, start: 5977, end: 5978, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 5994, end: 5995, rendered-as: \22]\22 })_call" = call i8* @"brackets-[-]"(i8* %struct_gep_deref5, i64 %struct_gep_deref8)
+  %"Brackets(LexString { lexer: \22...\22, start: 6200, end: 6201, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 6217, end: 6218, rendered-as: \22]\22 })_call" = call i8* @"brackets-[-]"(i8* %struct_gep_deref5, i64 %struct_gep_deref8)
   %lexstring_variable_load9 = load { { i8*, i64, i64 }*, i64, i64 }*, { { i8*, i64, i64 }*, i64, i64 }** %lexstring, align 8
   %struct_gep10 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring_variable_load9, i32 0, i32 2
   %struct_gep_deref11 = load i64, i64* %struct_gep10, align 4
-  call void @strncpy(i8* %str_variable_load, i8* %"Brackets(LexString { lexer: \22...\22, start: 5977, end: 5978, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 5994, end: 5995, rendered-as: \22]\22 })_call", i64 %struct_gep_deref11)
+  call void @strncpy(i8* %str_variable_load, i8* %"Brackets(LexString { lexer: \22...\22, start: 6200, end: 6201, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 6217, end: 6218, rendered-as: \22]\22 })_call", i64 %struct_gep_deref11)
   %str_variable_load12 = load i8*, i8** %str, align 8
   %lexstring_variable_load13 = load { { i8*, i64, i64 }*, i64, i64 }*, { { i8*, i64, i64 }*, i64, i64 }** %lexstring, align 8
   %struct_gep14 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %lexstring_variable_load13, i32 0, i32 2
   %struct_gep_deref15 = load i64, i64* %struct_gep14, align 4
-  %"Brackets(LexString { lexer: \22...\22, start: 6020, end: 6021, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 6034, end: 6035, rendered-as: \22]\22 })_call" = call i8* @"brackets-[-]"(i8* %str_variable_load12, i64 %struct_gep_deref15)
-  store i8* %"Brackets(LexString { lexer: \22...\22, start: 6020, end: 6021, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 6034, end: 6035, rendered-as: \22]\22 })_call", i8** %macro_arg_space16, align 8
+  %"Brackets(LexString { lexer: \22...\22, start: 6243, end: 6244, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 6257, end: 6258, rendered-as: \22]\22 })_call" = call i8* @"brackets-[-]"(i8* %str_variable_load12, i64 %struct_gep_deref15)
+  store i8* %"Brackets(LexString { lexer: \22...\22, start: 6243, end: 6244, rendered-as: \22[\22 }, LexString { lexer: \22...\22, start: 6257, end: 6258, rendered-as: \22]\22 })_call", i8** %macro_arg_space16, align 8
   store i8 0, i8* %macro_arg_space17, align 1
   %a_variable_load = load i8*, i8** %macro_arg_space16, align 8
   %b_variable_load18 = load i8, i8* %macro_arg_space17, align 1
@@ -799,8 +827,8 @@ entry_block:
   store { { i8*, i64, i64 }*, i64, i64 }* %0, { { i8*, i64, i64 }*, i64, i64 }** %val, align 8
   store i64 %1, i64* %indentation, align 4
   %val_variable_load = load { { i8*, i64, i64 }*, i64, i64 }*, { { i8*, i64, i64 }*, i64, i64 }** %val, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6127, end: 6133, rendered-as: \22render\22 } })_call" = call i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %val_variable_load)
-  store i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6127, end: 6133, rendered-as: \22render\22 } })_call", i8** %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6350, end: 6356, rendered-as: \22render\22 } })_call" = call i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %val_variable_load)
+  store i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6350, end: 6356, rendered-as: \22render\22 } })_call", i8** %macro_arg_space, align 8
   %b_variable_load = load i8*, i8** %macro_arg_space, align 8
   store i8* %b_variable_load, i8** %str, align 8
   %indentation_variable_load = load i64, i64* %indentation, align 4
@@ -841,15 +869,15 @@ entry_block:
 
 while_loop_cond_check_basic_block:                ; preds = %if_cont_block, %entry_block
   %lexer_variable_load8 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6485, end: 6493, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load8)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6496, end: 6505, rendered-as: \22isNumeric\22 } })_call" = call i1 @isNumeric(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6485, end: 6493, rendered-as: \22peekChar\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6708, end: 6716, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load8)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6719, end: 6728, rendered-as: \22isNumeric\22 } })_call" = call i1 @isNumeric(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6708, end: 6716, rendered-as: \22peekChar\22 } })_call")
   %lexer_variable_load9 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6519, end: 6527, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load9)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6530, end: 6532, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6519, end: 6527, rendered-as: \22peekChar\22 } })_call", i8 46)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6742, end: 6750, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load9)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6753, end: 6755, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6742, end: 6750, rendered-as: \22peekChar\22 } })_call", i8 46)
   %first_dot_variable_load = load i1, i1* %first_dot, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6538, end: 6540, rendered-as: \22&&\22 } })_call" = call i1 @"&&.9"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6530, end: 6532, rendered-as: \22==\22 } })_call", i1 %first_dot_variable_load)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6508, end: 6510, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6496, end: 6505, rendered-as: \22isNumeric\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6538, end: 6540, rendered-as: \22&&\22 } })_call")
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6508, end: 6510, rendered-as: \22||\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6761, end: 6763, rendered-as: \22&&\22 } })_call" = call i1 @"&&.9"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6753, end: 6755, rendered-as: \22==\22 } })_call", i1 %first_dot_variable_load)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6731, end: 6733, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6719, end: 6728, rendered-as: \22isNumeric\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6761, end: 6763, rendered-as: \22&&\22 } })_call")
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6731, end: 6733, rendered-as: \22||\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %struct_gep10 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
@@ -860,9 +888,9 @@ while_loop_body_basic_block:                      ; preds = %while_loop_cond_che
   store i64 %b_variable_load12, i64* %struct_gep10, align 4
   %a_variable_load13 = load i64, i64* %struct_gep10, align 4
   %lexer_variable_load14 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6596, end: 6604, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load14)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6607, end: 6609, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6596, end: 6604, rendered-as: \22takeChar\22 } })_call", i8 46)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6607, end: 6609, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6819, end: 6827, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load14)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6830, end: 6832, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6819, end: 6827, rendered-as: \22takeChar\22 } })_call", i8 46)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6830, end: 6832, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
 
 while_loop_cont_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %string_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
@@ -885,17 +913,17 @@ entry_block:
   store i8 %0, i8* %char, align 1
   store i1 %1, i1* %first, align 1
   %char_variable_load = load i8, i8* %char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6714, end: 6721, rendered-as: \22isAlpha\22 } })_call" = call i1 @isAlpha(i8 %char_variable_load)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6937, end: 6944, rendered-as: \22isAlpha\22 } })_call" = call i1 @isAlpha(i8 %char_variable_load)
   %char_variable_load1 = load i8, i8* %char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6733, end: 6742, rendered-as: \22isNumeric\22 } })_call" = call i1 @isNumeric(i8 %char_variable_load1)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6956, end: 6965, rendered-as: \22isNumeric\22 } })_call" = call i1 @isNumeric(i8 %char_variable_load1)
   %first_variable_load = load i1, i1* %first, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6748, end: 6749, rendered-as: \22!\22 } })_call" = call i1 @"!"(i1 %first_variable_load)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6745, end: 6747, rendered-as: \22&&\22 } })_call" = call i1 @"&&.9"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6733, end: 6742, rendered-as: \22isNumeric\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6748, end: 6749, rendered-as: \22!\22 } })_call")
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6724, end: 6726, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6714, end: 6721, rendered-as: \22isAlpha\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6745, end: 6747, rendered-as: \22&&\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6971, end: 6972, rendered-as: \22!\22 } })_call" = call i1 @"!"(i1 %first_variable_load)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6968, end: 6970, rendered-as: \22&&\22 } })_call" = call i1 @"&&.9"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6956, end: 6965, rendered-as: \22isNumeric\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6971, end: 6972, rendered-as: \22!\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6947, end: 6949, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6937, end: 6944, rendered-as: \22isAlpha\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6968, end: 6970, rendered-as: \22&&\22 } })_call")
   %char_variable_load2 = load i8, i8* %char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6765, end: 6767, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %char_variable_load2, i8 95)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6756, end: 6758, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6724, end: 6726, rendered-as: \22||\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6765, end: 6767, rendered-as: \22==\22 } })_call")
-  ret i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6756, end: 6758, rendered-as: \22||\22 } })_call"
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6988, end: 6990, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %char_variable_load2, i8 95)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6979, end: 6981, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6947, end: 6949, rendered-as: \22||\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6988, end: 6990, rendered-as: \22==\22 } })_call")
+  ret i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6979, end: 6981, rendered-as: \22||\22 } })_call"
 }
 
 define i1 @isSpecialId(i8 %0) {
@@ -903,8 +931,8 @@ entry_block:
   %char = alloca i8, align 1
   store i8 %0, i8* %char, align 1
   %char_variable_load = load i8, i8* %char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6828, end: 6836, rendered-as: \22contains\22 } })_call" = call i1 @contains(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @global_str.24, i32 0, i32 0), i8 %char_variable_load)
-  ret i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 6828, end: 6836, rendered-as: \22contains\22 } })_call"
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7051, end: 7059, rendered-as: \22contains\22 } })_call" = call i1 @contains(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @global_str.24, i32 0, i32 0), i8 %char_variable_load)
+  ret i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7051, end: 7059, rendered-as: \22contains\22 } })_call"
 }
 
 define { { i8*, i64, i64 }*, i64, i64 } @takeIdentifier({ i8*, i64, i64 }* %0) {
@@ -937,10 +965,10 @@ entry_block:
 
 while_loop_cond_check_basic_block:                ; preds = %if_cont_block, %entry_block
   %lexer_variable_load8 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7047, end: 7055, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load8)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7270, end: 7278, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load8)
   %first_variable_load = load i1, i1* %first, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7058, end: 7074, rendered-as: \22isConventionalId\22 } })_call" = call i1 @isConventionalId(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7047, end: 7055, rendered-as: \22peekChar\22 } })_call", i1 %first_variable_load)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7058, end: 7074, rendered-as: \22isConventionalId\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7281, end: 7297, rendered-as: \22isConventionalId\22 } })_call" = call i1 @isConventionalId(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7270, end: 7278, rendered-as: \22peekChar\22 } })_call", i1 %first_variable_load)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7281, end: 7297, rendered-as: \22isConventionalId\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %struct_gep9 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
@@ -956,8 +984,8 @@ while_loop_body_basic_block:                      ; preds = %while_loop_cond_che
 while_loop_cont_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %struct_gep17 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
   %struct_gep_deref = load i64, i64* %struct_gep17, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7199, end: 7201, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref, i64 0)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7199, end: 7201, rendered-as: \22==\22 } })_call", label %if_then_block18, label %if_cont_block19
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7422, end: 7424, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref, i64 0)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7422, end: 7424, rendered-as: \22==\22 } })_call", label %if_then_block18, label %if_cont_block19
 
 if_then_block:                                    ; preds = %while_loop_body_basic_block
   store i1 false, i1* %macro_arg_space14, align 1
@@ -967,7 +995,7 @@ if_then_block:                                    ; preds = %while_loop_body_bas
 
 if_cont_block:                                    ; preds = %if_then_block, %while_loop_body_basic_block
   %lexer_variable_load16 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7160, end: 7168, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load16)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7383, end: 7391, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load16)
   br label %while_loop_cond_check_basic_block
 
 if_then_block18:                                  ; preds = %while_loop_cont_basic_block
@@ -979,9 +1007,9 @@ if_cont_block19:                                  ; preds = %while_loop_cont_bas
 
 while_loop_cond_check_basic_block20:              ; preds = %while_loop_body_basic_block21, %if_then_block18
   %lexer_variable_load23 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7226, end: 7234, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load23)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7237, end: 7248, rendered-as: \22isSpecialId\22 } })_call" = call i1 @isSpecialId(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7226, end: 7234, rendered-as: \22peekChar\22 } })_call")
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7237, end: 7248, rendered-as: \22isSpecialId\22 } })_call", label %while_loop_body_basic_block21, label %while_loop_cont_basic_block22
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7449, end: 7457, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load23)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7460, end: 7471, rendered-as: \22isSpecialId\22 } })_call" = call i1 @isSpecialId(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7449, end: 7457, rendered-as: \22peekChar\22 } })_call")
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7460, end: 7471, rendered-as: \22isSpecialId\22 } })_call", label %while_loop_body_basic_block21, label %while_loop_cont_basic_block22
 
 while_loop_body_basic_block21:                    ; preds = %while_loop_cond_check_basic_block20
   %struct_gep24 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
@@ -992,7 +1020,7 @@ while_loop_body_basic_block21:                    ; preds = %while_loop_cond_che
   store i64 %b_variable_load28, i64* %struct_gep24, align 4
   %a_variable_load29 = load i64, i64* %struct_gep24, align 4
   %lexer_variable_load30 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7300, end: 7308, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load30)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7523, end: 7531, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load30)
   br label %while_loop_cond_check_basic_block20
 
 while_loop_cont_basic_block22:                    ; preds = %while_loop_cond_check_basic_block20
@@ -1022,9 +1050,9 @@ entry_block:
 
 while_loop_cond_check_basic_block:                ; preds = %while_loop_body_basic_block, %entry_block
   %lexer_variable_load6 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7528, end: 7536, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load6)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7539, end: 7551, rendered-as: \22isWhitespace\22 } })_call" = call i1 @isWhitespace(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7528, end: 7536, rendered-as: \22peekChar\22 } })_call")
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7539, end: 7551, rendered-as: \22isWhitespace\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7751, end: 7759, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load6)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7762, end: 7774, rendered-as: \22isWhitespace\22 } })_call" = call i1 @isWhitespace(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7751, end: 7759, rendered-as: \22peekChar\22 } })_call")
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7762, end: 7774, rendered-as: \22isWhitespace\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %struct_gep7 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
@@ -1035,7 +1063,7 @@ while_loop_body_basic_block:                      ; preds = %while_loop_cond_che
   store i64 %b_variable_load9, i64* %struct_gep7, align 4
   %a_variable_load10 = load i64, i64* %struct_gep7, align 4
   %lexer_variable_load11 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7595, end: 7603, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load11)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7818, end: 7826, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load11)
   br label %while_loop_cond_check_basic_block
 
 while_loop_cont_basic_block:                      ; preds = %while_loop_cond_check_basic_block
@@ -1076,29 +1104,29 @@ entry_block:
   %b_variable_load5 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
   store { i8*, i64, i64 }* %b_variable_load5, { i8*, i64, i64 }** %struct_gep4, align 8
   %lexer_variable_load6 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7798, end: 7806, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load6)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7809, end: 7811, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7798, end: 7806, rendered-as: \22peekChar\22 } })_call", i8 47)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7809, end: 7811, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8021, end: 8029, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load6)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8032, end: 8034, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8021, end: 8029, rendered-as: \22peekChar\22 } })_call", i8 47)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8032, end: 8034, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   %lexer_variable_load7 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7849, end: 7853, rendered-as: \22peek\22 } })_call" = call { i8*, i64, i64 } @peek({ i8*, i64, i64 }* %lexer_variable_load7)
-  store { i8*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7849, end: 7853, rendered-as: \22peek\22 } })_call", { i8*, i64, i64 }* %macro_arg_space8, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8072, end: 8076, rendered-as: \22peek\22 } })_call" = call { i8*, i64, i64 } @peek({ i8*, i64, i64 }* %lexer_variable_load7)
+  store { i8*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8072, end: 8076, rendered-as: \22peek\22 } })_call", { i8*, i64, i64 }* %macro_arg_space8, align 8
   %b_variable_load9 = load { i8*, i64, i64 }, { i8*, i64, i64 }* %macro_arg_space8, align 8
   store { i8*, i64, i64 } %b_variable_load9, { i8*, i64, i64 }* %peeked_, align 8
   store { i8*, i64, i64 }* %peeked_, { i8*, i64, i64 }** %macro_arg_space10, align 8
   %b_variable_load11 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %macro_arg_space10, align 8
   store { i8*, i64, i64 }* %b_variable_load11, { i8*, i64, i64 }** %peeked, align 8
   %peeked_variable_load = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %peeked, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7907, end: 7915, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %peeked_variable_load)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8130, end: 8138, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %peeked_variable_load)
   %peeked_variable_load12 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %peeked, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7942, end: 7950, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %peeked_variable_load12)
-  store i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7942, end: 7950, rendered-as: \22peekChar\22 } })_call", i8* %macro_arg_space13, align 1
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8165, end: 8173, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %peeked_variable_load12)
+  store i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8165, end: 8173, rendered-as: \22peekChar\22 } })_call", i8* %macro_arg_space13, align 1
   %b_variable_load14 = load i8, i8* %macro_arg_space13, align 1
   store i8 %b_variable_load14, i8* %c, align 1
   %c_variable_load = load i8, i8* %c, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7967, end: 7969, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %c_variable_load, i8 47)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7967, end: 7969, rendered-as: \22==\22 } })_call", label %if_then_block15, label %if_else_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8190, end: 8192, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %c_variable_load, i8 47)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8190, end: 8192, rendered-as: \22==\22 } })_call", label %if_then_block15, label %if_else_block
 
 if_cont_block:                                    ; preds = %if_cont_block16, %entry_block
   %string_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
@@ -1106,9 +1134,9 @@ if_cont_block:                                    ; preds = %if_cont_block16, %e
 
 if_then_block15:                                  ; preds = %if_then_block
   %lexer_variable_load17 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 7994, end: 8002, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load17)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8217, end: 8225, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load17)
   %lexer_variable_load18 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8024, end: 8032, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load18)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8247, end: 8255, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load18)
   %struct_gep19 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
   store i64 2, i64* %macro_arg_space20, align 4
   %a_variable_load = load i64, i64* %struct_gep19, align 4
@@ -1122,17 +1150,17 @@ if_then_block15:                                  ; preds = %if_then_block
 
 if_else_block:                                    ; preds = %if_then_block
   %c_variable_load31 = load i8, i8* %c, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8183, end: 8185, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %c_variable_load31, i8 42)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8183, end: 8185, rendered-as: \22==\22 } })_call", label %if_then_block32, label %if_cont_block33
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8406, end: 8408, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %c_variable_load31, i8 42)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8406, end: 8408, rendered-as: \22==\22 } })_call", label %if_then_block32, label %if_cont_block33
 
 if_cont_block16:                                  ; preds = %if_cont_block33, %while_loop_cont_basic_block
   br label %if_cont_block
 
 while_loop_cond_check_basic_block:                ; preds = %while_loop_body_basic_block, %if_then_block15
   %lexer_variable_load25 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8094, end: 8102, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load25)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8105, end: 8107, rendered-as: \22!=\22 } })_call" = call i1 @"!=.2"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8094, end: 8102, rendered-as: \22takeChar\22 } })_call", i8 10)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8105, end: 8107, rendered-as: \22!=\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8317, end: 8325, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load25)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8328, end: 8330, rendered-as: \22!=\22 } })_call" = call i1 @"!=.2"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8317, end: 8325, rendered-as: \22takeChar\22 } })_call", i8 10)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8328, end: 8330, rendered-as: \22!=\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %struct_gep26 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
@@ -1149,9 +1177,9 @@ while_loop_cont_basic_block:                      ; preds = %while_loop_cond_che
 
 if_then_block32:                                  ; preds = %if_else_block
   %lexer_variable_load34 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8210, end: 8218, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load34)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8433, end: 8441, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load34)
   %lexer_variable_load35 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8240, end: 8248, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load35)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8463, end: 8471, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load35)
   %struct_gep36 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
   store i64 2, i64* %macro_arg_space37, align 4
   %a_variable_load38 = load i64, i64* %struct_gep36, align 4
@@ -1171,18 +1199,18 @@ while_loop_cond_check_basic_block44:              ; preds = %if_cont_block49, %i
 
 while_loop_body_basic_block45:                    ; preds = %while_loop_cond_check_basic_block44
   %lexer_variable_load47 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8336, end: 8344, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load47)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8347, end: 8349, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8336, end: 8344, rendered-as: \22takeChar\22 } })_call", i8 42)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8347, end: 8349, rendered-as: \22==\22 } })_call", label %if_then_block48, label %if_cont_block49
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8559, end: 8567, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load47)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8570, end: 8572, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8559, end: 8567, rendered-as: \22takeChar\22 } })_call", i8 42)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8570, end: 8572, rendered-as: \22==\22 } })_call", label %if_then_block48, label %if_cont_block49
 
 while_loop_cont_basic_block46:                    ; preds = %if_then_block51, %while_loop_cond_check_basic_block44
   br label %if_cont_block33
 
 if_then_block48:                                  ; preds = %while_loop_body_basic_block45
   %lexer_variable_load50 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8385, end: 8393, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load50)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8396, end: 8398, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8385, end: 8393, rendered-as: \22peekChar\22 } })_call", i8 47)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8396, end: 8398, rendered-as: \22==\22 } })_call", label %if_then_block51, label %if_cont_block52
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8608, end: 8616, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load50)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8619, end: 8621, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8608, end: 8616, rendered-as: \22peekChar\22 } })_call", i8 47)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8619, end: 8621, rendered-as: \22==\22 } })_call", label %if_then_block51, label %if_cont_block52
 
 if_cont_block49:                                  ; preds = %if_cont_block52, %while_loop_body_basic_block45
   %struct_gep62 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
@@ -1196,7 +1224,7 @@ if_cont_block49:                                  ; preds = %if_cont_block52, %w
 
 if_then_block51:                                  ; preds = %if_then_block48
   %lexer_variable_load53 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8439, end: 8447, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load53)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8662, end: 8670, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load53)
   %struct_gep54 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 2
   store i64 2, i64* %macro_arg_space55, align 4
   %a_variable_load56 = load i64, i64* %struct_gep54, align 4
@@ -1224,22 +1252,22 @@ entry_block:
   %lexer = alloca { i8*, i64, i64 }*, align 8
   store { i8*, i64, i64 }* %0, { i8*, i64, i64 }** %lexer, align 8
   %lexer_variable_load = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8739, end: 8757, rendered-as: \22takeOnlyWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeOnlyWhitespace({ i8*, i64, i64 }* %lexer_variable_load)
-  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8739, end: 8757, rendered-as: \22takeOnlyWhitespace\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8962, end: 8980, rendered-as: \22takeOnlyWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeOnlyWhitespace({ i8*, i64, i64 }* %lexer_variable_load)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8962, end: 8980, rendered-as: \22takeOnlyWhitespace\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   %b_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   store { { i8*, i64, i64 }*, i64, i64 } %b_variable_load, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
   br label %while_loop_cond_check_basic_block
 
 while_loop_cond_check_basic_block:                ; preds = %while_loop_body_basic_block, %entry_block
   %lexer_variable_load1 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8777, end: 8785, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load1)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8788, end: 8790, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8777, end: 8785, rendered-as: \22peekChar\22 } })_call", i8 47)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8788, end: 8790, rendered-as: \22==\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9000, end: 9008, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %lexer_variable_load1)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9011, end: 9013, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9000, end: 9008, rendered-as: \22peekChar\22 } })_call", i8 47)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9011, end: 9013, rendered-as: \22==\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %lexer_variable_load2 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8821, end: 8832, rendered-as: \22takeComment\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeComment({ i8*, i64, i64 }* %lexer_variable_load2)
-  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8821, end: 8832, rendered-as: \22takeComment\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space3, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9044, end: 9055, rendered-as: \22takeComment\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeComment({ i8*, i64, i64 }* %lexer_variable_load2)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9044, end: 9055, rendered-as: \22takeComment\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space3, align 8
   %a_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
   %b_variable_load4 = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space3, align 8
   %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 2313, end: 2314, rendered-as: \22+\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @"+.22"({ { i8*, i64, i64 }*, i64, i64 } %a_variable_load, { { i8*, i64, i64 }*, i64, i64 } %b_variable_load4)
@@ -1248,8 +1276,8 @@ while_loop_body_basic_block:                      ; preds = %while_loop_cond_che
   store { { i8*, i64, i64 }*, i64, i64 } %b_variable_load6, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
   %a_variable_load7 = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
   %lexer_variable_load8 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8860, end: 8878, rendered-as: \22takeOnlyWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeOnlyWhitespace({ i8*, i64, i64 }* %lexer_variable_load8)
-  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8860, end: 8878, rendered-as: \22takeOnlyWhitespace\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space9, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9083, end: 9101, rendered-as: \22takeOnlyWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeOnlyWhitespace({ i8*, i64, i64 }* %lexer_variable_load8)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9083, end: 9101, rendered-as: \22takeOnlyWhitespace\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space9, align 8
   %a_variable_load10 = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
   %b_variable_load11 = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space9, align 8
   %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 2313, end: 2314, rendered-as: \22+\22 } })_call12" = call { { i8*, i64, i64 }*, i64, i64 } @"+.22"({ { i8*, i64, i64 }*, i64, i64 } %a_variable_load10, { { i8*, i64, i64 }*, i64, i64 } %b_variable_load11)
@@ -1273,7 +1301,7 @@ entry_block:
   store { i8*, i64, i64 }* %0, { i8*, i64, i64 }** %lexer, align 8
   store i8 %1, i8* %char, align 1
   %lexer_variable_load = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 8982, end: 8996, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %lexer_variable_load)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9205, end: 9219, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %lexer_variable_load)
   %struct_gep = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %string, i32 0, i32 1
   %lexer_variable_load1 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
   %struct_gep2 = getelementptr inbounds { i8*, i64, i64 }, { i8*, i64, i64 }* %lexer_variable_load1, i32 0, i32 1
@@ -1287,10 +1315,10 @@ entry_block:
   %b_variable_load6 = load i64, i64* %macro_arg_space, align 4
   store i64 %b_variable_load6, i64* %struct_gep5, align 4
   %lexer_variable_load7 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9131, end: 9139, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load7)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9354, end: 9362, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %lexer_variable_load7)
   %char_variable_load = load i8, i8* %char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9142, end: 9144, rendered-as: \22!=\22 } })_call" = call i1 @"!=.2"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9131, end: 9139, rendered-as: \22takeChar\22 } })_call", i8 %char_variable_load)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9142, end: 9144, rendered-as: \22!=\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9365, end: 9367, rendered-as: \22!=\22 } })_call" = call i1 @"!=.2"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9354, end: 9362, rendered-as: \22takeChar\22 } })_call", i8 %char_variable_load)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9365, end: 9367, rendered-as: \22!=\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   call void @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @global_str.25, i32 0, i32 0))
@@ -1317,24 +1345,24 @@ entry_block:
   store { i8*, i64, i64 }* %0, { i8*, i64, i64 }** %lexer, align 8
   store i8* %1, i8** %str, align 8
   %lexer_variable_load = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9417, end: 9431, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %lexer_variable_load)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9640, end: 9654, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %lexer_variable_load)
   %lexer_variable_load1 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %lexer, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9470, end: 9484, rendered-as: \22takeIdentifier\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeIdentifier({ i8*, i64, i64 }* %lexer_variable_load1)
-  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9470, end: 9484, rendered-as: \22takeIdentifier\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9693, end: 9707, rendered-as: \22takeIdentifier\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeIdentifier({ i8*, i64, i64 }* %lexer_variable_load1)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9693, end: 9707, rendered-as: \22takeIdentifier\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   %b_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   store { { i8*, i64, i64 }*, i64, i64 } %b_variable_load, { { i8*, i64, i64 }*, i64, i64 }* %string, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9506, end: 9512, rendered-as: \22render\22 } })_call" = call i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %string)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9729, end: 9735, rendered-as: \22render\22 } })_call" = call i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %string)
   %str_variable_load = load i8*, i8** %str, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9515, end: 9517, rendered-as: \22!=\22 } })_call" = call i1 @"!=.20"(i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9506, end: 9512, rendered-as: \22render\22 } })_call", i8* %str_variable_load)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9515, end: 9517, rendered-as: \22!=\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9738, end: 9740, rendered-as: \22!=\22 } })_call" = call i1 @"!=.20"(i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9729, end: 9735, rendered-as: \22render\22 } })_call", i8* %str_variable_load)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9738, end: 9740, rendered-as: \22!=\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   call void @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @global_str.30, i32 0, i32 0))
   %str_variable_load2 = load i8*, i8** %str, align 8
   call void @printf(i8* %str_variable_load2)
   call void @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @global_str.31, i32 0, i32 0))
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9631, end: 9637, rendered-as: \22render\22 } })_call" = call i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %string)
-  call void @printf(i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9631, end: 9637, rendered-as: \22render\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9854, end: 9860, rendered-as: \22render\22 } })_call" = call i8* @render({ { i8*, i64, i64 }*, i64, i64 }* %string)
+  call void @printf(i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9854, end: 9860, rendered-as: \22render\22 } })_call")
   call void @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @global_str.32, i32 0, i32 0))
   call void @panic(i8* getelementptr inbounds ([18 x i8], [18 x i8]* @global_str.33, i32 0, i32 0))
   br label %if_cont_block
@@ -1366,8 +1394,8 @@ entry_block:
   call void @printIndentation(i64 %indentation_variable_load)
   %val_variable_load = load i64*, i64** %val, align 8
   %deref_load = load i64, i64* %val_variable_load, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11010, end: 11012, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %deref_load, i64 1)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11010, end: 11012, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_else_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11233, end: 11235, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %deref_load, i64 1)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11233, end: 11235, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_else_block
 
 if_then_block:                                    ; preds = %entry_block
   call void @printf(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @global_str.35, i32 0, i32 0))
@@ -1391,12 +1419,12 @@ entry_block:
   %parser_variable_load = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
   %struct_gep = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load, i32 0, i32 0
   %struct_gep_deref = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14053, end: 14067, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %struct_gep_deref)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14604, end: 14618, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %struct_gep_deref)
   %parser_variable_load1 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
   %struct_gep2 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load1, i32 0, i32 0
   %struct_gep_deref3 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep2, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14105, end: 14113, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %struct_gep_deref3)
-  store i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14105, end: 14113, rendered-as: \22peekChar\22 } })_call", i8* %macro_arg_space, align 1
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14656, end: 14664, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %struct_gep_deref3)
+  store i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14656, end: 14664, rendered-as: \22peekChar\22 } })_call", i8* %macro_arg_space, align 1
   %b_variable_load = load i8, i8* %macro_arg_space, align 1
   store i8 %b_variable_load, i8* %next_char, align 1
   call void @printf(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @global_str.50, i32 0, i32 0))
@@ -1404,31 +1432,31 @@ entry_block:
   call void @putchar(i8 %next_char_variable_load)
   call void @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @global_str.51, i32 0, i32 0))
   %next_char_variable_load4 = load i8, i8* %next_char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14207, end: 14216, rendered-as: \22isNumeric\22 } })_call" = call i1 @isNumeric(i8 %next_char_variable_load4)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14207, end: 14216, rendered-as: \22isNumeric\22 } })_call", label %if_then_block, label %if_else_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14758, end: 14767, rendered-as: \22isNumeric\22 } })_call" = call i1 @isNumeric(i8 %next_char_variable_load4)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14758, end: 14767, rendered-as: \22isNumeric\22 } })_call", label %if_then_block, label %if_else_block
 
 if_then_block:                                    ; preds = %entry_block
   %parser_variable_load5 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14236, end: 14251, rendered-as: \22parseNumberExpr\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 }, i64 } @parseNumberExpr({ { i8*, i64, i64 }* }* %parser_variable_load5)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14254, end: 14260, rendered-as: \22asExpr\22 } })_call" = call { i8*, i64 } @asExpr({ { { i8*, i64, i64 }*, i64, i64 }, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14236, end: 14251, rendered-as: \22parseNumberExpr\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14787, end: 14802, rendered-as: \22parseNumberExpr\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 }, i64 } @parseNumberExpr({ { i8*, i64, i64 }* }* %parser_variable_load5)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14805, end: 14811, rendered-as: \22asExpr\22 } })_call" = call { i8*, i64 } @asExpr({ { { i8*, i64, i64 }*, i64, i64 }, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14787, end: 14802, rendered-as: \22parseNumberExpr\22 } })_call")
   br label %if_cont_block
 
 if_else_block:                                    ; preds = %entry_block
   %next_char_variable_load6 = load i8, i8* %next_char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14288, end: 14304, rendered-as: \22isConventionalId\22 } })_call" = call i1 @isConventionalId(i8 %next_char_variable_load6, i1 true)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14839, end: 14855, rendered-as: \22isConventionalId\22 } })_call" = call i1 @isConventionalId(i8 %next_char_variable_load6, i1 true)
   %next_char_variable_load7 = load i8, i8* %next_char, align 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14324, end: 14335, rendered-as: \22isSpecialId\22 } })_call" = call i1 @isSpecialId(i8 %next_char_variable_load7)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14311, end: 14313, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14288, end: 14304, rendered-as: \22isConventionalId\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14324, end: 14335, rendered-as: \22isSpecialId\22 } })_call")
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14311, end: 14313, rendered-as: \22||\22 } })_call", label %if_then_block8, label %if_else_block9
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14875, end: 14886, rendered-as: \22isSpecialId\22 } })_call" = call i1 @isSpecialId(i8 %next_char_variable_load7)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14862, end: 14864, rendered-as: \22||\22 } })_call" = call i1 @"||.10"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14839, end: 14855, rendered-as: \22isConventionalId\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14875, end: 14886, rendered-as: \22isSpecialId\22 } })_call")
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14862, end: 14864, rendered-as: \22||\22 } })_call", label %if_then_block8, label %if_else_block9
 
 if_cont_block:                                    ; preds = %if_cont_block10, %if_then_block
-  %if_phi13 = phi { i8*, i64 } [ %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14254, end: 14260, rendered-as: \22asExpr\22 } })_call", %if_then_block ], [ %if_phi, %if_cont_block10 ]
+  %if_phi13 = phi { i8*, i64 } [ %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14805, end: 14811, rendered-as: \22asExpr\22 } })_call", %if_then_block ], [ %if_phi, %if_cont_block10 ]
   ret { i8*, i64 } %if_phi13
 
 if_then_block8:                                   ; preds = %if_else_block
   %parser_variable_load11 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14356, end: 14375, rendered-as: \22parseIdentifierExpr\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 } } @parseIdentifierExpr({ { i8*, i64, i64 }* }* %parser_variable_load11)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14378, end: 14384, rendered-as: \22asExpr\22 } })_call" = call { i8*, i64 } @asExpr.44({ { { i8*, i64, i64 }*, i64, i64 } } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14356, end: 14375, rendered-as: \22parseIdentifierExpr\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14907, end: 14926, rendered-as: \22parseIdentifierExpr\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 } } @parseIdentifierExpr({ { i8*, i64, i64 }* }* %parser_variable_load11)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14929, end: 14935, rendered-as: \22asExpr\22 } })_call" = call { i8*, i64 } @asExpr.44({ { { i8*, i64, i64 }*, i64, i64 } } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14907, end: 14926, rendered-as: \22parseIdentifierExpr\22 } })_call")
   br label %if_cont_block10
 
 if_else_block9:                                   ; preds = %if_else_block
@@ -1441,7 +1469,7 @@ if_else_block9:                                   ; preds = %if_else_block
   br label %if_cont_block10
 
 if_cont_block10:                                  ; preds = %if_else_block9, %if_then_block8
-  %if_phi = phi { i8*, i64 } [ %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14378, end: 14384, rendered-as: \22asExpr\22 } })_call", %if_then_block8 ], [ %expr_variable_load, %if_else_block9 ]
+  %if_phi = phi { i8*, i64 } [ %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14929, end: 14935, rendered-as: \22asExpr\22 } })_call", %if_then_block8 ], [ %expr_variable_load, %if_else_block9 ]
   br label %if_cont_block
 }
 
@@ -1491,14 +1519,14 @@ entry_block:
   %parser_variable_load = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
   %struct_gep = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load, i32 0, i32 0
   %struct_gep_deref = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11697, end: 11707, rendered-as: \22takeNumber\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeNumber({ i8*, i64, i64 }* %struct_gep_deref)
-  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11697, end: 11707, rendered-as: \22takeNumber\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11920, end: 11930, rendered-as: \22takeNumber\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeNumber({ i8*, i64, i64 }* %struct_gep_deref)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11920, end: 11930, rendered-as: \22takeNumber\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   %b_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   store { { i8*, i64, i64 }*, i64, i64 } %b_variable_load, { { i8*, i64, i64 }*, i64, i64 }* %number, align 8
   %struct_gep1 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %number, i32 0, i32 2
   %struct_gep_deref2 = load i64, i64* %struct_gep1, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11730, end: 11732, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref2, i64 0)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11730, end: 11732, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11953, end: 11955, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref2, i64 0)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11953, end: 11955, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   call void @panic(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @global_str.39, i32 0, i32 0))
@@ -1518,8 +1546,8 @@ entry_block:
   %data = alloca { { { i8*, i64, i64 }*, i64, i64 }, i64 }*, align 8
   %val = alloca { { { i8*, i64, i64 }*, i64, i64 }, i64 }, align 8
   store { { { i8*, i64, i64 }*, i64, i64 }, i64 } %0, { { { i8*, i64, i64 }*, i64, i64 }, i64 }* %val, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11931, end: 11937, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 ptrtoint ({ { { i8*, i64, i64 }*, i64, i64 }, i64 }* getelementptr ({ { { i8*, i64, i64 }*, i64, i64 }, i64 }, { { { i8*, i64, i64 }*, i64, i64 }, i64 }* null, i32 1) to i64))
-  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 11931, end: 11937, rendered-as: \22malloc\22 } })_call" to { { { i8*, i64, i64 }*, i64, i64 }, i64 }*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12154, end: 12160, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 ptrtoint ({ { { i8*, i64, i64 }*, i64, i64 }, i64 }* getelementptr ({ { { i8*, i64, i64 }*, i64, i64 }, i64 }, { { { i8*, i64, i64 }*, i64, i64 }, i64 }* null, i32 1) to i64))
+  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12154, end: 12160, rendered-as: \22malloc\22 } })_call" to { { { i8*, i64, i64 }*, i64, i64 }, i64 }*
   store { { { i8*, i64, i64 }*, i64, i64 }, i64 }* %bitcast, { { { i8*, i64, i64 }*, i64, i64 }, i64 }** %macro_arg_space, align 8
   %b_variable_load = load { { { i8*, i64, i64 }*, i64, i64 }, i64 }*, { { { i8*, i64, i64 }*, i64, i64 }, i64 }** %macro_arg_space, align 8
   store { { { i8*, i64, i64 }*, i64, i64 }, i64 }* %b_variable_load, { { { i8*, i64, i64 }*, i64, i64 }, i64 }** %data, align 8
@@ -1541,8 +1569,8 @@ entry_block:
   store i64 1, i64* %struct_gep, align 4
   %struct_gep1 = getelementptr inbounds { i8*, i64 }, { i8*, i64 }* %expr, i32 0, i32 0
   %number_variable_load = load { { { i8*, i64, i64 }*, i64, i64 }, i64 }, { { { i8*, i64, i64 }*, i64, i64 }, i64 }* %number, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12213, end: 12217, rendered-as: \22copy\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 }, i64 }* @copy.40({ { { i8*, i64, i64 }*, i64, i64 }, i64 } %number_variable_load)
-  %bitcast = bitcast { { { i8*, i64, i64 }*, i64, i64 }, i64 }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12213, end: 12217, rendered-as: \22copy\22 } })_call" to i8*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12436, end: 12440, rendered-as: \22copy\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 }, i64 }* @copy.40({ { { i8*, i64, i64 }*, i64, i64 }, i64 } %number_variable_load)
+  %bitcast = bitcast { { { i8*, i64, i64 }*, i64, i64 }, i64 }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12436, end: 12440, rendered-as: \22copy\22 } })_call" to i8*
   store i8* %bitcast, i8** %macro_arg_space, align 8
   %b_variable_load = load i8*, i8** %macro_arg_space, align 8
   store i8* %b_variable_load, i8** %struct_gep1, align 8
@@ -1573,14 +1601,14 @@ entry_block:
   %parser_variable_load = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
   %struct_gep = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load, i32 0, i32 0
   %struct_gep_deref = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12530, end: 12544, rendered-as: \22takeIdentifier\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeIdentifier({ i8*, i64, i64 }* %struct_gep_deref)
-  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12530, end: 12544, rendered-as: \22takeIdentifier\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12753, end: 12767, rendered-as: \22takeIdentifier\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeIdentifier({ i8*, i64, i64 }* %struct_gep_deref)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12753, end: 12767, rendered-as: \22takeIdentifier\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   %b_variable_load = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space, align 8
   store { { i8*, i64, i64 }*, i64, i64 } %b_variable_load, { { i8*, i64, i64 }*, i64, i64 }* %id, align 8
   %struct_gep1 = getelementptr inbounds { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %id, i32 0, i32 2
   %struct_gep_deref2 = load i64, i64* %struct_gep1, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12563, end: 12565, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref2, i64 0)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12563, end: 12565, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12786, end: 12788, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref2, i64 0)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12786, end: 12788, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   call void @panic(i8* getelementptr inbounds ([26 x i8], [26 x i8]* @global_str.42, i32 0, i32 0))
@@ -1600,8 +1628,8 @@ entry_block:
   %data = alloca { { { i8*, i64, i64 }*, i64, i64 } }*, align 8
   %val = alloca { { { i8*, i64, i64 }*, i64, i64 } }, align 8
   store { { { i8*, i64, i64 }*, i64, i64 } } %0, { { { i8*, i64, i64 }*, i64, i64 } }* %val, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12767, end: 12773, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 ptrtoint ({ { { i8*, i64, i64 }*, i64, i64 } }* getelementptr ({ { { i8*, i64, i64 }*, i64, i64 } }, { { { i8*, i64, i64 }*, i64, i64 } }* null, i32 1) to i64))
-  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12767, end: 12773, rendered-as: \22malloc\22 } })_call" to { { { i8*, i64, i64 }*, i64, i64 } }*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12990, end: 12996, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 ptrtoint ({ { { i8*, i64, i64 }*, i64, i64 } }* getelementptr ({ { { i8*, i64, i64 }*, i64, i64 } }, { { { i8*, i64, i64 }*, i64, i64 } }* null, i32 1) to i64))
+  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 12990, end: 12996, rendered-as: \22malloc\22 } })_call" to { { { i8*, i64, i64 }*, i64, i64 } }*
   store { { { i8*, i64, i64 }*, i64, i64 } }* %bitcast, { { { i8*, i64, i64 }*, i64, i64 } }** %macro_arg_space, align 8
   %b_variable_load = load { { { i8*, i64, i64 }*, i64, i64 } }*, { { { i8*, i64, i64 }*, i64, i64 } }** %macro_arg_space, align 8
   store { { { i8*, i64, i64 }*, i64, i64 } }* %b_variable_load, { { { i8*, i64, i64 }*, i64, i64 } }** %data, align 8
@@ -1623,8 +1651,8 @@ entry_block:
   store i64 2, i64* %struct_gep, align 4
   %struct_gep1 = getelementptr inbounds { i8*, i64 }, { i8*, i64 }* %expr, i32 0, i32 0
   %id_variable_load = load { { { i8*, i64, i64 }*, i64, i64 } }, { { { i8*, i64, i64 }*, i64, i64 } }* %id, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13031, end: 13035, rendered-as: \22copy\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 } }* @copy.43({ { { i8*, i64, i64 }*, i64, i64 } } %id_variable_load)
-  %bitcast = bitcast { { { i8*, i64, i64 }*, i64, i64 } }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13031, end: 13035, rendered-as: \22copy\22 } })_call" to i8*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13254, end: 13258, rendered-as: \22copy\22 } })_call" = call { { { i8*, i64, i64 }*, i64, i64 } }* @copy.43({ { { i8*, i64, i64 }*, i64, i64 } } %id_variable_load)
+  %bitcast = bitcast { { { i8*, i64, i64 }*, i64, i64 } }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13254, end: 13258, rendered-as: \22copy\22 } })_call" to i8*
   store i8* %bitcast, i8** %macro_arg_space, align 8
   %b_variable_load = load i8*, i8** %macro_arg_space, align 8
   store i8* %b_variable_load, i8** %struct_gep1, align 8
@@ -1654,17 +1682,17 @@ while_loop_cond_check_basic_block:                ; preds = %while_loop_body_bas
   %struct_gep = getelementptr inbounds { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }, { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }* %val_variable_load, i32 0, i32 1
   %struct_gep1 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %struct_gep, i32 0, i32 0
   %struct_gep_deref = load i64, i64* %struct_gep1, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13315, end: 13316, rendered-as: \22<\22 } })_call" = call i1 @"<"(i64 %i_variable_load, i64 %struct_gep_deref)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13315, end: 13316, rendered-as: \22<\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13538, end: 13539, rendered-as: \22<\22 } })_call" = call i1 @"<"(i64 %i_variable_load, i64 %struct_gep_deref)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13538, end: 13539, rendered-as: \22<\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
   %val_variable_load2 = load { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }*, { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }** %val, align 8
   %struct_gep3 = getelementptr inbounds { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }, { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }* %val_variable_load2, i32 0, i32 1
   %i_variable_load4 = load i64, i64* %i, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13368, end: 13371, rendered-as: \22get\22 } })_call" = call { i8*, i64 }* @get({ i64, i64, { i8*, i64 }* }* %struct_gep3, i64 %i_variable_load4)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13591, end: 13594, rendered-as: \22get\22 } })_call" = call { i8*, i64 }* @get({ i64, i64, { i8*, i64 }* }* %struct_gep3, i64 %i_variable_load4)
   %indentation_variable_load5 = load i64, i64* %indentation, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13395, end: 13396, rendered-as: \22+\22 } })_call" = call i64 @"+"(i64 %indentation_variable_load5, i64 2)
-  call void @debug.37({ i8*, i64 }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13368, end: 13371, rendered-as: \22get\22 } })_call", i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13395, end: 13396, rendered-as: \22+\22 } })_call")
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13618, end: 13619, rendered-as: \22+\22 } })_call" = call i64 @"+"(i64 %indentation_variable_load5, i64 2)
+  call void @debug.37({ i8*, i64 }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13591, end: 13594, rendered-as: \22get\22 } })_call", i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13618, end: 13619, rendered-as: \22+\22 } })_call")
   br label %while_loop_cond_check_basic_block
 
 while_loop_cont_basic_block:                      ; preds = %while_loop_cond_check_basic_block
@@ -1693,69 +1721,118 @@ entry_block:
 
 define { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 } @parseBlockExpr({ { i8*, i64, i64 }* }* %0) {
 entry_block:
-  %macro_arg_space11 = alloca { i8*, i64 }, align 8
+  %macro_arg_space46 = alloca i1, align 1
+  %macro_arg_space43 = alloca { { i8*, i64, i64 }*, i64, i64 }, align 8
+  %end = alloca i64, align 8
+  %macro_arg_space26 = alloca i1, align 1
+  %macro_arg_space18 = alloca { i8*, i64 }, align 8
   %internal_expr = alloca { i8*, i64 }, align 8
+  %macro_arg_space9 = alloca i1, align 1
+  %last_semicolon = alloca i1, align 1
   %macro_arg_space = alloca { i64, i64, { i8*, i64 }* }, align 8
   %exprs = alloca { i64, i64, { i8*, i64 }* }, align 8
   %expr = alloca { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }, align 8
+  %start = alloca i64, align 8
   %parser = alloca { { i8*, i64, i64 }* }*, align 8
   store { { i8*, i64, i64 }* }* %0, { { i8*, i64, i64 }* }** %parser, align 8
   %parser_variable_load = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
   %struct_gep = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load, i32 0, i32 0
   %struct_gep_deref = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13538, end: 13552, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %struct_gep_deref)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13761, end: 13775, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %struct_gep_deref)
   %parser_variable_load1 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
   %struct_gep2 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load1, i32 0, i32 0
   %struct_gep_deref3 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep2, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13573, end: 13580, rendered-as: \22require\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @require({ i8*, i64, i64 }* %struct_gep_deref3, i8 123)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13642, end: 13659, rendered-as: \22variablearray#new\22 } })_call" = call { i64, i64, { i8*, i64 }* } @"variablearray#new"()
-  store { i64, i64, { i8*, i64 }* } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13642, end: 13659, rendered-as: \22variablearray#new\22 } })_call", { i64, i64, { i8*, i64 }* }* %macro_arg_space, align 8
-  %b_variable_load = load { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %macro_arg_space, align 8
-  store { i64, i64, { i8*, i64 }* } %b_variable_load, { i64, i64, { i8*, i64 }* }* %exprs, align 8
+  %struct_gep4 = getelementptr inbounds { i8*, i64, i64 }, { i8*, i64, i64 }* %struct_gep_deref3, i32 0, i32 1
+  %b_variable_load = load i64, i64* %struct_gep4, align 4
+  store i64 %b_variable_load, i64* %start, align 4
+  %parser_variable_load5 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep6 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load5, i32 0, i32 0
+  %struct_gep_deref7 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep6, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13839, end: 13846, rendered-as: \22require\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @require({ i8*, i64, i64 }* %struct_gep_deref7, i8 123)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13908, end: 13925, rendered-as: \22variablearray#new\22 } })_call" = call { i64, i64, { i8*, i64 }* } @"variablearray#new"()
+  store { i64, i64, { i8*, i64 }* } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13908, end: 13925, rendered-as: \22variablearray#new\22 } })_call", { i64, i64, { i8*, i64 }* }* %macro_arg_space, align 8
+  %b_variable_load8 = load { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %macro_arg_space, align 8
+  store { i64, i64, { i8*, i64 }* } %b_variable_load8, { i64, i64, { i8*, i64 }* }* %exprs, align 8
+  store i1 true, i1* %macro_arg_space9, align 1
+  %b_variable_load10 = load i1, i1* %macro_arg_space9, align 1
+  store i1 %b_variable_load10, i1* %last_semicolon, align 1
   br label %while_loop_cond_check_basic_block
 
 while_loop_cond_check_basic_block:                ; preds = %if_cont_block, %entry_block
-  %parser_variable_load4 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %struct_gep5 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load4, i32 0, i32 0
-  %struct_gep_deref6 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep5, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13695, end: 13700, rendered-as: \22isEof\22 } })_call" = call i1 @isEof({ i8*, i64, i64 }* %struct_gep_deref6)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13680, end: 13681, rendered-as: \22!\22 } })_call" = call i1 @"!"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13695, end: 13700, rendered-as: \22isEof\22 } })_call")
-  %parser_variable_load7 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %struct_gep8 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load7, i32 0, i32 0
-  %struct_gep_deref9 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep8, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13721, end: 13729, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %struct_gep_deref9)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13732, end: 13734, rendered-as: \22!=\22 } })_call" = call i1 @"!=.2"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13721, end: 13729, rendered-as: \22peekChar\22 } })_call", i8 125)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13704, end: 13706, rendered-as: \22&&\22 } })_call" = call i1 @"&&.9"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13680, end: 13681, rendered-as: \22!\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13732, end: 13734, rendered-as: \22!=\22 } })_call")
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13704, end: 13706, rendered-as: \22&&\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
+  %parser_variable_load11 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep12 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load11, i32 0, i32 0
+  %struct_gep_deref13 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep12, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13995, end: 14000, rendered-as: \22isEof\22 } })_call" = call i1 @isEof({ i8*, i64, i64 }* %struct_gep_deref13)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13980, end: 13981, rendered-as: \22!\22 } })_call" = call i1 @"!"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13995, end: 14000, rendered-as: \22isEof\22 } })_call")
+  %parser_variable_load14 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep15 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load14, i32 0, i32 0
+  %struct_gep_deref16 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep15, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14021, end: 14029, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %struct_gep_deref16)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14032, end: 14034, rendered-as: \22!=\22 } })_call" = call i1 @"!=.2"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14021, end: 14029, rendered-as: \22peekChar\22 } })_call", i8 125)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14004, end: 14006, rendered-as: \22&&\22 } })_call" = call i1 @"&&.9"(i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13980, end: 13981, rendered-as: \22!\22 } })_call", i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14032, end: 14034, rendered-as: \22!=\22 } })_call")
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14004, end: 14006, rendered-as: \22&&\22 } })_call", label %while_loop_body_basic_block, label %while_loop_cont_basic_block
 
 while_loop_body_basic_block:                      ; preds = %while_loop_cond_check_basic_block
-  %parser_variable_load10 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13779, end: 13788, rendered-as: \22parseExpr\22 } })_call" = call { i8*, i64 } @parseExpr({ { i8*, i64, i64 }* }* %parser_variable_load10)
-  store { i8*, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13779, end: 13788, rendered-as: \22parseExpr\22 } })_call", { i8*, i64 }* %macro_arg_space11, align 8
-  %b_variable_load12 = load { i8*, i64 }, { i8*, i64 }* %macro_arg_space11, align 8
-  store { i8*, i64 } %b_variable_load12, { i8*, i64 }* %internal_expr, align 8
+  %parser_variable_load17 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14079, end: 14088, rendered-as: \22parseExpr\22 } })_call" = call { i8*, i64 } @parseExpr({ { i8*, i64, i64 }* }* %parser_variable_load17)
+  store { i8*, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14079, end: 14088, rendered-as: \22parseExpr\22 } })_call", { i8*, i64 }* %macro_arg_space18, align 8
+  %b_variable_load19 = load { i8*, i64 }, { i8*, i64 }* %macro_arg_space18, align 8
+  store { i8*, i64 } %b_variable_load19, { i8*, i64 }* %internal_expr, align 8
   %internal_expr_variable_load = load { i8*, i64 }, { i8*, i64 }* %internal_expr, align 8
   call void @append({ i64, i64, { i8*, i64 }* }* %exprs, { i8*, i64 } %internal_expr_variable_load)
-  %parser_variable_load13 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %struct_gep14 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load13, i32 0, i32 0
-  %struct_gep_deref15 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep14, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13859, end: 13873, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %struct_gep_deref15)
-  %parser_variable_load16 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
-  %struct_gep17 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load16, i32 0, i32 0
-  %struct_gep_deref18 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep17, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13901, end: 13909, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %struct_gep_deref18)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13912, end: 13914, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13901, end: 13909, rendered-as: \22peekChar\22 } })_call", i8 125)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 13912, end: 13914, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
+  %parser_variable_load20 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep21 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load20, i32 0, i32 0
+  %struct_gep_deref22 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep21, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14159, end: 14173, rendered-as: \22takeWhitespace\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @takeWhitespace({ i8*, i64, i64 }* %struct_gep_deref22)
+  %parser_variable_load23 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep24 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load23, i32 0, i32 0
+  %struct_gep_deref25 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep24, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14201, end: 14209, rendered-as: \22peekChar\22 } })_call" = call i8 @peekChar({ i8*, i64, i64 }* %struct_gep_deref25)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14212, end: 14214, rendered-as: \22==\22 } })_call" = call i1 @"==.1"(i8 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14201, end: 14209, rendered-as: \22peekChar\22 } })_call", i8 125)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14212, end: 14214, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
 
 while_loop_cont_basic_block:                      ; preds = %if_then_block, %while_loop_cond_check_basic_block
+  %parser_variable_load31 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep32 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load31, i32 0, i32 0
+  %struct_gep_deref33 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep32, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14345, end: 14353, rendered-as: \22takeChar\22 } })_call" = call i8 @takeChar({ i8*, i64, i64 }* %struct_gep_deref33)
+  %parser_variable_load34 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep35 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load34, i32 0, i32 0
+  %struct_gep_deref36 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep35, align 8
+  %struct_gep37 = getelementptr inbounds { i8*, i64, i64 }, { i8*, i64, i64 }* %struct_gep_deref36, i32 0, i32 1
+  %b_variable_load38 = load i64, i64* %struct_gep37, align 4
+  store i64 %b_variable_load38, i64* %end, align 4
+  %struct_gep39 = getelementptr inbounds { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }, { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }* %expr, i32 0, i32 0
+  %parser_variable_load40 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep41 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load40, i32 0, i32 0
+  %struct_gep_deref42 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep41, align 8
+  %start_variable_load = load i64, i64* %start, align 4
+  %end_variable_load = load i64, i64* %end, align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14444, end: 14457, rendered-as: \22lexstring#new\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @"lexstring#new"({ i8*, i64, i64 }* %struct_gep_deref42, i64 %start_variable_load, i64 %end_variable_load)
+  store { { i8*, i64, i64 }*, i64, i64 } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14444, end: 14457, rendered-as: \22lexstring#new\22 } })_call", { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space43, align 8
+  %b_variable_load44 = load { { i8*, i64, i64 }*, i64, i64 }, { { i8*, i64, i64 }*, i64, i64 }* %macro_arg_space43, align 8
+  store { { i8*, i64, i64 }*, i64, i64 } %b_variable_load44, { { i8*, i64, i64 }*, i64, i64 }* %struct_gep39, align 8
+  %struct_gep45 = getelementptr inbounds { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }, { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }* %expr, i32 0, i32 2
+  %last_semicolon_variable_load = load i1, i1* %last_semicolon, align 1
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14512, end: 14513, rendered-as: \22!\22 } })_call" = call i1 @"!"(i1 %last_semicolon_variable_load)
+  store i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14512, end: 14513, rendered-as: \22!\22 } })_call", i1* %macro_arg_space46, align 1
+  %b_variable_load47 = load i1, i1* %macro_arg_space46, align 1
+  store i1 %b_variable_load47, i1* %struct_gep45, align 1
   %expr_variable_load = load { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }, { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 }* %expr, align 8
   ret { { { i8*, i64, i64 }*, i64, i64 }, { i64, i64, { i8*, i64 }* }, i1 } %expr_variable_load
 
 if_then_block:                                    ; preds = %while_loop_body_basic_block
+  store i1 false, i1* %macro_arg_space26, align 1
+  %b_variable_load27 = load i1, i1* %macro_arg_space26, align 1
+  store i1 %b_variable_load27, i1* %last_semicolon, align 1
   br label %while_loop_cont_basic_block
   br label %if_cont_block
 
 if_cont_block:                                    ; preds = %if_then_block, %while_loop_body_basic_block
+  %parser_variable_load28 = load { { i8*, i64, i64 }* }*, { { i8*, i64, i64 }* }** %parser, align 8
+  %struct_gep29 = getelementptr inbounds { { i8*, i64, i64 }* }, { { i8*, i64, i64 }* }* %parser_variable_load28, i32 0, i32 0
+  %struct_gep_deref30 = load { i8*, i64, i64 }*, { i8*, i64, i64 }** %struct_gep29, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 14306, end: 14313, rendered-as: \22require\22 } })_call" = call { { i8*, i64, i64 }*, i64, i64 } @require({ i8*, i64, i64 }* %struct_gep_deref30, i8 59)
   br label %while_loop_cond_check_basic_block
 }
 
@@ -1766,9 +1843,9 @@ entry_block:
   %macro_arg_space = alloca { i8*, i64 }*, align 8
   %va = alloca { i64, i64, { i8*, i64 }* }, align 8
   %struct_gep = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va, i32 0, i32 2
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9942, end: 9943, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64), i64 64)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9924, end: 9930, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9942, end: 9943, rendered-as: \22*\22 } })_call")
-  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9924, end: 9930, rendered-as: \22malloc\22 } })_call" to { i8*, i64 }*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10165, end: 10166, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64), i64 64)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10147, end: 10153, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10165, end: 10166, rendered-as: \22*\22 } })_call")
+  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10147, end: 10153, rendered-as: \22malloc\22 } })_call" to { i8*, i64 }*
   store { i8*, i64 }* %bitcast, { i8*, i64 }** %macro_arg_space, align 8
   %b_variable_load = load { i8*, i64 }*, { i8*, i64 }** %macro_arg_space, align 8
   store { i8*, i64 }* %b_variable_load, { i8*, i64 }** %struct_gep, align 8
@@ -1777,8 +1854,8 @@ entry_block:
   %b_variable_load3 = load i64, i64* %macro_arg_space2, align 4
   store i64 %b_variable_load3, i64* %struct_gep1, align 4
   %struct_gep4 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va, i32 0, i32 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10006, end: 10007, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64), i64 64)
-  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10006, end: 10007, rendered-as: \22*\22 } })_call", i64* %macro_arg_space5, align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10229, end: 10230, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64), i64 64)
+  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10229, end: 10230, rendered-as: \22*\22 } })_call", i64* %macro_arg_space5, align 4
   %b_variable_load6 = load i64, i64* %macro_arg_space5, align 4
   store i64 %b_variable_load6, i64* %struct_gep4, align 4
   %va_variable_load = load { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va, align 8
@@ -1809,18 +1886,18 @@ entry_block:
   %va_variable_load4 = load { i64, i64, { i8*, i64 }* }*, { i64, i64, { i8*, i64 }* }** %va, align 8
   %struct_gep5 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va_variable_load4, i32 0, i32 0
   %struct_gep_deref = load i64, i64* %struct_gep5, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10369, end: 10370, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 %struct_gep_deref, i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64))
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10592, end: 10593, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 %struct_gep_deref, i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64))
   %va_variable_load6 = load { i64, i64, { i8*, i64 }* }*, { i64, i64, { i8*, i64 }* }** %va, align 8
   %struct_gep7 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va_variable_load6, i32 0, i32 1
   %struct_gep_deref8 = load i64, i64* %struct_gep7, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10383, end: 10384, rendered-as: \22>\22 } })_call" = call i1 @">"(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10369, end: 10370, rendered-as: \22*\22 } })_call", i64 %struct_gep_deref8)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10383, end: 10384, rendered-as: \22>\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10606, end: 10607, rendered-as: \22>\22 } })_call" = call i1 @">"(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10592, end: 10593, rendered-as: \22*\22 } })_call", i64 %struct_gep_deref8)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10606, end: 10607, rendered-as: \22>\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   %va_variable_load9 = load { i64, i64, { i8*, i64 }* }*, { i64, i64, { i8*, i64 }* }** %va, align 8
   %struct_gep10 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va_variable_load9, i32 0, i32 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10434, end: 10435, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64), i64 64)
-  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10434, end: 10435, rendered-as: \22*\22 } })_call", i64* %macro_arg_space11, align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10657, end: 10658, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64), i64 64)
+  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10657, end: 10658, rendered-as: \22*\22 } })_call", i64* %macro_arg_space11, align 4
   %a_variable_load12 = load i64, i64* %struct_gep10, align 4
   %b_variable_load13 = load i64, i64* %macro_arg_space11, align 4
   %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 2313, end: 2314, rendered-as: \22+\22 } })_call14" = call i64 @"+"(i64 %a_variable_load12, i64 %b_variable_load13)
@@ -1837,8 +1914,8 @@ if_then_block:                                    ; preds = %entry_block
   %va_variable_load23 = load { i64, i64, { i8*, i64 }* }*, { i64, i64, { i8*, i64 }* }** %va, align 8
   %struct_gep24 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va_variable_load23, i32 0, i32 1
   %struct_gep_deref25 = load i64, i64* %struct_gep24, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10460, end: 10467, rendered-as: \22realloc\22 } })_call" = call i8* @realloc(i8* %bitcast, i64 %struct_gep_deref25)
-  %bitcast26 = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10460, end: 10467, rendered-as: \22realloc\22 } })_call" to { i8*, i64 }*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10683, end: 10690, rendered-as: \22realloc\22 } })_call" = call i8* @realloc(i8* %bitcast, i64 %struct_gep_deref25)
+  %bitcast26 = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10683, end: 10690, rendered-as: \22realloc\22 } })_call" to { i8*, i64 }*
   store { i8*, i64 }* %bitcast26, { i8*, i64 }** %macro_arg_space27, align 8
   %b_variable_load28 = load { i8*, i64 }*, { i8*, i64 }** %macro_arg_space27, align 8
   store { i8*, i64 }* %b_variable_load28, { i8*, i64 }** %struct_gep19, align 8
@@ -1849,9 +1926,9 @@ if_cont_block:                                    ; preds = %if_then_block, %ent
   %va_variable_load30 = load { i64, i64, { i8*, i64 }* }*, { i64, i64, { i8*, i64 }* }** %va, align 8
   %struct_gep31 = getelementptr inbounds { i64, i64, { i8*, i64 }* }, { i64, i64, { i8*, i64 }* }* %va_variable_load30, i32 0, i32 0
   %struct_gep_deref32 = load i64, i64* %struct_gep31, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10579, end: 10580, rendered-as: \22-\22 } })_call" = call i64 @-(i64 %struct_gep_deref32, i64 1)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10802, end: 10803, rendered-as: \22-\22 } })_call" = call i64 @-(i64 %struct_gep_deref32, i64 1)
   %val_variable_load = load { i8*, i64 }, { i8*, i64 }* %val, align 8
-  call void @set({ i64, i64, { i8*, i64 }* }* %va_variable_load29, i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10579, end: 10580, rendered-as: \22-\22 } })_call", { i8*, i64 } %val_variable_load)
+  call void @set({ i64, i64, { i8*, i64 }* }* %va_variable_load29, i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10802, end: 10803, rendered-as: \22-\22 } })_call", { i8*, i64 } %val_variable_load)
   ret void
 }
 
@@ -1865,8 +1942,8 @@ entry_block:
   store { i8*, i64 } %2, { i8*, i64 }* %val, align 8
   %va_variable_load = load { i64, i64, { i8*, i64 }* }*, { i64, i64, { i8*, i64 }* }** %va, align 8
   %index_variable_load = load i64, i64* %index, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10228, end: 10231, rendered-as: \22get\22 } })_call" = call { i8*, i64 }* @get.48({ i64, i64, { i8*, i64 }* }* %va_variable_load, i64 %index_variable_load)
-  %bitcast = bitcast { i8*, i64 }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10228, end: 10231, rendered-as: \22get\22 } })_call" to i8*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10451, end: 10454, rendered-as: \22get\22 } })_call" = call { i8*, i64 }* @get.48({ i64, i64, { i8*, i64 }* }* %va_variable_load, i64 %index_variable_load)
+  %bitcast = bitcast { i8*, i64 }* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10451, end: 10454, rendered-as: \22get\22 } })_call" to i8*
   %bitcast1 = bitcast { i8*, i64 }* %val to i8*
   call void @memcpy(i8* %bitcast, i8* %bitcast1, i64 ptrtoint ({ i8*, i64 }* getelementptr ({ i8*, i64 }, { i8*, i64 }* null, i32 1) to i64))
   ret void
@@ -1893,27 +1970,29 @@ declare { i8*, i64 } @parseExpr.49({ { i8*, i64, i64 }* }*)
 
 define i64 @main() {
 entry_block:
+  %macro_arg_space6 = alloca i8*, align 8
+  %source = alloca i8*, align 8
   %macro_arg_space = alloca { i64, i64, i64* }, align 8
   %va = alloca { i64, i64, i64* }, align 8
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15476, end: 15493, rendered-as: \22variablearray#new\22 } })_call" = call { i64, i64, i64* } @"variablearray#new.54"()
-  store { i64, i64, i64* } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15476, end: 15493, rendered-as: \22variablearray#new\22 } })_call", { i64, i64, i64* }* %macro_arg_space, align 8
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16027, end: 16044, rendered-as: \22variablearray#new\22 } })_call" = call { i64, i64, i64* } @"variablearray#new.54"()
+  store { i64, i64, i64* } %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16027, end: 16044, rendered-as: \22variablearray#new\22 } })_call", { i64, i64, i64* }* %macro_arg_space, align 8
   %b_variable_load = load { i64, i64, i64* }, { i64, i64, i64* }* %macro_arg_space, align 8
   store { i64, i64, i64* } %b_variable_load, { i64, i64, i64* }* %va, align 8
   call void @append.55({ i64, i64, i64* }* %va, i64 7)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15545, end: 15548, rendered-as: \22get\22 } })_call" = call i64* @get.58({ i64, i64, i64* }* %va, i64 0)
-  %deref_load = load i64, i64* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15545, end: 15548, rendered-as: \22get\22 } })_call", align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15558, end: 15560, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %deref_load, i64 7)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15558, end: 15560, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16096, end: 16099, rendered-as: \22get\22 } })_call" = call i64* @get.58({ i64, i64, i64* }* %va, i64 0)
+  %deref_load = load i64, i64* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16096, end: 16099, rendered-as: \22get\22 } })_call", align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16109, end: 16111, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %deref_load, i64 7)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16109, end: 16111, rendered-as: \22==\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   call void @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @global_str.59, i32 0, i32 0))
   br label %if_cont_block
 
 if_cont_block:                                    ; preds = %if_then_block, %entry_block
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15612, end: 15615, rendered-as: \22get\22 } })_call" = call i64* @get.58({ i64, i64, i64* }* %va, i64 0)
-  %deref_load1 = load i64, i64* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15612, end: 15615, rendered-as: \22get\22 } })_call", align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15625, end: 15627, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %deref_load1, i64 0)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15625, end: 15627, rendered-as: \22==\22 } })_call", label %if_then_block2, label %if_cont_block3
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16163, end: 16166, rendered-as: \22get\22 } })_call" = call i64* @get.58({ i64, i64, i64* }* %va, i64 0)
+  %deref_load1 = load i64, i64* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16163, end: 16166, rendered-as: \22get\22 } })_call", align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16176, end: 16178, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %deref_load1, i64 0)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16176, end: 16178, rendered-as: \22==\22 } })_call", label %if_then_block2, label %if_cont_block3
 
 if_then_block2:                                   ; preds = %if_cont_block
   call void @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @global_str.60, i32 0, i32 0))
@@ -1922,14 +2001,17 @@ if_then_block2:                                   ; preds = %if_cont_block
 if_cont_block3:                                   ; preds = %if_then_block2, %if_cont_block
   %struct_gep = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va, i32 0, i32 0
   %struct_gep_deref = load i64, i64* %struct_gep, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15682, end: 15684, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref, i64 1)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 15682, end: 15684, rendered-as: \22==\22 } })_call", label %if_then_block4, label %if_cont_block5
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16233, end: 16235, rendered-as: \22==\22 } })_call" = call i1 @"=="(i64 %struct_gep_deref, i64 1)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 16233, end: 16235, rendered-as: \22==\22 } })_call", label %if_then_block4, label %if_cont_block5
 
 if_then_block4:                                   ; preds = %if_cont_block3
   call void @printf(i8* getelementptr inbounds ([16 x i8], [16 x i8]* @global_str.61, i32 0, i32 0))
   br label %if_cont_block5
 
 if_cont_block5:                                   ; preds = %if_then_block4, %if_cont_block3
+  store i8* getelementptr inbounds ([7 x i8], [7 x i8]* @global_str.62, i32 0, i32 0), i8** %macro_arg_space6, align 8
+  %b_variable_load7 = load i8*, i8** %macro_arg_space6, align 8
+  store i8* %b_variable_load7, i8** %source, align 8
   call void @exit(i64 0)
   ret i64 0
 }
@@ -1941,9 +2023,9 @@ entry_block:
   %macro_arg_space = alloca i64*, align 8
   %va = alloca { i64, i64, i64* }, align 8
   %struct_gep = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va, i32 0, i32 2
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9942, end: 9943, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64), i64 64)
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9924, end: 9930, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9942, end: 9943, rendered-as: \22*\22 } })_call")
-  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 9924, end: 9930, rendered-as: \22malloc\22 } })_call" to i64*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10165, end: 10166, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64), i64 64)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10147, end: 10153, rendered-as: \22malloc\22 } })_call" = call i8* @malloc(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10165, end: 10166, rendered-as: \22*\22 } })_call")
+  %bitcast = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10147, end: 10153, rendered-as: \22malloc\22 } })_call" to i64*
   store i64* %bitcast, i64** %macro_arg_space, align 8
   %b_variable_load = load i64*, i64** %macro_arg_space, align 8
   store i64* %b_variable_load, i64** %struct_gep, align 8
@@ -1952,8 +2034,8 @@ entry_block:
   %b_variable_load3 = load i64, i64* %macro_arg_space2, align 4
   store i64 %b_variable_load3, i64* %struct_gep1, align 4
   %struct_gep4 = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va, i32 0, i32 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10006, end: 10007, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64), i64 64)
-  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10006, end: 10007, rendered-as: \22*\22 } })_call", i64* %macro_arg_space5, align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10229, end: 10230, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64), i64 64)
+  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10229, end: 10230, rendered-as: \22*\22 } })_call", i64* %macro_arg_space5, align 4
   %b_variable_load6 = load i64, i64* %macro_arg_space5, align 4
   store i64 %b_variable_load6, i64* %struct_gep4, align 4
   %va_variable_load = load { i64, i64, i64* }, { i64, i64, i64* }* %va, align 8
@@ -1984,18 +2066,18 @@ entry_block:
   %va_variable_load4 = load { i64, i64, i64* }*, { i64, i64, i64* }** %va, align 8
   %struct_gep5 = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va_variable_load4, i32 0, i32 0
   %struct_gep_deref = load i64, i64* %struct_gep5, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10369, end: 10370, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 %struct_gep_deref, i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64))
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10592, end: 10593, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 %struct_gep_deref, i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64))
   %va_variable_load6 = load { i64, i64, i64* }*, { i64, i64, i64* }** %va, align 8
   %struct_gep7 = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va_variable_load6, i32 0, i32 1
   %struct_gep_deref8 = load i64, i64* %struct_gep7, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10383, end: 10384, rendered-as: \22>\22 } })_call" = call i1 @">"(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10369, end: 10370, rendered-as: \22*\22 } })_call", i64 %struct_gep_deref8)
-  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10383, end: 10384, rendered-as: \22>\22 } })_call", label %if_then_block, label %if_cont_block
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10606, end: 10607, rendered-as: \22>\22 } })_call" = call i1 @">"(i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10592, end: 10593, rendered-as: \22*\22 } })_call", i64 %struct_gep_deref8)
+  br i1 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10606, end: 10607, rendered-as: \22>\22 } })_call", label %if_then_block, label %if_cont_block
 
 if_then_block:                                    ; preds = %entry_block
   %va_variable_load9 = load { i64, i64, i64* }*, { i64, i64, i64* }** %va, align 8
   %struct_gep10 = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va_variable_load9, i32 0, i32 1
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10434, end: 10435, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64), i64 64)
-  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10434, end: 10435, rendered-as: \22*\22 } })_call", i64* %macro_arg_space11, align 4
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10657, end: 10658, rendered-as: \22*\22 } })_call" = call i64 @"*"(i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64), i64 64)
+  store i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10657, end: 10658, rendered-as: \22*\22 } })_call", i64* %macro_arg_space11, align 4
   %a_variable_load12 = load i64, i64* %struct_gep10, align 4
   %b_variable_load13 = load i64, i64* %macro_arg_space11, align 4
   %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 2313, end: 2314, rendered-as: \22+\22 } })_call14" = call i64 @"+"(i64 %a_variable_load12, i64 %b_variable_load13)
@@ -2012,8 +2094,8 @@ if_then_block:                                    ; preds = %entry_block
   %va_variable_load23 = load { i64, i64, i64* }*, { i64, i64, i64* }** %va, align 8
   %struct_gep24 = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va_variable_load23, i32 0, i32 1
   %struct_gep_deref25 = load i64, i64* %struct_gep24, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10460, end: 10467, rendered-as: \22realloc\22 } })_call" = call i8* @realloc(i8* %bitcast, i64 %struct_gep_deref25)
-  %bitcast26 = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10460, end: 10467, rendered-as: \22realloc\22 } })_call" to i64*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10683, end: 10690, rendered-as: \22realloc\22 } })_call" = call i8* @realloc(i8* %bitcast, i64 %struct_gep_deref25)
+  %bitcast26 = bitcast i8* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10683, end: 10690, rendered-as: \22realloc\22 } })_call" to i64*
   store i64* %bitcast26, i64** %macro_arg_space27, align 8
   %b_variable_load28 = load i64*, i64** %macro_arg_space27, align 8
   store i64* %b_variable_load28, i64** %struct_gep19, align 8
@@ -2024,9 +2106,9 @@ if_cont_block:                                    ; preds = %if_then_block, %ent
   %va_variable_load30 = load { i64, i64, i64* }*, { i64, i64, i64* }** %va, align 8
   %struct_gep31 = getelementptr inbounds { i64, i64, i64* }, { i64, i64, i64* }* %va_variable_load30, i32 0, i32 0
   %struct_gep_deref32 = load i64, i64* %struct_gep31, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10579, end: 10580, rendered-as: \22-\22 } })_call" = call i64 @-(i64 %struct_gep_deref32, i64 1)
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10802, end: 10803, rendered-as: \22-\22 } })_call" = call i64 @-(i64 %struct_gep_deref32, i64 1)
   %val_variable_load = load i64, i64* %val, align 4
-  call void @set.56({ i64, i64, i64* }* %va_variable_load29, i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10579, end: 10580, rendered-as: \22-\22 } })_call", i64 %val_variable_load)
+  call void @set.56({ i64, i64, i64* }* %va_variable_load29, i64 %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10802, end: 10803, rendered-as: \22-\22 } })_call", i64 %val_variable_load)
   ret void
 }
 
@@ -2040,8 +2122,8 @@ entry_block:
   store i64 %2, i64* %val, align 4
   %va_variable_load = load { i64, i64, i64* }*, { i64, i64, i64* }** %va, align 8
   %index_variable_load = load i64, i64* %index, align 4
-  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10228, end: 10231, rendered-as: \22get\22 } })_call" = call i64* @get.57({ i64, i64, i64* }* %va_variable_load, i64 %index_variable_load)
-  %bitcast = bitcast i64* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10228, end: 10231, rendered-as: \22get\22 } })_call" to i8*
+  %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10451, end: 10454, rendered-as: \22get\22 } })_call" = call i64* @get.57({ i64, i64, i64* }* %va_variable_load, i64 %index_variable_load)
+  %bitcast = bitcast i64* %"Named(VariableExpr { name: LexString { lexer: \22...\22, start: 10451, end: 10454, rendered-as: \22get\22 } })_call" to i8*
   %bitcast1 = bitcast i64* %val to i8*
   call void @memcpy(i8* %bitcast, i8* %bitcast1, i64 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i64))
   ret void
