@@ -515,6 +515,9 @@ type Expr = {
     variant: ExprType
 };
 
+// forward-def
+func parseExpr(parser: &Parser) : Expr;
+
 overloadable func debug(val: &Expr, indentation: u64) = debug(&(val.variant), indentation);
 
 prefix drop(expr: Expr) = {

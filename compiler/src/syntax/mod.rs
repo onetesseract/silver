@@ -402,14 +402,27 @@ pub fn compile_fn<'a>(
                                     return Ok(fnval);
                                 }
                             }
-                            if fnval.get_params() != fn_val.get_params() {
+                            if fnval.get_params().len() != fn_val.get_params().len() {
                                 return Err(CompilationError::new(
                                     format!(
-                                        "Trying to implement {} with different arguments",
+                                        "Trying to implement {} with a different number of arguments",
                                         name.name.render()
                                     ),
                                     name.name,
                                 ));
+                            }
+                            for (count, i) in fnval.get_params().iter().enumerate() {
+                                if i.get_type() != fn_val.get_params()[count].get_type() {
+                                    return Err(CompilationError::new(
+                                    format!(
+                                        "Trying to implement {} with different arguments - {:?} vs {:?}",
+                                        name.name.render(),
+                                        fnval.get_params(),
+                                        fn_val.get_params()
+                                    ),
+                                    name.name,
+                                ));
+                                }
                             }
                             // swap the vals
                             let old_fn_val = fn_val;
