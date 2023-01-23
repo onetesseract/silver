@@ -114,7 +114,13 @@ impl TargetType {
 }
 
 #[derive(Debug, Clone)]
+pub struct CompilerInternalConfig {
+    pub int_width: u64,
+}
+
+#[derive(Debug, Clone)]
 pub struct CompilerInternal<'ctx> {
+    pub config: CompilerInternalConfig,
     pub context: &'ctx Context, // TODO: async compilation
     pub module: Arc<Module<'ctx>>,
 
@@ -152,7 +158,11 @@ pub struct CompilerInternal<'ctx> {
 }
 
 impl<'ctx> CompilerInternal<'ctx> {
-    pub fn new(context: &'ctx Context, module: Arc<Module<'ctx>>) -> Self {
+    pub fn new(
+        context: &'ctx Context,
+        module: Arc<Module<'ctx>>,
+        cfg: CompilerInternalConfig,
+    ) -> Self {
         let mut global_types = HashMap::new();
         global_types.insert(
             Ty {
@@ -162,6 +172,26 @@ impl<'ctx> CompilerInternal<'ctx> {
             CompilerType::new(
                 context.i8_type().as_basic_type_enum().as_any_type_enum(),
                 TypeEnum::IntType,
+            ),
+        );
+        global_types.insert(
+            Ty {
+                val: TypeVariants::Plain("u32".to_string()),
+                template: None,
+            },
+            CompilerType::new(
+                context.i32_type().as_basic_type_enum().as_any_type_enum(),
+                TypeEnum::IntType,
+            ),
+        );
+        global_types.insert(
+            Ty {
+                val: TypeVariants::Plain("f32".to_string()),
+                template: None,
+            },
+            CompilerType::new(
+                context.f32_type().as_basic_type_enum().as_any_type_enum(),
+                TypeEnum::FloatType,
             ),
         );
         global_types.insert(
@@ -213,6 +243,7 @@ impl<'ctx> CompilerInternal<'ctx> {
         fpm.finalize();
 
         CompilerInternal {
+            config: cfg,
             context,
             module,
             global_variables: HashMap::new(),
@@ -544,10 +575,12 @@ pub fn compile_fn<'a>(
 
     if fn_val.verify(true) {
         // TODO: fpm
+        compiler.compiler.read().unwrap().fpm.run_on(&fn_val);
         return Ok(fn_val);
     } else {
         compiler.compiler.read().unwrap().module.print_to_stderr();
         println!("WARNING: BAD FUNCTION, but ignoring lol");
+        compiler.compiler.read().unwrap().fpm.run_on(&fn_val);
         return Ok(fn_val);
         // return Err(CompilationError::new("Bad function!".to_string(), proto.name))
     }

@@ -1,0 +1,175 @@
+// EXTERNS {{{
+
+func malloc(bytes: u64) : &u8;
+func realloc(data: &u8, bytes: u64) : &u8;
+func strlen(str: &u8) : u64;
+prefix free(data: &u8);
+func strcpy(dest: &u8, src: &u8);
+func strncpy(dest: &u8, src: &u8, len: u64);
+func memcpy(dest: &u8, src: &u8, len: u64);
+func strcmp(a: &u8, b: &u8) : u64;
+func printf(str: &u8);
+/* func printf(str: &u8, val: u64); */
+/* func printf(str: &u8) = printf(str, 0); */
+func putchar(char: u64);
+func exit(code: u64);
+
+// little extern thing to help me debug
+// cuz i cant be asked to write it here
+// func print_addr(addr: &u8);
+
+// }}}
+
+
+// SYSTEM {{{
+
+#prec 25;
+infix ==(a: u64, b: u64) : bool = @AS("int_cmp_eq a b");
+
+#prec 25;
+infix !=(a: u64, b: u64) : bool = @AS("int_cmp_neq a b");
+
+#prec 30;
+infix <(a: u64, b: u64) : bool = @AS("int_cmp_ult a b");
+
+#prec 30;
+infix >(a: u64, b: u64) : bool = @AS("int_cmp_ugt a b");
+
+#prec 30;
+infix <=(a: u64, b: u64) : bool = @AS("int_cmp_ule a b");
+
+#prec 30;
+infix >=(a: u64, b: u64) : bool = @AS("int_cmp_uge a b");
+
+#prec 20;
+infix &&(a: u64, b: u64) : u64 = @AS("int_and a b");
+
+#prec 20;
+infix ||(a: u64, b: u64) : u64 = @AS("int_or a b");
+
+#prec 25;
+infix ==(a: u8, b: u8) : bool = @AS("int_cmp_eq a b");
+
+#prec 25;
+infix !=(a: u8, b: u8) : bool = @AS("int_cmp_neq a b");
+
+#prec 30;
+infix <(a: u8, b: u8) : bool = @AS("int_cmp_ult a b");
+
+#prec 30;
+infix >(a: u8, b: u8) : bool = @AS("int_cmp_ugt a b");
+
+#prec 30;
+infix <=(a: u8, b: u8) : bool = @AS("int_cmp_ule a b");
+
+#prec 30;
+infix >=(a: u8, b: u8) : bool = @AS("int_cmp_uge a b");
+
+#prec 20;
+infix &&(a: u8, b: u8) : u8 = @AS("int_and a b");
+
+#prec 20;
+infix ||(a: u8, b: u8) : u8 = @AS("int_or a b");
+
+#prec 20;
+infix &&(a: bool, b: bool) : bool = @AS("bool_and a b");
+
+#prec 20;
+infix ||(a: bool, b: bool) : bool = @AS("bool_or a b");
+
+#prec 10;
+macro infix =(a: _, b: _) = @AS("store_in a b");
+
+#prec 10;
+macro infix [=](a: _, b: _) = @AS("raw_store_in a b");
+
+prefix !(a: bool) : bool = @AS("bool_not a");
+
+#prec 75;
+infix +(a: u64, b: u64) : u64 = @AS("int_add a b");
+
+#prec 75;
+infix -(a: u64, b: u64) : u64 = @AS("int_sub a b");
+
+#prec 100;
+infix *(a: u64, b: u64) : u64 = @AS("int_mul a b");
+
+macro suffix ++(a: _) : _ = {
+    a = a + 1;
+    a
+};
+
+macro suffix --(a: _) : _ = {
+    a = a - 1;
+    a
+};
+
+#prec 10;
+macro infix +=(a: _, b: _) : _ = {
+    a = a + b;
+    a
+};
+
+
+// }}}
+
+// STRING {{{
+// }}}
+
+// LIST {{{
+
+<T> type VariableArray = {
+    len: u64,
+    set_size: u64,
+    data: &T
+};
+
+<T> func variablearray#new() : <T> VariableArray = {
+    va: <T> VariableArray;
+    
+    (&va).data = malloc(@sizeof(T) * 64) as &T;
+    (&va).len = 0;
+    (&va).set_size = @sizeof(T) * 64;
+
+    va
+};
+
+<T> func get(va: & <T> VariableArray, index: u64) : &T = {
+    data: &T = va.data;
+    @AS("single_gep data index") as &T
+};
+
+<T> func set(va: & <T> VariableArray, index: u64, val: T) = {
+    memcpy(((va.get<T>(index)) as &u8), (&val) as &u8, @sizeof(T));
+};
+
+<T> func append(va: & <T> VariableArray, val: T) = {
+    va.len += 1;
+    if (va.len * @sizeof(T)) > va.set_size {
+        va.set_size += (@sizeof(T) * 64);
+        va.data = (realloc((va.data) as &u8, va.set_size) as &T);
+    };
+    /* (*(va.get<T>(va.len - 1))) = val; */
+    va.set<T>(va.len - 1, val);
+};
+
+<T> prefix drop(va: <T> VariableArray) = {
+    // TODO: try free elements
+    free((&va).data);
+};
+// }}}
+
+func main() = {
+  va: <&u8> VariableArray = variablearray#new<&u8>();
+  (&va).append<&u8>("hi");
+  /* putchar(70); */
+  s: &&u8 = (&va).get<&u8>(0);
+  /* if (*s) == 0 {printf("nul")}; */
+  /* s: u8 = s; */
+  // s: &u8 = *(s as &&u8);
+  /* putchar(*s); */
+  printf(*s);
+  
+  printf("run");
+  0
+};

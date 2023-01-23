@@ -1,20 +1,29 @@
 use std::sync::{Arc, RwLock};
 
 use inkwell::context::Context;
-use parser::{lexer::Lexer, syntax::{ParserState, parse_tl_expr, ParseError, Tl}};
-use syntax::{CompilerInstance, CompilationError, CompilerInternal, cdef::compile_cdef, TargetType};
+use parser::{
+    lexer::Lexer,
+    syntax::{parse_tl_expr, ParseError, ParserState, Tl},
+};
+use syntax::{
+    cdef::compile_cdef, CompilationError, CompilerInstance, CompilerInternal, TargetType,
+};
 
-pub mod syntax;
 pub mod asm;
+pub mod syntax;
 pub mod value;
 
 impl<'a> From<ParseError<'a>> for CompilationError<'a> {
     fn from(p: ParseError<'a>) -> Self {
-        CompilationError { message: p.message.clone(), location: None, parse_err: Some(p) }
+        CompilationError {
+            message: p.message.clone(),
+            location: None,
+            parse_err: Some(p),
+        }
     }
     // add code here
 }
-
+/*
 pub fn compile(input: String, file_name: Option<String>, root: CompilerInstance, add_references: bool) -> Result<(), CompilationError> {
     let lexer = Lexer::new(input);
     let state = ParserState::new();
@@ -24,7 +33,7 @@ pub fn compile(input: String, file_name: Option<String>, root: CompilerInstance,
 
     let compiler_internal = CompilerInternal::new(&context, Arc::new(module));
     let compiler = Arc::new(RwLock::new(compiler_internal));
-    
+
     lexer.eat_wsp();
     while !lexer.is_eof() {
         let compiler = CompilerInstance::new(compiler.clone());
@@ -57,7 +66,7 @@ pub fn compile(input: String, file_name: Option<String>, root: CompilerInstance,
 
     todo!()
 }
-
+*/
 #[cfg(test)]
 mod tests {
     #[test]

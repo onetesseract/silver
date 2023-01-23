@@ -1,9 +1,12 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 void print_addr(char *addr) { printf("addr: %lx\n", (unsigned long int)addr); }
+
+void printint(uint64_t i) {printf("int: %lu\n", i);}
 
 // char *itoa(int num, char *buffer, int base) {
 //   int curr = 0;
@@ -50,34 +53,34 @@ void print_addr(char *addr) { printf("addr: %lx\n", (unsigned long int)addr); }
 //   return buffer;
 // }
 
-#include <stdint.h>
+// #include <stdint.h>
 
-typedef struct vararrayu64 {
-  uint64_t len;
-  uint64_t set_size;
-  uint64_t *data;
-} vararrayu64_t;
+// typedef struct vararrayu64 {
+//   uint64_t len;
+//   uint64_t set_size;
+//   uint64_t *data;
+// } vararrayu64_t;
 
-uint64_t *test();
-uint64_t try_get(vararrayu64_t);
-vararrayu64_t test2();
+// uint64_t *test();
+// uint64_t try_get(vararrayu64_t);
+// vararrayu64_t test2();
 
-int main() {
-  uint64_t *dat = test();
+// int main() {
+//   uint64_t *dat = test();
 
-  printf(": %lu\n", *dat);
+//   printf(": %lu\n", *dat);
 
-  vararrayu64_t va = test2();
+//   vararrayu64_t va = test2();
 
-  printf("%lu", va.len);
+//   printf("%lu", va.len);
 
-  return 0;
+//   return 0;
 
-  va.data = malloc(sizeof(uint64_t) * 64);
-  va.data[0] = 18;
-  printf("%lu", va.data[0]);
+//   va.data = malloc(sizeof(uint64_t) * 64);
+//   va.data[0] = 18;
+//   printf("%lu", va.data[0]);
 
-  printf("/n/n%lu", try_get(va));
+//   printf("/n/n%lu", try_get(va));
 
-  return 0;
-}
+//   return 0;
+// }
