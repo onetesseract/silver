@@ -1,0 +1,25 @@
+func printf(s: &u8);
+func memcpy(dest: &u8, src: &u8, n: u64);
+func malloc(n: u64) : &u8;
+
+type s_holder = {
+  q: &u8
+};
+
+#prec 10;
+macro infix =(a: _, b: _) = @AS("store_in a b");
+
+prefix copy (t: s_holder) : &s_holder = {
+  new: &s_holder = (malloc(@sizeof(s_holder)) as &s_holder);
+  memcpy(new as &u8, (&t) as &u8, @sizeof(s_holder));
+  new
+};
+
+func main() = {
+  a: s_holder;
+  (&a).q = "ello";
+  printf((&a).q);
+  b: &s_holder;
+  b = copy a;
+  printf(b.q);
+};

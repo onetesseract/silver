@@ -291,11 +291,13 @@ func lexstring#new(parent: &Lexer, start: u64, end: u64) : LexString = {
 // BIG TODO: implment lambdas for more monadic operation
 
 // must remember to free!
+// also, might segfault
+// TODO: bounds-check logic
 func render(lexstring: &LexString) : &u8 = {
     str: &u8;
     str = malloc(lexstring.len + 1);
-    strncpy(str, (lexstring.parent.input)[lexstring.offset], lexstring.len);
-    str[lexstring.len] [=] '\0';
+    strncpy(str, (lexstring.parent.input)[lexstring.offset - 1], lexstring.len + 1);
+    str[lexstring.len + 1] [=] '\0';
     str
 };
 
@@ -460,6 +462,13 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
     data: &T
 };
 
+/* <T> func shallow_copy(va: <T> VariableArray) : & <T> VariableArray = { */
+/*     new: & <T> VariableArray = malloc(@sizeof(<T> VariableArray)); */
+/*     memcpy(new as &u8, (&va) as &u8, @sizeof(<T> VariableArray)); */
+
+/*     new */
+/* }; */
+
 <T> func variablearray#new() : <T> VariableArray = {
     va: <T> VariableArray;
     
@@ -593,7 +602,7 @@ func parseNumberExpr(parser: &Parser) : NumberExpr = {
 
 prefix copy(val: NumberExpr) : &NumberExpr = {
     data: &NumberExpr = malloc(@sizeof(NumberExpr)) as &NumberExpr;
-    memcpy((&val) as &u8, data as &u8, @sizeof(NumberExpr));
+    memcpy(data as &u8, (&val) as &u8, @sizeof(NumberExpr));
 
     data
 };
@@ -627,7 +636,7 @@ func parseIdentifierExpr(parser: &Parser) : IdentifierExpr = {
 
 prefix copy(val: IdentifierExpr) : &IdentifierExpr = {
     data: &IdentifierExpr = malloc(@sizeof(IdentifierExpr)) as &IdentifierExpr;
-    memcpy((&val) as &u8, data as &u8, @sizeof(IdentifierExpr));
+    memcpy(data as &u8, (&val) as &u8, @sizeof(IdentifierExpr));
 
     data
 };
@@ -646,13 +655,13 @@ func debugBlockExpr(val: &BlockExpr, indentation: u64) = {
     exprs = val.exprs;
     printint((&exprs).len);
     i: u64 = 0;
-    while i != (&(val.exprs)).len {
+    while i != (&exprs).len {
         printf("A");
         i++;
     };
     printf("Block: {");
     i = 0;
-    while i < (&(val.exprs)).len {
+    while i < (&exprs).len {
         debugExpr(((&(val.exprs)).get<Expr>(i)), indentation + 2);
         i++;
     };
@@ -696,6 +705,7 @@ func parseBlockExpr(parser: &Parser) : BlockExpr = {
             break;
         };
         parser.lexer.require(';');
+        parser.lexer.takeWhitespace();
     };
 
     parser.lexer.require('}');
@@ -713,7 +723,7 @@ func parseBlockExpr(parser: &Parser) : BlockExpr = {
 
 prefix copy(val: BlockExpr) : &BlockExpr = {
     data: &BlockExpr = malloc(@sizeof(BlockExpr)) as &BlockExpr;
-    memcpy((&val) as &u8, data as &u8, @sizeof(BlockExpr));
+    memcpy(data as &u8, (&val) as &u8, @sizeof(BlockExpr));
 
     data
 };
@@ -741,14 +751,14 @@ func parseExpr(parser: &Parser) : Expr = {
         parser.parseIdentifierExpr().asExpr()
     } else if next_char == '{' {
         ba: BlockExpr = parser.parseBlockExpr();
-        printf("got len");
-        exprs: <Expr> VariableArray = (&ba).exprs;
-        printint((&exprs).len);
+        /* printf("got len"); */
+        /* exprs: <Expr> VariableArray = (&ba).exprs; */
+        /* printint((&exprs).len); */
         e: Expr = ba.asExpr();
-        b: &BlockExpr = copy ba; // ((&e).value) as &BlockExpr;
-        printf("len2");
-        exs: <Expr> VariableArray = b.exprs;
-        printint((&exs).len);
+        /* b: &BlockExpr = copy ba; // ((&e).value) as &BlockExpr; */
+        /* printf("len2"); */
+        /* exs: <Expr> VariableArray = b.exprs; */
+        /* printint((&exs).len); */
         // I have identified the problem
         // its me
         // i cannot write code
@@ -769,7 +779,7 @@ func parseExpr(parser: &Parser) : Expr = {
 // }}}
 
 
-// MAIN {
+// MAIN {{{
 
 func main() : u64 = {
     /* printf("begin\n"); */
@@ -820,13 +830,13 @@ func main() : u64 = {
     /* if (&va).len == 1 { */
     /*     printf("correct length\n"); */
     /* }; */
-    va: <&u8> VariableArray;
-    va = variablearray#new<&u8>();
-    (&va).append<&u8>("hello\n");
-    s: &&u8 = (&va).get<&u8>(0);
-    printf(*s);
+    /* va: <&u8> VariableArray; */
+    /* va = variablearray#new<&u8>(); */
+    /* (&va).append<&u8>("hello\n"); */
+    /* s: &&u8 = (&va).get<&u8>(0); */
+    /* printf(*s); */
 
-    source: &u8 = "{test}";
+    source: &u8 = "{test; abc; tjord;}";
 
     lexer: &Lexer = &lexer#new(source);
     parser: &Parser = &parser#new(lexer);
