@@ -566,12 +566,15 @@ func parseExpr(parser: &Parser) : Expr;
 // GOT HERE, need to forward-def overloadbles
 func debugBlockExpr(val: &BlockExpr, indentation: u64);
 func debugIdentifierExpr(val: &IdentifierExpr, indentation: u64);
+func debugNumberExpr(val: &NumberExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {debugExprType(&(val.variant), indentation);
     if val.variant == ExprType#Block {
         debugBlockExpr((val.value) as &BlockExpr, indentation);
     } else if val.variant == ExprType#Identifier {
         debugIdentifierExpr((val.value) as &IdentifierExpr, indentation);
+    } else if val.variant == ExprType#Number {
+        debugNumberExpr((val.value) as &NumberExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -582,7 +585,7 @@ prefix drop(expr: Expr) = {
 };
 
 
-overloadable func debugNumberExpr(val: &NumberExpr, indentation: u64) = {
+func debugNumberExpr(val: &NumberExpr, indentation: u64) = {
     debugLexString(&(val.source), indentation);
 };
 
@@ -836,7 +839,7 @@ func main() : u64 = {
     /* s: &&u8 = (&va).get<&u8>(0); */
     /* printf(*s); */
 
-    source: &u8 = "{test; abc; tjord;}";
+    source: &u8 = "{9}";
 
     lexer: &Lexer = &lexer#new(source);
     parser: &Parser = &parser#new(lexer);
