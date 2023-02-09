@@ -296,7 +296,7 @@ func lexstring#new(parent: &Lexer, start: u64, end: u64) : LexString = {
 func render(lexstring: &LexString) : &u8 = {
     str: &u8;
     str = malloc(lexstring.len + 1);
-    strncpy(str, (lexstring.parent.input)[lexstring.offset - 1], lexstring.len + 1);
+    strncpy(str, (lexstring.parent.input)[lexstring.offset], lexstring.len);
     str[lexstring.len + 1] [=] '\0';
     str
 };
@@ -516,6 +516,7 @@ enum ExprType = {
     Number,
     Identifier,
     Block,
+    String,
 };
 
 type Expr = {
@@ -537,6 +538,11 @@ type BlockExpr = {
     source: LexString,
     exprs: <Expr> VariableArray,
     use_last_val: bool,
+};
+
+type StringExpr = {
+    source: LexString,
+    value: &u8,
 };
 
 
@@ -622,7 +628,13 @@ overloadable func asExpr(number: NumberExpr) : Expr = {
 
 
 func debugIdentifierExpr(val: &IdentifierExpr, indentation: u64) = {
-    debugLexString(&(val.source), indentation);
+    printIndentation(indentation);
+    printf("`");
+    id: &u8 = (&(val.source)).render();
+    printf(id);
+    free id;
+    printf("`");
+    // debugLexString(&(val.source), indentation);
 };
 
 func parseIdentifierExpr(parser: &Parser) : IdentifierExpr = {
@@ -656,27 +668,23 @@ func debugBlockExpr(val: &BlockExpr, indentation: u64) = {
     printIndentation(indentation);
     exprs: <Expr> VariableArray;
     exprs = val.exprs;
-    printint((&exprs).len);
-    i: u64 = 0;
-    while i != (&exprs).len {
-        printf("A");
-        i++;
-    };
+    // printint((&exprs).len);
+
     printf("Block: {");
-    i = 0;
+    i: u64 = 0;
     while i < (&exprs).len {
         debugExpr(((&(val.exprs)).get<Expr>(i)), indentation + 2);
         i++;
     };
     printIndentation(indentation);
-    printf("using last value: ");
+    printf("} using last value: ");
     printf(
         if val.use_last_val {
           "true"
         } else { "false" }
     );
-    printIndentation(indentation);
-    printf("}");
+    // printIndentation(indentation);
+    // printf("}");
 };
 
 func parseBlockExpr(parser: &Parser) : BlockExpr = {
@@ -740,6 +748,10 @@ overloadable func asExpr(id: BlockExpr) : Expr = {
     expr
 };
 
+func parseStringExpr(parser: &Parser) : StringExpr {
+    
+};
+
 func parseExpr(parser: &Parser) : Expr = {
     debugPrint("Parsing expr");
     parser.lexer.takeWhitespace();
@@ -766,6 +778,7 @@ func parseExpr(parser: &Parser) : Expr = {
         // its me
         // i cannot write code
         // but fr when i make it a blob in memory it doesnt hold its value
+        // ok i fixed it
         e
     } else {
         expr: Expr;
@@ -839,7 +852,7 @@ func main() : u64 = {
     /* s: &&u8 = (&va).get<&u8>(0); */
     /* printf(*s); */
 
-    source: &u8 = "{9}";
+    source: &u8 = "{babc}";
 
     lexer: &Lexer = &lexer#new(source);
     parser: &Parser = &parser#new(lexer);
