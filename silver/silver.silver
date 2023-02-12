@@ -561,6 +561,8 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#Identifier");
     } else if *val == ExprType#Block {
         printf("ExprType#Block");
+    } else if *val == ExprType#String {
+        printf("ExprType#String");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -573,6 +575,7 @@ func parseExpr(parser: &Parser) : Expr;
 func debugBlockExpr(val: &BlockExpr, indentation: u64);
 func debugIdentifierExpr(val: &IdentifierExpr, indentation: u64);
 func debugNumberExpr(val: &NumberExpr, indentation: u64);
+func debugStringExpr(val: &StringExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {debugExprType(&(val.variant), indentation);
     if val.variant == ExprType#Block {
@@ -581,6 +584,8 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {debugExprType(&(val
         debugIdentifierExpr((val.value) as &IdentifierExpr, indentation);
     } else if val.variant == ExprType#Number {
         debugNumberExpr((val.value) as &NumberExpr, indentation);
+    } else if val.variant == ExprType#String {
+        debugStringExpr((val.value) as &StringExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -748,8 +753,59 @@ overloadable func asExpr(id: BlockExpr) : Expr = {
     expr
 };
 
-func parseStringExpr(parser: &Parser) : StringExpr {
-    
+func debugStringExpr(val: &StringExpr, indentation: u64) = {
+    printIndentation(indentation);
+    /* printf("`"); */
+    id: &u8 = (&(val.source)).render();
+    printf(id);
+    free id;
+    /* printf("`"); */
+    // debugLexString(&(val.source), indentation);
+};
+
+func parseStringExpr(parser: &Parser) : StringExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require('"');
+
+    str: <u8> VariableArray = variablearray#new<u8>();
+    escaped: bool = false;
+    while true {
+        next_char: u8 = parser.lexer.takeChar();
+        if escaped {
+            (&str).append<u8>(next_char);
+        } else {
+            if next_char == '\\' {
+                escaped = true;
+            } else if next_char == '"' {
+                break;
+            } else {
+                (&str).append<u8>(next_char);
+            }
+        }
+    };
+
+    end: u64 = parser.lexer.index;
+    s: StringExpr;
+    (&s).source = lexstring#new(parser.lexer, start, end);
+    (&s).value = (&str).data;
+
+    s
+};
+
+prefix copy(val: StringExpr) : &StringExpr = {
+    data: &StringExpr = malloc(@sizeof(StringExpr)) as &StringExpr;
+    memcpy(data as &u8, (&val) as &u8, @sizeof(StringExpr));
+
+    data
+};
+
+overloadable func asExpr(id: StringExpr) : Expr = {
+    expr: Expr;
+    (&expr).variant = ExprType#String;
+
+    (&expr).value = (copy id) as &u8;
+
+    expr
 };
 
 func parseExpr(parser: &Parser) : Expr = {
@@ -780,7 +836,9 @@ func parseExpr(parser: &Parser) : Expr = {
         // but fr when i make it a blob in memory it doesnt hold its value
         // ok i fixed it
         e
-    } else {
+    } else if next_char == '"' {
+      parser.parseStringExpr().asExpr()
+    }else {
         expr: Expr;
         printf("Cannot parse: `");
         putchar(next_char);
@@ -795,9 +853,36 @@ func parseExpr(parser: &Parser) : Expr = {
 // }}}
 
 
+// HASHMAP {{{
+<T> type HMLinkedListElem = {
+    hash: u64;
+    val: &T;
+    next_elem: &HMLinkedListElem; // or 0 if no next elem, forgive me for using nullptrs
+};
+
+<T> prefix drop(elem: & <T>HMLinkedListElem) = {
+    free(elem.val);
+    if (elem.next_elem) as u64 != 0 {
+        drop(elem.next_elem);
+    };
+    free(elem);
+};
+
+<T> type HMBucket = {
+    u8 hash_offset;
+    bool does_contain_sub_buckets;
+    // array of length uhh 16
+    sub_buckets: &&HMBucket;
+    // else, a linked list of values of max length uhh 8?
+    sub_values: <T> HMLinkedListElem;
+};
+// }}}
+
 // MAIN {{{
 
 func main() : u64 = {
+    data: &u8 = malloc(9223372036854775807 * @sizeof(u64));
+    (*data[0]) = 7_8;
     /* printf("begin\n"); */
     /* code: &u8 = "178.7492 aa 786 bcd"; */
     /* lexer: &Lexer = &lexer#new(code); */
@@ -852,7 +937,7 @@ func main() : u64 = {
     /* s: &&u8 = (&va).get<&u8>(0); */
     /* printf(*s); */
 
-    source: &u8 = "{babc}";
+    source: &u8 = "{\"babc\"}";
 
     lexer: &Lexer = &lexer#new(source);
     parser: &Parser = &parser#new(lexer);
@@ -862,6 +947,11 @@ func main() : u64 = {
     expr: Expr = parser.parseExpr();
 
     printf("here lol\n");
+
+    printf("Input was:\n");
+    printf(source);
+
+    printf("\nOutput was:\n");
 
     debugExpr(&expr, 0);
 
