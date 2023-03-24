@@ -852,12 +852,12 @@ func parseExpr(parser: &Parser) : Expr = {
 
 // }}}
 
-
 // HASHMAP {{{
 <T> type HMLinkedListElem = {
-    hash: u64;
-    val: &T;
-    next_elem: &HMLinkedListElem; // or 0 if no next elem, forgive me for using nullptrs
+    hash: u64,
+    val: &T,
+    has_next_elem: bool,
+    next_elem: &u8,// <T>HMLinkedListElem, // or 0 if no next elem, forgive me for using nullptrs
 };
 
 <T> prefix drop(elem: & <T>HMLinkedListElem) = {
@@ -865,16 +865,101 @@ func parseExpr(parser: &Parser) : Expr = {
     if (elem.next_elem) as u64 != 0 {
         drop(elem.next_elem);
     };
-    free(elem);
+    free(elem as &u8);
 };
 
 <T> type HMBucket = {
-    u8 hash_offset;
-    bool does_contain_sub_buckets;
+    hash_offset: u8,
+    does_contain_sub_buckets: bool,
     // array of length uhh 16
-    sub_buckets: &&HMBucket;
+    sub_buckets: &&HMBucket,
     // else, a linked list of values of max length uhh 8?
-    sub_values: <T> HMLinkedListElem;
+    sub_values: <T> HMLinkedListElem,
+    sub_values_len: u8,
+    is_using_linked_list: bool,
+};
+
+<T> func hmbucket#new(hash_offset: u8): <T> HMBucket = {
+    bucket: <T> HMBucket;
+    bucket.hash_offset = hash_offset;
+    bucket.sub_values_len = 0;
+    // TODO
+    bucket
+};
+
+<T> overloadable func hmlist_contains(self: & <T> HMLinkedListElem, hash: u64) : bool = {
+  if *(self.hash) == hash { true }
+  else if ! *(self.has_next_elem) { false }
+  else { (*(self.next_elem)).hmlist_contains(hash) }
+};
+
+<T> overloadable func hmlist_get(self: & <T> HMLinkedListElem, hash: u64) : &T = {
+  if *(self.hash) == hash { *(self.val) }
+  else if ! *(self.has_next_elem) { panic("Getting an element that doesn't exist"); *(self.val) }
+  else { (*(self.next_elem)).hmlist_get(hash) }
+};
+
+<T> overloadable func hmlist_get_elem(self: & <T> HMLinkedListElem, hash: u64) : & <T> HMLinkedListElem = {
+  if *(self.hash) == hash { *self }
+  else if ! *(self.has_next_elem) { panic("Getting an element that doesn't exist"); *self }
+  else { (*(self.next_elem)).hmlist_get_elem(hash) }
+};
+
+<T> overloadable func hmlist_add(self: & <T> HMLinkedListElem, value: T) = {
+  hash: u64 = value.hash();
+  if *(self).hmlist_contains(hash) {
+    elem: & <T>HMLinkedListElem = *(self).hmlist_get_elem(hash);
+    *(elem.val) = value;
+  } else {
+    elem: <T>HMLinkedListElem;
+    &(elem.hash) = hash;
+    &(elem.val) = malloc(@sizeof(T));
+    memcpy((&(elem.val)) as &u8, (&value) as &u8, @sizeof(T));
+    &(elem.has_next_value) = *(self.has_next_value);
+    &(elem.next_elem) = *(self.next_elem);
+    elem2: & <T>HMLinkedListElem = malloc(@sizeof(elem)) as & <T>HMLinkedListElem;
+    memcpy((&(elem)) as &u8, (&elem) as &u8, @sizeof(elem));
+    *(self.next_elem) = elem2;
+  }
+};
+
+<T> func hmlist#new(value: T): <T> HMLinkedListElem = {
+  elem: <T>HMLinkedListElem;
+  &(elem.hash) = value.hash();
+  &(elem.val) = value;
+  &(elem.has_next_value) = false;
+  elem
+};
+
+
+<T> overloadable func add(self: & <T>HMBucket, value: T, hash: u64) = {
+  if self.is_using_linked_list {
+    hnelem: bool = true;
+    elem: <T> HMLinkedListElem = *(self.sub_values);
+    while hnelem {
+      if *(elem.hash) == hash {
+        elem.val = value;
+      };
+      hnelem = *(elem.has_next_elem);
+      elem = *(elem.next_elem);
+    };
+  };
+};
+
+<T> type HashMap = {
+    buckets: &&HMBucket,
+};
+
+<T> prefix drop(elem: & <T> HMBucket) = {
+    if elem.does_contain_sub_buckets {
+        i: u8 = 0_8;
+        while i != 16 {
+            /* drop<T> elem.sub_buckets[i]; */
+        };
+    } else {
+        /* drop<T> elem.sub_values; */
+    };
+    free(elem as &u8);
 };
 // }}}
 
@@ -954,6 +1039,8 @@ func main() : u64 = {
     printf("\nOutput was:\n");
 
     debugExpr(&expr, 0);
+
+    q: u64 = hmlist#new<u64>(97564);
 
     exit(0);
     0
