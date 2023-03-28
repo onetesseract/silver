@@ -852,7 +852,7 @@ func parseExpr(parser: &Parser) : Expr = {
 
 // }}}
 
-// HASHMAP {{{
+// HASHMAP {{
 <T> type HMLinkedListElem = {
     hash: u64,
     val: &T,
@@ -888,46 +888,63 @@ func parseExpr(parser: &Parser) : Expr = {
 };
 
 <T> overloadable func hmlist_contains(self: & <T> HMLinkedListElem, hash: u64) : bool = {
-  if *(self.hash) == hash { true }
-  else if ! *(self.has_next_elem) { false }
-  else { (*(self.next_elem)).hmlist_contains(hash) }
+  current: &<T>HMLinkedListElem = self;
+  while true {
+    printf("checking\n");
+    if (current.hash) == hash { return true }
+    else if !(current.has_next_elem) { return false }
+    else { current = ((current.next_elem) as &<T>HMLinkedListElem)}
+  };
+  false
 };
 
 <T> overloadable func hmlist_get(self: & <T> HMLinkedListElem, hash: u64) : &T = {
-  if *(self.hash) == hash { *(self.val) }
-  else if ! *(self.has_next_elem) { panic("Getting an element that doesn't exist"); *(self.val) }
-  else { (*(self.next_elem)).hmlist_get(hash) }
+  current: & <T>HMLinkedListElem = self;
+  while true {
+    printf("get checking\n");
+    if (current.hash) == hash { return (current.val) }
+    else if ! (current.has_next_elem) { panic("Getting an element that doesn't exist") }
+    else { current = ((current.next_elem) as &<T>HMLinkedListElem) }
+  };
+  self.val
 };
 
 <T> overloadable func hmlist_get_elem(self: & <T> HMLinkedListElem, hash: u64) : & <T> HMLinkedListElem = {
-  if *(self.hash) == hash { *self }
-  else if ! *(self.has_next_elem) { panic("Getting an element that doesn't exist"); *self }
-  else { (*(self.next_elem)).hmlist_get_elem(hash) }
+  current: &<T>HMLinkedListElem = self;
+  while true {
+    printf("getelem checking\n");
+    if (current.hash) == hash { return current }
+    else if !(current.has_next_elem) { panic("Getting an element that doesn't exist") }
+    else { current = ((current.next_elem) as &<T>HMLinkedListElem) }
+  };
+  self
 };
 
-<T> overloadable func hmlist_add(self: & <T> HMLinkedListElem, value: T) = {
-  hash: u64 = value.hash();
-  if *(self).hmlist_contains(hash) {
-    elem: & <T>HMLinkedListElem = *(self).hmlist_get_elem(hash);
-    *(elem.val) = value;
+<T> overloadable func hmlist_add(self: & <T> HMLinkedListElem, hash: u64, value: T) = {
+  if self.hmlist_contains<T>(hash) {
+    elem: & <T>HMLinkedListElem = self.hmlist_get_elem<T>(hash);
+    elem.val = (malloc(@sizeof(T)) as &T);
+    memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(T));
   } else {
     elem: <T>HMLinkedListElem;
-    &(elem.hash) = hash;
-    &(elem.val) = malloc(@sizeof(T));
-    memcpy((&(elem.val)) as &u8, (&value) as &u8, @sizeof(T));
-    &(elem.has_next_value) = *(self.has_next_value);
-    &(elem.next_elem) = *(self.next_elem);
+    (&elem).hash = hash;
+    (&elem).val = (malloc(@sizeof(T)) as &T);
+    memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(T));
+    &(elem).has_next_elem = (self.has_next_elem);
+    &(elem).next_elem = (self.next_elem);
     elem2: & <T>HMLinkedListElem = malloc(@sizeof(elem)) as & <T>HMLinkedListElem;
-    memcpy((&(elem)) as &u8, (&elem) as &u8, @sizeof(elem));
-    *(self.next_elem) = elem2;
+    memcpy(elem2 as &u8, (&elem) as &u8, @sizeof(elem));
+    (self.next_elem) = elem2 as &u8;
+    (self.has_next_elem) = true;
   }
 };
 
-<T> func hmlist#new(value: T): <T> HMLinkedListElem = {
+<T> func hmlist#new(hash: u64, value: T): <T> HMLinkedListElem = {
   elem: <T>HMLinkedListElem;
-  &(elem.hash) = value.hash();
-  &(elem.val) = value;
-  &(elem.has_next_value) = false;
+  &(elem).hash = hash;
+  &(elem).val = (malloc(@sizeof(T)) as &T);
+  memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(T));
+  &(elem).has_next_elem = false;
   elem
 };
 
@@ -963,11 +980,16 @@ func parseExpr(parser: &Parser) : Expr = {
 };
 // }}}
 
+// HASHINGS {{{
+overloadable func hash(h: u64): u64 = h;
+// }}}
+
 // MAIN {{{
 
 func main() : u64 = {
-    data: &u8 = malloc(9223372036854775807 * @sizeof(u64));
-    (*data[0]) = 7_8;
+    printf("main");
+    /* data: &u8 = malloc(9223372036854775807 * @sizeof(u64)); */
+    /* (*data[0]) = 7_8; */
     /* printf("begin\n"); */
     /* code: &u8 = "178.7492 aa 786 bcd"; */
     /* lexer: &Lexer = &lexer#new(code); */
@@ -1022,25 +1044,31 @@ func main() : u64 = {
     /* s: &&u8 = (&va).get<&u8>(0); */
     /* printf(*s); */
 
-    source: &u8 = "{\"babc\"}";
+    /* source: &u8 = "{\"babc\"}"; */
 
-    lexer: &Lexer = &lexer#new(source);
-    parser: &Parser = &parser#new(lexer);
+    /* lexer: &Lexer = &lexer#new(source); */
+    /* parser: &Parser = &parser#new(lexer); */
 
-    printf("hello");
+    /* printf("hello"); */
 
-    expr: Expr = parser.parseExpr();
+    /* expr: Expr = parser.parseExpr(); */
 
-    printf("here lol\n");
+    /* printf("here lol\n"); */
 
-    printf("Input was:\n");
-    printf(source);
+    /* printf("Input was:\n"); */
+    /* printf(source); */
 
-    printf("\nOutput was:\n");
+    /* printf("\nOutput was:\n"); */
 
-    debugExpr(&expr, 0);
-
-    q: u64 = hmlist#new<u64>(97564);
+    /* debugExpr(&expr, 0); */
+    printf("here20");
+    q: <&u8> HMLinkedListElem = hmlist#new<&u8>(4, "jhelp");
+    printf("here");
+    (&q).hmlist_add<&u8>(5, "aaaa");
+    /* p: &&u8 = (&q).hmlist_get<&u8>(4); */
+    /* printf(*p); */
+    p: &&u8 = (&q).hmlist_get<&u8>(5);
+    printf(*p);
 
     exit(0);
     0
