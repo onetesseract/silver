@@ -7,4 +7,4 @@ clean:
 
 a.out: silver.silver
 	RUST_BACKTRACE=1 x silver.silver
-	clang -g silver.ll helper.c
+	clang -g silver.ll helper.c -lm

@@ -13,6 +13,7 @@ func printf(str: &u8);
 /* func printf(str: &u8) = printf(str, 0); */
 func putchar(char: u8);
 func exit(code: u64);
+func pow(base: u64, power: u64): u64;
 
 // little extern thing to help me debug
 // cuz i cant be asked to write it here
@@ -76,6 +77,12 @@ infix &&(a: bool, b: bool) : bool = @AS("bool_and a b");
 
 #prec 20;
 infix ||(a: bool, b: bool) : bool = @AS("bool_or a b");
+
+#prec 20;
+infix %(a: u64, b: u64) : u64 = @AS("int_signed_mod a b");
+
+#prec 120;
+infix ^(a: u64, b: u64) : u64 = pow(a, b);
 
 #prec 10;
 macro infix =(a: _, b: _) = @AS("store_in a b");
@@ -852,7 +859,7 @@ func parseExpr(parser: &Parser) : Expr = {
 
 // }}}
 
-// HASHMAP {{
+// HASHMAP {{{
 <T> type HMLinkedListElem = {
     hash: u64,
     val: &T,
@@ -982,6 +989,17 @@ func parseExpr(parser: &Parser) : Expr = {
 
 // HASHINGS {{{
 overloadable func hash(h: u64): u64 = h;
+overloadable func hash(h: &u8): u64 = {
+  i: u64 = 0;
+  total: u64 = 0;
+  while ((*h[i])) != 0_8 {
+    q: u8 = *h[i];
+    q: u64 = @AS("int_signed_extend q 64");
+    total += 53^i * q;
+    i += 1;
+  };
+  (total % 1000000009)
+};
 // }}}
 
 // MAIN {{{
@@ -1075,4 +1093,4 @@ func main() : u64 = {
 };
 
 
-// }}}
+// }}}10
