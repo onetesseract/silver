@@ -81,8 +81,6 @@ infix ||(a: bool, b: bool) : bool = @AS("bool_or a b");
 #prec 20;
 infix %(a: u64, b: u64) : u64 = @AS("int_signed_mod a b");
 
-#prec 120;
-infix ^(a: u64, b: u64) : u64 = pow(a, b);
 
 #prec 10;
 macro infix =(a: _, b: _) = @AS("store_in a b");
@@ -122,7 +120,26 @@ macro infix +=(a: _, b: _) : _ = {
 /*     a = a - b; */
 /*     a */
 /* }; */
+/**/
+/* prec 10; */
+/* macro infix *=(a: _, b: _) : _ = { */
+/*     a = a * b; */
+/*     a */
+/* }; */
 
+// TODO: fix this ugly mess
+#prec 120;
+infix ^(a: u64, b: u64) : u64 = {
+  if b == 0 { 1 }
+  else {
+    total: u64 = a;
+    while (b - 1) > 0 {
+      total = total * a;
+      b = b - 1;
+    };
+    total
+  }
+};
 
 func assert(val: bool, message: &u8) = if !val {
         printf("Assertion failed: ");
@@ -860,14 +877,14 @@ func parseExpr(parser: &Parser) : Expr = {
 // }}}
 
 // HASHMAP {{{
-<T> type HMLinkedListElem = {
+<K, V> type HMLinkedListElem = {
     hash: u64,
-    val: &T,
+    val: &V,
     has_next_elem: bool,
     next_elem: &u8,// <T>HMLinkedListElem, // or 0 if no next elem, forgive me for using nullptrs
 };
 
-<T> prefix drop(elem: & <T>HMLinkedListElem) = {
+<K, V> prefix drop(elem: & <K, V>HMLinkedListElem) = {
     free(elem.val);
     if (elem.next_elem) as u64 != 0 {
         drop(elem.next_elem);
@@ -875,91 +892,94 @@ func parseExpr(parser: &Parser) : Expr = {
     free(elem as &u8);
 };
 
-<T> type HMBucket = {
-    hash_offset: u8,
-    does_contain_sub_buckets: bool,
-    // array of length uhh 16
-    sub_buckets: &&HMBucket,
-    // else, a linked list of values of max length uhh 8?
-    sub_values: <T> HMLinkedListElem,
-    sub_values_len: u8,
-    is_using_linked_list: bool,
-};
+/* <T> type HMBucket = { */
+/*     hash_offset: u8, */
+/*     does_contain_sub_buckets: bool, */
+/*     // array of length uhh 16 */
+/*     sub_buckets: &&HMBucket, */
+/*     // else, a linked list of values of max length uhh 8? */
+/*     sub_values: <T> HMLinkedListElem, */
+/*     sub_values_len: u8, */
+/*     is_using_linked_list: bool, */
+/* }; */
 
-<T> func hmbucket#new(hash_offset: u8): <T> HMBucket = {
-    bucket: <T> HMBucket;
-    bucket.hash_offset = hash_offset;
-    bucket.sub_values_len = 0;
-    // TODO
-    bucket
-};
+/* <T> func hmbucket#new(hash_offset: u8): <T> HMBucket = { */
+/*     bucket: <T> HMBucket; */
+/*     bucket.hash_offset = hash_offset; */
+/*     bucket.sub_values_len = 0; */
+/*     // TODO */
+/*     bucket */
+/* }; */
 
-<T> overloadable func hmlist_contains(self: & <T> HMLinkedListElem, hash: u64) : bool = {
-  current: &<T>HMLinkedListElem = self;
+<K, V> overloadable func hmlist_contains_internal(self: & <K, V> HMLinkedListElem, hash: u64) : bool = {
+  current: &<K, V>HMLinkedListElem = self;
   while true {
-    printf("checking\n");
+    /* printf("checking\n"); */
     if (current.hash) == hash { return true }
     else if !(current.has_next_elem) { return false }
-    else { current = ((current.next_elem) as &<T>HMLinkedListElem)}
+    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem)}
   };
   false
 };
+<K, V> overloadable func hmlist_contains(self: & <K, V> HMLinkedListElem, key: K) : bool = self.hmlist_contains_internal(hash(key));
 
-<T> overloadable func hmlist_get(self: & <T> HMLinkedListElem, hash: u64) : &T = {
-  current: & <T>HMLinkedListElem = self;
+<K, V> overloadable func hmlist_get(self: & <K, V> HMLinkedListElem, key: K) : &V = {
+  hash: u64 = hash(key);
+  current: & <K, V>HMLinkedListElem = self;
   while true {
-    printf("get checking\n");
+    /* printf("get checking\n"); */
     if (current.hash) == hash { return (current.val) }
     else if ! (current.has_next_elem) { panic("Getting an element that doesn't exist") }
-    else { current = ((current.next_elem) as &<T>HMLinkedListElem) }
+    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem) }
   };
   self.val
 };
 
-<T> overloadable func hmlist_get_elem(self: & <T> HMLinkedListElem, hash: u64) : & <T> HMLinkedListElem = {
-  current: &<T>HMLinkedListElem = self;
+<K, V> overloadable func hmlist_get_elem_internal(self: & <K, V> HMLinkedListElem, hash: u64) : & <K, V> HMLinkedListElem = {
+  current: &<K, V>HMLinkedListElem = self;
   while true {
-    printf("getelem checking\n");
+    /* printf("getelem checking\n"); */
     if (current.hash) == hash { return current }
     else if !(current.has_next_elem) { panic("Getting an element that doesn't exist") }
-    else { current = ((current.next_elem) as &<T>HMLinkedListElem) }
+    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem) }
   };
   self
 };
 
-<T> overloadable func hmlist_add(self: & <T> HMLinkedListElem, hash: u64, value: T) = {
-  if self.hmlist_contains<T>(hash) {
-    elem: & <T>HMLinkedListElem = self.hmlist_get_elem<T>(hash);
-    elem.val = (malloc(@sizeof(T)) as &T);
-    memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(T));
+<K, V> overloadable func hmlist_add(self: & <K, V> HMLinkedListElem, key: K, value: V) = {
+  hash: u64 = hash(key);
+  if self.hmlist_contains_internal<K, V>(hash) {
+    elem: & <K, V>HMLinkedListElem = self.hmlist_get_elem_internal<K, V>(hash);
+    elem.val = (malloc(@sizeof(V)) as &V);
+    memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(V));
   } else {
-    elem: <T>HMLinkedListElem;
+    elem: <K, V>HMLinkedListElem;
     (&elem).hash = hash;
-    (&elem).val = (malloc(@sizeof(T)) as &T);
-    memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(T));
+    (&elem).val = (malloc(@sizeof(V)) as &V);
+    memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(V));
     &(elem).has_next_elem = (self.has_next_elem);
     &(elem).next_elem = (self.next_elem);
-    elem2: & <T>HMLinkedListElem = malloc(@sizeof(elem)) as & <T>HMLinkedListElem;
+    elem2: & <K, V>HMLinkedListElem = malloc(@sizeof(elem)) as & <K, V>HMLinkedListElem;
     memcpy(elem2 as &u8, (&elem) as &u8, @sizeof(elem));
     (self.next_elem) = elem2 as &u8;
     (self.has_next_elem) = true;
   }
 };
 
-<T> func hmlist#new(hash: u64, value: T): <T> HMLinkedListElem = {
-  elem: <T>HMLinkedListElem;
-  &(elem).hash = hash;
-  &(elem).val = (malloc(@sizeof(T)) as &T);
-  memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(T));
+<K, V> func hmlist#new(key: K, value: V): <K, V> HMLinkedListElem = {
+  elem: <K, V>HMLinkedListElem;
+  &(elem).hash = hash(key);
+  &(elem).val = (malloc(@sizeof(V)) as &V);
+  memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(V));
   &(elem).has_next_elem = false;
   elem
 };
 
 
-<T> overloadable func add(self: & <T>HMBucket, value: T, hash: u64) = {
+<K, V> overloadable func add(self: & <K, V>HMBucket, value: V, hash: u64) = {
   if self.is_using_linked_list {
     hnelem: bool = true;
-    elem: <T> HMLinkedListElem = *(self.sub_values);
+    elem: <K, V> HMLinkedListElem = *(self.sub_values);
     while hnelem {
       if *(elem.hash) == hash {
         elem.val = value;
@@ -994,18 +1014,25 @@ overloadable func hash(h: &u8): u64 = {
   total: u64 = 0;
   while ((*h[i])) != 0_8 {
     q: u8 = *h[i];
-    q: u64 = @AS("int_signed_extend q 64");
-    total += 53^i * q;
+    /* putchar(q); */
+    /* putchar(':'); */
+    /* printint(2^2); */
+    p: u64 = @AS("int_z_extend q 64");
+    total += (53^i) * p;
     i += 1;
   };
-  (total % 1000000009)
+  total = (total % 1000000009);
+  /* printf("Hash of "); */
+  /* printf(h); */
+  /* printint(total); */
+  total
 };
 // }}}
 
 // MAIN {{{
 
 func main() : u64 = {
-    printf("main");
+    /* printf("main"); */
     /* data: &u8 = malloc(9223372036854775807 * @sizeof(u64)); */
     /* (*data[0]) = 7_8; */
     /* printf("begin\n"); */
@@ -1079,13 +1106,13 @@ func main() : u64 = {
     /* printf("\nOutput was:\n"); */
 
     /* debugExpr(&expr, 0); */
-    printf("here20");
-    q: <&u8> HMLinkedListElem = hmlist#new<&u8>(4, "jhelp");
-    printf("here");
-    (&q).hmlist_add<&u8>(5, "aaaa");
-    /* p: &&u8 = (&q).hmlist_get<&u8>(4); */
+    /* printf("here20"); */
+    q: <&u8, &u8> HMLinkedListElem = hmlist#new<&u8, &u8>("k1", "jhelp");
+    /* printf("here"); */
+    (&q).hmlist_add<&u8, &u8>("k2", "aaaa");
+    /* p: &&u8 = (&q).hmlist_get<&u8, &u8>(4); */
     /* printf(*p); */
-    p: &&u8 = (&q).hmlist_get<&u8>(5);
+    p: &&u8 = (&q).hmlist_get<&u8, &u8>("k2");
     printf(*p);
 
     exit(0);

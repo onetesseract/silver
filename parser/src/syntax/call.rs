@@ -1,6 +1,8 @@
-use crate::lexer::{Lexer, LexString};
+use crate::lexer::{LexString, Lexer};
 
-use super::{variable::VariableExpr, Expr, ParseResult, ParseError, ParserState, ty::Ty, proto::FnType};
+use super::{
+    proto::FnType, ty::Ty, variable::VariableExpr, Expr, ParseError, ParseResult, ParserState,
+};
 
 #[derive(Debug, Clone)]
 pub struct CallExpr<'a> {
@@ -51,7 +53,11 @@ impl<'a> TargetType<'a> {
 // }
 
 impl<'a> CallExpr<'a> {
-    pub fn parse_raw(lexer: Lexer<'a>, target: VariableExpr<'a>, state: ParserState) -> ParseResult<'a, Self> {
+    pub fn parse_raw(
+        lexer: Lexer<'a>,
+        target: VariableExpr<'a>,
+        state: ParserState,
+    ) -> ParseResult<'a, Self> {
         let c = lexer.peek_char().render();
 
         let types = match c.as_str() {
@@ -67,7 +73,10 @@ impl<'a> CallExpr<'a> {
                             break;
                         }
                         if lexer.peek_char().render().as_str() != "," {
-                            return Err(ParseError::new(lexer, format!("Expected , to separate template params")));
+                            return Err(ParseError::new(
+                                lexer,
+                                format!("Expected , to separate template params"),
+                            ));
                         }
                         lexer.take_char(); // eat ,
                         lexer.eat_wsp();
@@ -76,14 +85,24 @@ impl<'a> CallExpr<'a> {
                 }
                 Some(types)
             }
-            _ => return Err(ParseError::new(lexer, format!("Expected ( in call, found {}", c)))
+            _ => {
+                return Err(ParseError::new(
+                    lexer,
+                    format!("Expected ( in call, found {}", c),
+                ))
+            }
         };
-        
+
         lexer.eat_wsp();
         let mut inputs: Vec<Expr> = vec![];
         let c = lexer.peek_char().render();
         if c.as_str() != "(" {
-            return Err(ParseError::new(lexer, format!("Expected `(` to initiate call, got {}", c)))
+            // ok it could be a templated prefix fn
+            //
+            return Err(ParseError::new(
+                lexer,
+                format!("Expected `(` to initiate call, got {}", c),
+            ));
         }
         lexer.take_char();
         if lexer.peek_char().render().as_str() != ")" {
@@ -96,13 +115,21 @@ impl<'a> CallExpr<'a> {
                     break;
                 }
                 if lexer.peek_char().render().as_str() != "," {
-                    return Err(ParseError::new(lexer, format!("Expected , to separate args")));
+                    return Err(ParseError::new(
+                        lexer,
+                        format!("Expected , to separate args"),
+                    ));
                 }
                 lexer.take_char(); // eat ,
             }
         }
         // eat the )
         lexer.take_char();
-        Ok(CallExpr { target: TargetType::Named(target), inputs, types, calltype: FnType::Normal })
+        Ok(CallExpr {
+            target: TargetType::Named(target),
+            inputs,
+            types,
+            calltype: FnType::Normal,
+        })
     }
 }

@@ -68,24 +68,24 @@ pub struct CompilationError<'a> {
 
 impl<'a> CompilationError<'a> {
     pub fn new(message: String, location: LexString<'a>) -> Self {
-        panic!(
-            "{:?}",
+        // panic!(
+            // "{:?}",
             CompilationError {
                 message,
                 location: Some(location),
                 parse_err: None
             }
-        )
+        // )
     }
     pub fn new_anon(message: String) -> Self {
-        panic!(
-            "{:?}",
+        // panic!(
+            // "{:?}",
             CompilationError {
                 message,
                 location: None,
                 parse_err: None
             }
-        )
+        // )
     }
 }
 
@@ -575,12 +575,13 @@ pub fn compile_fn<'a>(
 
     if fn_val.verify(true) {
         // TODO: fpm
-        compiler.compiler.read().unwrap().fpm.run_on(&fn_val);
+        println!("FPM-ming");
+        // compiler.compiler.read().unwrap().fpm.run_on(&fn_val);
         return Ok(fn_val);
     } else {
         compiler.compiler.read().unwrap().module.print_to_stderr();
         println!("WARNING: BAD FUNCTION, but ignoring lol");
-        compiler.compiler.read().unwrap().fpm.run_on(&fn_val);
+        // compiler.compiler.read().unwrap().fpm.run_on(&fn_val);
         return Ok(fn_val);
         // return Err(CompilationError::new("Bad function!".to_string(), proto.name))
     }

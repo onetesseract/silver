@@ -54,7 +54,20 @@ pub fn compile_asm<'a>(
     //     compiler.builder.build_store(v1.into_ptr_value(), v2.get_basic_value());
     //     return Ok(Value::void_value(compiler.compiler.read().unwrap().context));
     // }
-
+    if opcode == "int_s_extend" {
+        return Ok(Value::from_int_value(compiler.builder.build_int_s_extend_or_bit_cast(
+            compile_variable_name(words.next().unwrap().to_string(), compiler.clone(), error_at.clone())?.into_int_value(),
+            compiler.compiler.read().unwrap().context.custom_width_int_type(words.next().unwrap().to_string().parse::<u32>().unwrap()),
+            "asm_int_sign_ext",
+        )))
+    }
+    if opcode == "int_z_extend" {
+        return Ok(Value::from_int_value(compiler.builder.build_int_z_extend_or_bit_cast(
+            compile_variable_name(words.next().unwrap().to_string(), compiler.clone(), error_at.clone())?.into_int_value(),
+            compiler.compiler.read().unwrap().context.custom_width_int_type(words.next().unwrap().to_string().parse::<u32>().unwrap()),
+            "asm_int_zero_ext",
+        )))
+    }
     let mut variables = vec![];
     while let Some(s) = words.next() {
         variables.push(compile_variable_name(
@@ -89,6 +102,11 @@ pub fn compile_asm<'a>(
             variables[0].into_float_value(),
             variables[1].into_float_value(),
             "asm_float_div",
+        )),
+        "int_signed_mod" => Value::from_int_value(compiler.builder.build_int_signed_rem(
+            variables[0].into_int_value(),
+            variables[1].into_int_value(),
+            "asm_int_sub",
         )),
         "int_sub" => Value::from_int_value(compiler.builder.build_int_sub(
             variables[0].into_int_value(),
