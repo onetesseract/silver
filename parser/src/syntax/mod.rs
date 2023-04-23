@@ -56,7 +56,8 @@ impl<'a> ParseError<'a> {
         let index = lexer.data.read().unwrap().index;
         let read = lexer.data.read().unwrap();
         let (a_split, b_split) = read.input.split_at(index);
-        let message = format!("{}:\n{}<--\n{}", message, a_split, b_split);
+        let message = format!("{}<--\n{}\n\n{}", a_split.chars().rev().take(40).collect::<String>().chars().rev().collect::<String>(),
+        b_split.chars().take(40).collect::<String>(), message);
         panic!("{}", message);
         ParseError { lexer: lexer.clone(), message, offset: lexer.data.read().unwrap().index }
     }

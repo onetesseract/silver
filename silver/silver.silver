@@ -321,7 +321,7 @@ func render(lexstring: &LexString) : &u8 = {
     str: &u8;
     str = malloc(lexstring.len + 1);
     strncpy(str, (lexstring.parent.input)[lexstring.offset], lexstring.len);
-    str[lexstring.len + 1] [=] '\0';
+    str[lexstring.len] [=] '\0';
     str
 };
 
@@ -359,6 +359,7 @@ func takeIdentifier(lexer: &Lexer) : LexString = {
     
     first: bool = true;
     while lexer.peekChar().isConventionalId(first) {
+        /* printf("LTAKE\n"); */
         (&string.len)++;
         if first { first = false; };
         lexer.takeChar();
@@ -366,6 +367,7 @@ func takeIdentifier(lexer: &Lexer) : LexString = {
 
     if &string.len == 0 {
         while lexer.peekChar().isSpecialId() {
+          /* printf("LTAKES\n"); */
             (&string.len)++;
             lexer.takeChar();
         };
@@ -465,7 +467,7 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
     string: LexString = lexer.takeIdentifier();
 
     if (&string).render() != str {
-        printf("Expected `");
+        printf("Expected str `");
         printf(str);
         printf("` but got `");
         printf((&string).render());
@@ -541,6 +543,9 @@ enum ExprType = {
     Identifier,
     Block,
     String,
+    If,
+    While,
+    /* Brackets, */
 };
 
 type Expr = {
@@ -569,6 +574,58 @@ type StringExpr = {
     value: &u8,
 };
 
+type IfExpr = {
+    source: LexString,
+    cond: Expr,
+    then: Expr,
+    has_else: bool,
+    else: Expr,
+};
+
+type WhileExpr = {
+    source: LexString,
+    cond: Expr,
+    then: Expr,
+};
+
+// Type parsing {{{
+enum TypeType {
+    Reference,
+    Named,
+    Struct,
+    Func,
+};
+
+type TypeExpr {
+    variant: TypeType,
+    value: &u8,
+};
+
+type NamedTypeExpr {
+    name: LexString,
+};
+
+func debugTypeExpr(ty: &TypeExpr) = {
+  /* printIndentation(indentation); */
+    if ty.variant == TypeType#Reference {
+        printf("& ");
+        debugTypeExprInternal(ty.value as &TypeExpr);
+    } else if ty.variant == TypeType#Named {
+        rendered: &u8 = (&((ty.value as &NamedTypeExpr).name)).render();
+        printf(rendered);
+        free rendered;
+    } else {
+        printf("Dunno how to debug this type type")
+      }
+};
+
+// TODO: all the rest of the types; lambdas; templates
+
+/* type StructTypeExpr { */
+    /*  */
+/* }; */
+//  }}}
+
 
 // lexer is moved
 func parser#new(lexer: &Lexer) : Parser = {
@@ -587,6 +644,10 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#Block");
     } else if *val == ExprType#String {
         printf("ExprType#String");
+    } else if *val == ExprType#If {
+        printf("ExprType#If");
+    } else if *val == ExprType#While {
+        printf("ExprType#While");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -600,8 +661,11 @@ func debugBlockExpr(val: &BlockExpr, indentation: u64);
 func debugIdentifierExpr(val: &IdentifierExpr, indentation: u64);
 func debugNumberExpr(val: &NumberExpr, indentation: u64);
 func debugStringExpr(val: &StringExpr, indentation: u64);
+func debugIfExpr(val: &IfExpr, indentation: u64);
+func debugWhileExpr(val: &WhileExpr, indentation: u64);
 
-overloadable func debugExpr(val: &Expr, indentation: u64) = {debugExprType(&(val.variant), indentation);
+overloadable func debugExpr(val: &Expr, indentation: u64) = {
+    debugExprType(&(val.variant), indentation);
     if val.variant == ExprType#Block {
         debugBlockExpr((val.value) as &BlockExpr, indentation);
     } else if val.variant == ExprType#Identifier {
@@ -610,6 +674,10 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {debugExprType(&(val
         debugNumberExpr((val.value) as &NumberExpr, indentation);
     } else if val.variant == ExprType#String {
         debugStringExpr((val.value) as &StringExpr, indentation);
+    } else if val.variant == ExprType#If {
+        debugIfExpr((val.value) as &IfExpr, indentation);
+    } else if val.variant == ExprType#While {
+        debugWhileExpr((val.value) as &WhileExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -832,37 +900,133 @@ overloadable func asExpr(id: StringExpr) : Expr = {
     expr
 };
 
+<T> func flatCopy(val: T) : &T = {
+    data: &T = malloc(@sizeof(T)) as &T;
+    memcpy(data as &u8, (&val) as &u8, @sizeof(T));
+
+    data
+};
+
+func debugIfExpr(val: &IfExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("IF: ");
+    debugExpr(&(val.cond), indentation + 2);
+    printIndentation(indentation);
+    printf("THEN: ");
+    debugExpr(&(val.then), indentation + 2);
+    if (val.has_else) {
+      printIndentation(indentation);
+      printf("ELSE: ");
+      debugExpr(&(val.else), indentation + 2);
+    };
+    /* printf("`"); */
+    // debugLexString(&(val.source), indentation);
+};
+
+func parseIfExpr(parser: &Parser) : IfExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require("if");
+    
+    cond: Expr = parseExpr(parser);
+    then: Expr = parseExpr(parser);
+    parser.lexer.takeWhitespace();
+
+    else: Expr;
+    peek_: Lexer = parser.lexer.peek();
+    peeked: &Lexer = &peek_;
+    n_id: LexString = peeked.takeIdentifier();
+    next: &u8 = (&n_id).render();
+    has_else: bool = if next == "else" {
+        parser.lexer.takeIdentifier();
+        else = parser.parseExpr();
+        true
+    } else false;
+
+    free next;
+
+    end: u64 = parser.lexer.index;
+    i: IfExpr;
+    (&i).source = lexstring#new(parser.lexer, start, end);
+    (&i).cond = cond;
+    (&i).then = then;
+    (&i).else = else;
+    (&i).has_else = has_else;
+
+    i
+};
+
+prefix copy(val: IfExpr) : &IfExpr = flatCopy<IfExpr>(val);
+
+overloadable func asExpr(id: IfExpr) : Expr = {
+    expr: Expr;
+    (&expr).variant = ExprType#If;
+
+    (&expr).value = (copy id) as &u8;
+
+    expr
+};
+
+func debugWhileExpr(val: &WhileExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("WHILE: ");
+    debugExpr(&(val.cond), indentation + 2);
+    printIndentation(indentation);
+    printf("DO: ");
+    debugExpr(&(val.then), indentation + 2);
+};
+
+func parseWhileExpr(parser: &Parser) : WhileExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require("while");
+    
+    cond: Expr = parseExpr(parser);
+    then: Expr = parseExpr(parser);
+
+    end: u64 = parser.lexer.index;
+    w: WhileExpr;
+    (&w).source = lexstring#new(parser.lexer, start, end);
+    (&w).cond = cond;
+    (&w).then = then;
+    w
+};
+
+prefix copy(val: WhileExpr) : &WhileExpr = flatCopy<WhileExpr>(val);
+
+overloadable func asExpr(id: WhileExpr) : Expr = {
+  expr: Expr;
+  (&expr).variant = ExprType#While;
+  (&expr).value = (copy id) as &u8;
+
+  expr
+};
+
 func parseExpr(parser: &Parser) : Expr = {
     debugPrint("Parsing expr");
     parser.lexer.takeWhitespace();
 
     next_char: u8 = parser.lexer.peekChar();
-    printf("Peeked char: `");
+    /* printf("Peeked char: `"); */
     putchar(next_char);
-    printf("`\n");
+    /* printf("`\n"); */
     if next_char.isNumeric() {
         parser.parseNumberExpr().asExpr()
     } else if (next_char.isConventionalId(true) || next_char.isSpecialId()) {
-        parser.parseIdentifierExpr().asExpr()
+        peeked_: Lexer = (parser.lexer.peek());
+        peeked: &Lexer = &peeked_;
+        nextTok: LexString = peeked.takeIdentifier();
+        next: &u8 = (&nextTok).render();
+        e: Expr = if next == "if" {parser.parseIfExpr().asExpr()}
+        else if next == "while" {parser.parseWhileExpr().asExpr()}
+        else {parser.parseIdentifierExpr().asExpr()};
+        free next;
+        e
     } else if next_char == '{' {
         ba: BlockExpr = parser.parseBlockExpr();
-        /* printf("got len"); */
-        /* exprs: <Expr> VariableArray = (&ba).exprs; */
-        /* printint((&exprs).len); */
         e: Expr = ba.asExpr();
-        /* b: &BlockExpr = copy ba; // ((&e).value) as &BlockExpr; */
-        /* printf("len2"); */
-        /* exs: <Expr> VariableArray = b.exprs; */
-        /* printint((&exs).len); */
-        // I have identified the problem
-        // its me
-        // i cannot write code
-        // but fr when i make it a blob in memory it doesnt hold its value
-        // ok i fixed it
         e
     } else if next_char == '"' {
       parser.parseStringExpr().asExpr()
-    }else {
+    } else {
         expr: Expr;
         printf("Cannot parse: `");
         putchar(next_char);
@@ -1032,6 +1196,11 @@ overloadable func hash(h: &u8): u64 = {
 // MAIN {{{
 
 func main() : u64 = {
+    code: &u8 = "{if {a; b; c} while c b else f}";
+    lexer: &Lexer = &lexer#new(code);
+    parser: &Parser = &parser#new(lexer);
+    e: Expr = parser.parseExpr();
+    (&e).debugExpr(0);
     /* printf("main"); */
     /* data: &u8 = malloc(9223372036854775807 * @sizeof(u64)); */
     /* (*data[0]) = 7_8; */
@@ -1107,13 +1276,13 @@ func main() : u64 = {
 
     /* debugExpr(&expr, 0); */
     /* printf("here20"); */
-    q: <&u8, &u8> HMLinkedListElem = hmlist#new<&u8, &u8>("k1", "jhelp");
+    /* q: <&u8, &u8> HMLinkedListElem = hmlist#new<&u8, &u8>("k1", "jhelp"); */
     /* printf("here"); */
-    (&q).hmlist_add<&u8, &u8>("k2", "aaaa");
+    /* (&q).hmlist_add<&u8, &u8>("k2", "aaaa"); */
     /* p: &&u8 = (&q).hmlist_get<&u8, &u8>(4); */
     /* printf(*p); */
-    p: &&u8 = (&q).hmlist_get<&u8, &u8>("k2");
-    printf(*p);
+    /* p: &&u8 = (&q).hmlist_get<&u8, &u8>("k1"); */
+    /* printf(*p); */
 
     exit(0);
     0
