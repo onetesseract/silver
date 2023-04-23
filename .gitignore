@@ -9,3 +9,6 @@
 /quicksilver/target
 /compiler/target
 /**/target/
+*.out
+*.ll
+*.s
