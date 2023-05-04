@@ -827,13 +827,11 @@ prefix copy (val: VardefExpr) : &VardefExpr = val.flatCopy<VardefExpr>();
 func debugVardefExpr(val: &VardefExpr, indentation: u64) = {
     printIndentation(indentation);
     printf("VARDEF `");
-    // TODO: the problem IS HERE
     id: &u8 = (&((&(val.var)).source)).render();
     printf(id);
     free id;
     printf("` DEFINED WITH TYPE");
     debugTypeExpr(&(val.ty), indentation + 2);
-    // debugLexString(&(val.source), indentation);
 };
 
 overloadable func asExpr(v: VardefExpr) : Expr = {
@@ -863,7 +861,6 @@ func debugBlockExpr(val: &BlockExpr, indentation: u64) = {
     printIndentation(indentation);
     exprs: <Expr> VariableArray;
     exprs = val.exprs;
-    // printint((&exprs).len);
 
     printf("Block: {");
     i: u64 = 0;
@@ -878,8 +875,6 @@ func debugBlockExpr(val: &BlockExpr, indentation: u64) = {
           "true"
         } else { "false" }
     );
-    // printIndentation(indentation);
-    // printf("}");
 };
 
 func parseBlockExpr(parser: &Parser) : BlockExpr = {
@@ -899,10 +894,6 @@ func parseBlockExpr(parser: &Parser) : BlockExpr = {
         printf("parsing ex\n");
         debugExprType(&((&internal_expr).variant), 0);
         (&exprs).append<Expr>(internal_expr);
-        // printint((&exprs).len);
-        /* if (&exprs).len == 1 {panic("This does not math");}; */
-        // GOT HERE
-        // debugExprType(&((&exprs).get<Expr>(1).variant), 0);
         parser.lexer.takeWhitespace();
         if parser.lexer.peekChar() == '}' {
             debugPrint("Broke loop\n");
