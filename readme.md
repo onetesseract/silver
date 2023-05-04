@@ -25,5 +25,26 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] macros of sorts
 - [ ] moving casting to macros
 - [X] templated structs
-- [X] proper cacheing of templated fns
+- [?] proper cacheing of templated fns
 - [X] Array indexing syntax
+
+### Selfhosted Todo List:
+#### Parsing:
+- [ ] binary ops
+- [X] blocks
+- [ ] brackets (incl calls somehow)
+- [ ] casts
+- [ ] cdefs
+- [X] if
+- [ ] watch keywords
+- [X] numbers
+- [ ] return
+- [ ] strings
+- [X] vardefs
+- [X] identifiers/variables
+- [X] while
+##### top level:
+- [ ] enums
+- [ ] hints
+- [ ] protos
+- [ ] templates
