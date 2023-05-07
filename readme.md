@@ -38,8 +38,8 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] if
 - [ ] watch keywords
 - [X] numbers
-- [ ] return
-- [ ] strings
+- [X] return
+- [X] strings
 - [X] vardefs
 - [X] identifiers/variables
 - [X] while

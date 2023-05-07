@@ -299,14 +299,8 @@ type LexString = {
 #prec 75;
 infix + (a: LexString, b: LexString) : LexString = {
     result: LexString;
-    if ((&a).offset + (&a).len) != (&b).offset {
-        /* printf("%lu neq ", (&a).offset); */
-        /* printf("%lu\n", (&a).len); */
-        /* printf("%lu\n", (&b).offset); */
-        panic("Trying to add two non-contiguous LexStrings");
-    };
     (&result).offset = (&a).offset;
-    (&result).len = (&a).len + (&b).len;
+    (&result).len = (&b).len + (&b).offset - (&a).offset;
     (&result).parent = (&a).parent;
 
     result
@@ -557,6 +551,7 @@ enum TypeType = {
 };
 
 type TypeExpr = {
+    source: LexString,
     variant: TypeType,
     value: &u8,
 };
@@ -628,6 +623,7 @@ enum ExprType = {
     If,
     While,
     Vardef,
+    Return,
     /* Brackets, */
 };
 
@@ -681,6 +677,12 @@ type WhileExpr = {
     then: Expr,
 };
 
+type ReturnExpr = {
+    source: LexString,
+    has_val: bool,
+    val: Expr,
+};
+
 
 // lexer is moved
 func parser#new(lexer: &Lexer) : Parser = {
@@ -705,6 +707,8 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#While");
     } else if *val == ExprType#Vardef {
         printf("ExprType#Vardef");
+    } else if *val == ExprType#Return {
+        printf("ExprType#Return");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -721,6 +725,7 @@ func debugNumberExpr(val: &NumberExpr, indentation: u64);
 func debugStringExpr(val: &StringExpr, indentation: u64);
 func debugIfExpr(val: &IfExpr, indentation: u64);
 func debugWhileExpr(val: &WhileExpr, indentation: u64);
+func debugReturnExpr(val: &ReturnExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {
     debugExprType(&(val.variant), indentation);
@@ -738,6 +743,8 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {
         debugWhileExpr((val.value) as &WhileExpr, indentation);
     } else if val.variant == ExprType#Vardef {
         debugVardefExpr((val.value) as &VardefExpr, indentation);
+    } else if val.variant == ExprType#Return {
+        debugReturnExpr((val.value) as &ReturnExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -851,6 +858,7 @@ func maybeVardefExpr(parser: &Parser, id: IdentifierExpr) : Expr = {
     ty: &TypeExpr = copy ty_;
     v_: VardefExpr;
     v: &VardefExpr = &v_;
+    v.source = (&id.source) + ty.source;
     v.var = id;
     v.ty = ty_;
     v_.asExpr()
@@ -901,7 +909,14 @@ func parseBlockExpr(parser: &Parser) : BlockExpr = {
             last_semicolon = false;
             break;
         };
-        parser.lexer.require(';');
+        // Don't require semicolons after blocks
+        if &internal_expr.variant != ExprType#Block {
+          parser.lexer.require(';')
+        } else {
+            if parser.lexer.peekChar() == ';' {
+                parser.lexer.require(';');
+            };
+        };
         parser.lexer.takeWhitespace();
     };
 
@@ -1083,14 +1098,54 @@ overloadable func asExpr(id: WhileExpr) : Expr = {
   expr
 };
 
+func debugReturnExpr(val: &ReturnExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("RETURN ");
+    if val.has_val {
+        printf("VAL");
+        debugExpr(&(val.val), indentation + 2);
+    } else {
+        printf("NONE");
+    };
+};
+
+func parseReturnExpr(parser: &Parser) : ReturnExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require("return");
+
+    parser.lexer.takeWhitespace();
+    c: u8 = parser.lexer.peekChar();
+    has_val: bool = !((c == ';') || (c == '}'));
+
+    val: Expr;
+
+    if has_val {
+        val = parser.parseExpr();
+    };
+
+    end: u64 = parser.lexer.index;
+
+    r: ReturnExpr;
+    (&r).has_val = has_val;
+    (&r).val = val;
+    (&r).source = lexstring#new(parser.lexer, start, end);
+    r
+};
+
+prefix copy(val: ReturnExpr) : &ReturnExpr = flatCopy<ReturnExpr>(val);
+
+overloadable func asExpr(id: ReturnExpr) : Expr = {
+    expr: Expr;
+    (&expr).variant = ExprType#Return;
+    (&expr).value = (copy id) as &u8;
+
+    expr
+};
+
 func parseExpr(parser: &Parser) : Expr = {
-    debugPrint("Parsing expr");
     parser.lexer.takeWhitespace();
 
     next_char: u8 = parser.lexer.peekChar();
-    /* printf("Peeked char: `"); */
-    putchar(next_char);
-    /* printf("`\n"); */
     if next_char.isNumeric() {
         parser.parseNumberExpr().asExpr()
     } else if (next_char.isConventionalId(true) || next_char.isSpecialId()) {
@@ -1100,6 +1155,7 @@ func parseExpr(parser: &Parser) : Expr = {
         next: &u8 = (&nextTok).render();
         e: Expr = if next == "if" {parser.parseIfExpr().asExpr()}
         else if next == "while" {parser.parseWhileExpr().asExpr()}
+        else if next == "return" {parser.parseReturnExpr().asExpr()}
         else {
           id: IdentifierExpr = parser.parseIdentifierExpr();
           v: Expr = parser.maybeVardefExpr(id);
@@ -1283,7 +1339,7 @@ overloadable func hash(h: &u8): u64 = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "{if {a: bc;} while c b else f}";
+    code: &u8 = "{if {a: bc;} while c b else return q}";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: Expr = parser.parseExpr();
