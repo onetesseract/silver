@@ -625,6 +625,7 @@ enum ExprType = {
     Vardef,
     Return,
     Cast,
+    CDef,
     /* Brackets, */
 };
 
@@ -689,6 +690,8 @@ type CastExpr = {
     val: Expr,
     ty: TypeExpr,
 };
+
+type CDefExpr
 
 
 // lexer is moved

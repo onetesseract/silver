@@ -33,7 +33,7 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [ ] binary ops
 - [X] blocks
 - [ ] brackets (incl calls somehow)
-- [ ] casts
+- [X] casts
 - [ ] cdefs
 - [X] if
 - [ ] watch keywords
