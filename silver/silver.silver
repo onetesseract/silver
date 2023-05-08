@@ -624,6 +624,7 @@ enum ExprType = {
     While,
     Vardef,
     Return,
+    Cast,
     /* Brackets, */
 };
 
@@ -683,6 +684,12 @@ type ReturnExpr = {
     val: Expr,
 };
 
+type CastExpr = {
+    source: LexString,
+    val: Expr,
+    ty: TypeExpr,
+};
+
 
 // lexer is moved
 func parser#new(lexer: &Lexer) : Parser = {
@@ -709,6 +716,8 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#Vardef");
     } else if *val == ExprType#Return {
         printf("ExprType#Return");
+    } else if *val == ExprType#Cast {
+        printf("ExprType#Cast")
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -726,6 +735,7 @@ func debugStringExpr(val: &StringExpr, indentation: u64);
 func debugIfExpr(val: &IfExpr, indentation: u64);
 func debugWhileExpr(val: &WhileExpr, indentation: u64);
 func debugReturnExpr(val: &ReturnExpr, indentation: u64);
+func debugCastExpr(val: &CastExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {
     debugExprType(&(val.variant), indentation);
@@ -745,6 +755,8 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {
         debugVardefExpr((val.value) as &VardefExpr, indentation);
     } else if val.variant == ExprType#Return {
         debugReturnExpr((val.value) as &ReturnExpr, indentation);
+    } else if val.variant == ExprType#Cast {
+        debugCastExpr((val.value) as &CastExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -1142,11 +1154,55 @@ overloadable func asExpr(id: ReturnExpr) : Expr = {
     expr
 };
 
+prefix copy (val: CastExpr) : &CastExpr = val.flatCopy<CastExpr>();
+
+func debugCastExpr(val: &CastExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("CAST");
+    (&(val.val)).debugExpr(indentation + 2);
+    printIndentation(indentation);
+    printf("TO");
+    debugTypeExpr(&(val.ty), indentation + 2);
+};
+
+overloadable func asExpr(v: CastExpr) : Expr = {
+    expr: Expr;
+    &expr.variant = ExprType#Cast;
+    &expr.value = (copy v) as &u8;
+
+    expr
+};
+
+func maybeCastExpr(parser: &Parser, e: Expr) : Expr = {
+  start: u64 = parser.lexer.index;
+  parser.lexer.takeWhitespace();
+  peeked: Lexer = parser.lexer.peek();
+  next: &u8;
+  ls: LexString = (&peeked).takeIdentifier();
+  next = (&ls).render();
+  ex: Expr = if next == "as" {
+    parser.lexer.takeIdentifier();
+    parser.lexer.takeWhitespace();
+    ty_: TypeExpr = parser.parseType();
+    ty: &TypeExpr = copy ty_;
+    v_: CastExpr;
+    v: &CastExpr = &v_;
+    v.source = lexstring#new(parser.lexer, start, parser.lexer.index);
+    v.val = e;
+    v.ty = ty_;
+    v_.asExpr()
+  } else { e };
+  free next;
+  ex
+};
+
+
+
 func parseExpr(parser: &Parser) : Expr = {
     parser.lexer.takeWhitespace();
 
     next_char: u8 = parser.lexer.peekChar();
-    if next_char.isNumeric() {
+    ex: Expr = if next_char.isNumeric() {
         parser.parseNumberExpr().asExpr()
     } else if (next_char.isConventionalId(true) || next_char.isSpecialId()) {
         peeked_: Lexer = (parser.lexer.peek());
@@ -1177,7 +1233,9 @@ func parseExpr(parser: &Parser) : Expr = {
         panic();
 
         expr
-    }
+    };
+    ex = parser.maybeCastExpr(ex);
+    ex
 };
 
 
@@ -1339,7 +1397,7 @@ overloadable func hash(h: &u8): u64 = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "{if {a: bc;} while c b else return q}";
+    code: &u8 = "{if {a: bc;} while c b else return q as abctya} as abcty";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: Expr = parser.parseExpr();
