@@ -32,9 +32,9 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 #### Parsing:
 - [ ] binary ops
 - [X] blocks
-- [ ] brackets (incl calls somehow)
+- [X] brackets (incl calls somehow)
 - [X] casts
-- [ ] cdefs
+- [X] cdefs (pretty much done with brackets, just compiled differently)
 - [X] if
 - [ ] watch keywords
 - [X] numbers
