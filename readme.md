@@ -36,6 +36,9 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] casts
 - [X] cdefs (pretty much done with brackets, just compiled differently)
 - [X] if
+- [ ] prefix, suffix, and template calls
+- [ ] template typedefs
+- [ ] bracket typedefs
 - [ ] watch keywords
 - [X] numbers
 - [X] return
