@@ -513,6 +513,8 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
     @AS("single_gep data index") as &T
 };
 
+// brackets [ ] (va: &<T> VariableArray, i: u64) : &T = va.get<T
+
 <T> func set(va: & <T> VariableArray, index: u64, val: T) = {
     memcpy(((va.get<T>(index)) as &u8), (&val) as &u8, @sizeof(T));
 };
@@ -566,6 +568,8 @@ type Parser = {
     lexer: &Lexer,
     // first then last then another set etc
     brackets: <&u8> VariableArray,
+    prefixes: <&u8> VariableArray,
+    suffixes: <&u8> VariableArray,
 };
 
 
@@ -575,6 +579,7 @@ enum TypeType = {
     Named,
     Struct,
     Func,
+    Template,
 };
 
 type TypeExpr = {
@@ -587,31 +592,55 @@ type NamedTypeExpr = {
     name: LexString,
 };
 
-func debugTypeExprInternal(ty: &TypeExpr) = {
+type TemplateTypeExpr = {
+    types: <TypeExpr> VariableArray,
+    value: TypeExpr,
+};
+
+func debugTemplateTypeExpr(ty: &TemplateTypeExpr, indentation: u64);
+
+func debugTypeExprInternal(ty: &TypeExpr, indentation: u64) = {
   /* printIndentation(indentation); */
     if ty.variant == TypeType#Reference {
         printf("& ");
-        debugTypeExprInternal((ty.value) as &TypeExpr);
+        debugTypeExprInternal((ty.value) as &TypeExpr, indentation);
     } else if ty.variant == TypeType#Named {
         nte: &NamedTypeExpr = (ty.value) as &NamedTypeExpr;
         rendered: &u8 = (&(nte.name)).render();
         printf(rendered);
         free rendered;
-    } else {
+    } else if ty.variant == TypeType#Template {
+        debugTemplateTypeExpr((ty.value) as &TemplateTypeExpr, indentation);
+      } else {
         printf("Dunno how to debug this type type")
     }
 };
 
 func debugTypeExpr(ty: &TypeExpr, indentation: u64) = {
     printIndentation(indentation);
-    debugTypeExprInternal(ty);
+    debugTypeExprInternal(ty, indentation);
+};
+
+func debugTemplateTypeExpr(ty: &TemplateTypeExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("TEMPLATE:");
+    i: u64 = 0;
+    while i < (&(ty.types)).len {
+        debugTypeExpr((&(ty.types)).get<TypeExpr>(i), indentation + 2);
+        i++;
+    };
+    printIndentation(indentation);
+    printf("UNDERLYING:");
+    debugTypeExpr(&(ty.value), indentation + 2);
 };
 
 prefix copy(ty: TypeExpr) : &TypeExpr = ty.flatCopy<TypeExpr>();
 prefix copy(ty: NamedTypeExpr) : &NamedTypeExpr = ty.flatCopy<NamedTypeExpr>();
+prefix copy(ty: TemplateTypeExpr) : &TemplateTypeExpr = ty.flatCopy<TemplateTypeExpr>();
 
 func parseType(parser: &Parser) : TypeExpr = {
-  if parser.lexer.peekChar() == '&' {
+  c: u8 = parser.lexer.peekChar();
+  if c == '&' {
     // ah its a uhh
     // pointer!
     parser.lexer.takeChar();
@@ -622,6 +651,24 @@ func parseType(parser: &Parser) : TypeExpr = {
     (&res).variant = TypeType#Reference;
     (&res).value = (ty as &u8);
     res
+  } else if c == '<' {
+    types: <TypeExpr> VariableArray = variablearray#new<TypeExpr>();
+    parser.lexer.takeWhitespace();
+    while (parser.lexer.peekChar() != '>') && !(parser.lexer.isEof()) {
+      (&types).append<TypeExpr>(parser.parseType());
+      parser.lexer.takeWhitespace();
+      if parser.lexer.peekChar() != '>' {
+        parser.lexer.require(',');
+      };
+    };
+    parser.lexer.require('>');
+    t: TemplateTypeExpr;
+    (&t).types = types;
+    (&t).value = parser.parseType();
+    ty: TypeExpr;
+    (&ty).variant = TypeType#Template;
+    (&ty).value = (copy t) as &u8;
+    ty
   } else {
     // TODO: structs, funcs
     name: LexString = parser.lexer.takeIdentifier();
@@ -654,6 +701,8 @@ enum ExprType = {
     Cast,
     CDef,
     PostfixBrackets,
+    PrefixCall,
+    SuffixCall,
 };
 
 type Expr = {
@@ -726,6 +775,18 @@ type PostfixBracketsExpr = {
     args: <Expr> VariableArray,
 };
 
+type PrefixCallExpr = {
+    source: LexString,
+    val: Expr,
+    prefix: IdentifierExpr,
+};
+
+type SuffixCallExpr = {
+    source: LexString,
+    val: Expr,
+    suffix: IdentifierExpr,
+};
+
 // type CDefExpr
 
 
@@ -734,8 +795,14 @@ func parser#new(lexer: &Lexer) : Parser = {
     parser: Parser;
     (&parser).lexer = lexer;
     (&parser).brackets = variablearray#new<&u8>();
+    (&parser).prefixes = variablearray#new<&u8>();
+    (&parser).suffixes = variablearray#new<&u8>();
     (&((&parser).brackets)).append<&u8>("(");
     (&((&parser).brackets)).append<&u8>(")");
+    // TODO: THIS IS TESTING PLZ REMOVE
+    (&((&parser).prefixes)).append<&u8>("free");
+    (&((&parser).suffixes)).append<&u8>("_s");
+
     parser
 };
 
@@ -761,6 +828,10 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#Cast");
     } else if *val == ExprType#PostfixBrackets {
         printf("ExprType#PostfixBrackets");
+    } else if *val == ExprType#PrefixCall {
+        printf("ExprType#PrefixCall");
+    } else if *val == ExprType#SuffixCall {
+        printf("ExprType#SuffixCall");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -780,6 +851,8 @@ func debugWhileExpr(val: &WhileExpr, indentation: u64);
 func debugReturnExpr(val: &ReturnExpr, indentation: u64);
 func debugCastExpr(val: &CastExpr, indentation: u64);
 func debugPostfixBracketsExpr(val: &PostfixBracketsExpr, indentation: u64);
+func debugPrefixCallExpr(val: &PrefixCallExpr, indentation: u64);
+func debugSuffixCallExpr(val: &SuffixCallExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {
     debugExprType(&(val.variant), indentation);
@@ -803,6 +876,10 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {
         debugCastExpr((val.value) as &CastExpr, indentation);
     } else if val.variant == ExprType#PostfixBrackets {
         debugPostfixBracketsExpr((val.value) as &PostfixBracketsExpr, indentation);
+    } else if val.variant == ExprType#PrefixCall {
+        debugPrefixCallExpr((val.value) as &PrefixCallExpr, indentation);
+    } else if val.variant == ExprType#SuffixCall {
+        debugSuffixCallExpr((val.value) as &SuffixCallExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -1332,6 +1409,90 @@ func maybePostfixBracketsExpr(parser: &Parser, e: Expr) : Expr = {
     ex.asExpr()
 };
 
+func debugPrefixCallExpr(p: &PrefixCallExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("PREFIX CALL:");
+    debugIdentifierExpr(&(p.prefix), indentation + 2);
+    printIndentation(indentation);
+    printf("UPON");
+    debugExpr(&(p.val), indentation + 2);
+};
+
+prefix copy(p: PrefixCallExpr) : &PrefixCallExpr = p.flatCopy<PrefixCallExpr>();
+
+overloadable func asExpr(p: PrefixCallExpr) : Expr = {
+    e: Expr;
+    printf("prefix asexprd");
+    (&e).variant = ExprType#PrefixCall;
+    (&e).value = (copy p) as &u8;
+    e
+};
+
+func maybePrefixCallExpr(parser: &Parser, i: IdentifierExpr) : Expr = {
+    r: &u8 = (&((&i).source)).render();
+    if (&(parser.prefixes)).va_contains<&u8>(r) {
+      printf("PREFIXED");
+      free r;
+        p: PrefixCallExpr;
+        (&p).prefix = i;
+        (&p).val = parser.parseExpr();
+        end: u64 = parser.lexer.index;
+        start: u64 = (&((&i).source)).offset;
+        (&p).source = lexstring#new(parser.lexer, start, end);
+        p.asExpr()
+    } else {
+      free r;
+      i.asExpr()
+    }
+};
+
+func debugSuffixCallExpr(p: &SuffixCallExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("SUFFIX CALL:");
+    debugIdentifierExpr(&(p.suffix), indentation + 2);
+    printIndentation(indentation);
+    printf("UPON");
+    debugExpr(&(p.val), indentation + 2);
+};
+
+// prefix copy(s: SuffixCallExpr) : &SuffixCallExpr = s.flatCopy<SuffixCallExpr>();
+//prefix copy(s: SuffixCallExpr) : &SuffixCallExpr = flatCopy<SuffixCallExpr>(s);
+// IDK why it no work as other one
+prefix copy(s: SuffixCallExpr) : &SuffixCallExpr = {
+  a: &SuffixCallExpr = flatCopy<SuffixCallExpr>(s);
+  a
+};
+// prefix copy(s: )
+
+// again IDK why
+overloadable func sf_asExpr(p: SuffixCallExpr) : Expr = {
+    e: Expr;
+    printf("is var suffix");
+    (&e).variant = ExprType#SuffixCall;
+    (&e).value = (copy p) as &u8;
+    e
+};
+
+func maybeSuffixCallExpr(parser: &Parser, e: Expr) : Expr = {
+    parser.lexer.takeWhitespace();
+    l: Lexer = parser.lexer.peek();
+    ls: LexString = (&l).takeIdentifier();
+    sf: &u8 = (&ls).render();
+    if (&(parser.suffixes)).va_contains<&u8>(sf) {
+        printf("suffixed");
+        free sf;
+        start: u64 = parser.lexer.index;
+        s: SuffixCallExpr;
+        (&s).suffix = parser.parseIdentifierExpr();
+        (&s).val = e;
+        end: u64 = parser.lexer.index;
+        (&s).source = lexstring#new(parser.lexer, start, end);
+        s.sf_asExpr()
+    } else {
+      free sf;
+      e
+    }
+};
 
 func parseExpr(parser: &Parser) : Expr = {
     parser.lexer.takeWhitespace();
@@ -1339,6 +1500,12 @@ func parseExpr(parser: &Parser) : Expr = {
     next_char: u8 = parser.lexer.peekChar();
     ex: Expr = if next_char.isNumeric() {
         parser.parseNumberExpr().asExpr()
+    } else if next_char == '(' {
+        parser.lexer.takeChar();
+        e: Expr = parser.parseExpr();
+        parser.lexer.takeWhitespace();
+        parser.lexer.require(')');
+        e
     } else if (next_char.isConventionalId(true) || next_char.isSpecialId()) {
         peeked_: Lexer = (parser.lexer.peek());
         peeked: &Lexer = &peeked_;
@@ -1350,6 +1517,9 @@ func parseExpr(parser: &Parser) : Expr = {
         else {
           id: IdentifierExpr = parser.parseIdentifierExpr();
           v: Expr = parser.maybeVardefExpr(id);
+          if (&v).variant == ExprType#Identifier {
+            v = parser.maybePrefixCallExpr(id);
+          };
           v
         };
         free next;
@@ -1370,6 +1540,7 @@ func parseExpr(parser: &Parser) : Expr = {
         expr
     };
     ex = parser.maybePostfixBracketsExpr(ex);
+    ex = parser.maybeSuffixCallExpr(ex);
     ex = parser.maybeCastExpr(ex);
     ex
 };
@@ -1532,7 +1703,7 @@ overloadable func hash(h: &u8): u64 = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "a(b)";
+    code: &u8 = "v _s";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: Expr = parser.parseExpr();
@@ -1625,4 +1796,4 @@ func main() : u64 = {
 };
 
 
-// }}}10
+// }}}
