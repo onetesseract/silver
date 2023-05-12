@@ -453,11 +453,13 @@ overloadable func require(lexer: &Lexer, char: u8) : LexString = {
     (&string).parent = lexer;
     (&string.len) = 1;
 
-    if lexer.takeChar() != char {
+    c: u8 = lexer.takeChar();
+
+    if c != char {
         printf("Expected `");
         putchar(char);
         printf("` but got `");
-        putchar(char);
+        putchar(c);
         printf("`\n");
         panic("invalid character");
     };
@@ -567,7 +569,7 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
 type Parser = {
     lexer: &Lexer,
     // first then last then another set etc
-    brackets: <&u8> VariableArray,
+    brackets: <u8> VariableArray,
     prefixes: <&u8> VariableArray,
     suffixes: <&u8> VariableArray,
 };
@@ -638,7 +640,26 @@ prefix copy(ty: TypeExpr) : &TypeExpr = ty.flatCopy<TypeExpr>();
 prefix copy(ty: NamedTypeExpr) : &NamedTypeExpr = ty.flatCopy<NamedTypeExpr>();
 prefix copy(ty: TemplateTypeExpr) : &TemplateTypeExpr = ty.flatCopy<TemplateTypeExpr>();
 
+func parseType(parser: &Parser) : TypeExpr;
+
+func parseTemplateList(parser: &Parser) : <TypeExpr> VariableArray = {
+    parser.lexer.require('<');
+    types: <TypeExpr> VariableArray = variablearray#new<TypeExpr>();
+    parser.lexer.takeWhitespace();
+    while (parser.lexer.peekChar() != '>') && !(parser.lexer.isEof()) {
+      (&types).append<TypeExpr>(parser.parseType());
+      parser.lexer.takeWhitespace();
+      if parser.lexer.peekChar() != '>' {
+        parser.lexer.require(',');
+      };
+    };
+    parser.lexer.require('>');
+    parser.lexer.takeWhitespace();
+    types
+};
+
 func parseType(parser: &Parser) : TypeExpr = {
+  parser.lexer.takeWhitespace();
   c: u8 = parser.lexer.peekChar();
   if c == '&' {
     // ah its a uhh
@@ -652,18 +673,8 @@ func parseType(parser: &Parser) : TypeExpr = {
     (&res).value = (ty as &u8);
     res
   } else if c == '<' {
-    types: <TypeExpr> VariableArray = variablearray#new<TypeExpr>();
-    parser.lexer.takeWhitespace();
-    while (parser.lexer.peekChar() != '>') && !(parser.lexer.isEof()) {
-      (&types).append<TypeExpr>(parser.parseType());
-      parser.lexer.takeWhitespace();
-      if parser.lexer.peekChar() != '>' {
-        parser.lexer.require(',');
-      };
-    };
-    parser.lexer.require('>');
     t: TemplateTypeExpr;
-    (&t).types = types;
+    (&t).types = parser.parseTemplateList();
     (&t).value = parser.parseType();
     ty: TypeExpr;
     (&ty).variant = TypeType#Template;
@@ -703,6 +714,7 @@ enum ExprType = {
     PostfixBrackets,
     PrefixCall,
     SuffixCall,
+    TemplatedExpr,
 };
 
 type Expr = {
@@ -767,11 +779,12 @@ type CastExpr = {
     ty: TypeExpr,
 };
 
+// TODO: make work with longer than 1-char brackets
 type PostfixBracketsExpr = {
     source: LexString,
     val: Expr,
-    brack_first: IdentifierExpr,
-    brack_last: IdentifierExpr,
+    brack_first: u8,
+    brack_last: u8,
     args: <Expr> VariableArray,
 };
 
@@ -787,6 +800,11 @@ type SuffixCallExpr = {
     suffix: IdentifierExpr,
 };
 
+type TemplatedExpr = {
+    types: <TypeExpr> VariableArray,
+    val: Expr,
+};
+
 // type CDefExpr
 
 
@@ -794,14 +812,14 @@ type SuffixCallExpr = {
 func parser#new(lexer: &Lexer) : Parser = {
     parser: Parser;
     (&parser).lexer = lexer;
-    (&parser).brackets = variablearray#new<&u8>();
+    (&parser).brackets = variablearray#new<u8>();
     (&parser).prefixes = variablearray#new<&u8>();
     (&parser).suffixes = variablearray#new<&u8>();
-    (&((&parser).brackets)).append<&u8>("(");
-    (&((&parser).brackets)).append<&u8>(")");
+    (&((&parser).brackets)).append<u8>('(');
+    (&((&parser).brackets)).append<u8>(')');
     // TODO: THIS IS TESTING PLZ REMOVE
-    (&((&parser).prefixes)).append<&u8>("free");
-    (&((&parser).suffixes)).append<&u8>("_s");
+    // (&((&parser).prefixes)).append<&u8>("free");
+    // (&((&parser).suffixes)).append<&u8>("_s");
 
     parser
 };
@@ -832,6 +850,8 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#PrefixCall");
     } else if *val == ExprType#SuffixCall {
         printf("ExprType#SuffixCall");
+    } else if *val == ExprType#TemplatedExpr {
+        printf("ExprType#TemplatedExpr");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -853,6 +873,7 @@ func debugCastExpr(val: &CastExpr, indentation: u64);
 func debugPostfixBracketsExpr(val: &PostfixBracketsExpr, indentation: u64);
 func debugPrefixCallExpr(val: &PrefixCallExpr, indentation: u64);
 func debugSuffixCallExpr(val: &SuffixCallExpr, indentation: u64);
+func debugTemplatedExpr(t: &TemplatedExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {
     debugExprType(&(val.variant), indentation);
@@ -880,6 +901,8 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {
         debugPrefixCallExpr((val.value) as &PrefixCallExpr, indentation);
     } else if val.variant == ExprType#SuffixCall {
         debugSuffixCallExpr((val.value) as &SuffixCallExpr, indentation);
+    } else if val.variant == ExprType#TemplatedExpr {
+        debugTemplatedExpr((val.value) as &TemplatedExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -1323,13 +1346,10 @@ func debugPostfixBracketsExpr(val: &PostfixBracketsExpr, indentation: u64) = {
     printIndentation(indentation);
     printf("POSTFIX BRACKETS:");
     printIndentation(indentation);
-    first: &u8 = (&((&(val.brack_first)).source)).render();
-    printf(first);
-    free first;
-    printf(" ");
-    last: &u8 = (&((&(val.brack_last)).source)).render();
-    printf(last);
-    free last;
+    putchar(val.brack_first);
+    putchar(' ');
+    putchar(val.brack_last);
+
     printIndentation(indentation);
     printf("UPON:");
     debugExpr(&(val.val), indentation + 2);
@@ -1355,40 +1375,33 @@ overloadable func asExpr(v: PostfixBracketsExpr) : Expr = {
 
 func maybePostfixBracketsExpr(parser: &Parser, e: Expr) : Expr = {
     start: u64 = parser.lexer.index;
+    /*
     parser.lexer.takeWhitespace();
     peeked: Lexer = parser.lexer.peek();
     ls: LexString = (&peeked).takeIdentifier();
     first: &u8 = (&ls).render();
-    if !((&(parser.brackets)).va_contains<&u8>(first)) { free first; return e; };
-    idx: u64 = (&(parser.brackets)).va_indexof<&u8>(first);
-    free first;
+    */
+    first: u8 = parser.lexer.peekChar();
+    if !((&(parser.brackets)).va_contains<u8>(first)) { return e; };
+    idx: u64 = (&(parser.brackets)).va_indexof<u8>(first);
     if (idx % 2) != 0 {return e;};
-    last: &u8 = *((&(parser.brackets)).get<&u8>(idx + 1));
+    last: u8 = *((&(parser.brackets)).get<u8>(idx + 1));
     // skreeee
-    id_first: IdentifierExpr = parser.parseIdentifierExpr();
+    // id_first: IdentifierExpr = parser.parseIdentifierExpr();
+    parser.lexer.takeChar();
     parser.lexer.takeWhitespace();
 
     exprs: <Expr> VariableArray = variablearray#new<Expr>();
 
 
     while !(parser.lexer.isEof()) && !({
-        peeked = parser.lexer.peek();
-        ls = (&peeked).takeIdentifier();
-        a: &u8 = (&ls).render();
-        b: bool = (a == last);
-        free a;
-        b
+        parser.lexer.peekChar() == last
     }) {
         internal_expr: Expr = parser.parseExpr();
         (&exprs).append<Expr>(internal_expr);
         parser.lexer.takeWhitespace();
         if {
-            peeked = parser.lexer.peek();
-            ls = (&peeked).takeIdentifier();
-            a: &u8 = (&ls).render();
-            b: bool = (a == last);
-            free a;
-            b
+            parser.lexer.peekChar() == last
         } {
             break;
         };
@@ -1396,13 +1409,14 @@ func maybePostfixBracketsExpr(parser: &Parser, e: Expr) : Expr = {
 
         parser.lexer.takeWhitespace();
     };
-    id_last: IdentifierExpr = parser.parseIdentifierExpr();
+
+    parser.lexer.require(last);
 
     ex: PostfixBracketsExpr;
     (&ex).source = lexstring#new(parser.lexer, start, parser.lexer.index);
     (&ex).val = e;
-    (&ex).brack_first = id_first;
-    (&ex).brack_last = id_last;
+    (&ex).brack_first = first;
+    (&ex).brack_last = last;
     (&ex).args = exprs;
 
 
@@ -1494,6 +1508,39 @@ func maybeSuffixCallExpr(parser: &Parser, e: Expr) : Expr = {
     }
 };
 
+prefix copy(t: TemplatedExpr) : &TemplatedExpr = t.flatCopy<TemplatedExpr>();
+
+overloadable func asExpr(t: TemplatedExpr) : Expr = {
+    ex: Expr;
+    (&ex).variant = ExprType#TemplatedExpr;
+    (&ex).value = (copy t) as &u8;
+    ex
+};
+
+func debugTemplatedExpr(t: &TemplatedExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("TEMPLATED EXPR:");
+    i: u64 = 0;
+    while i < (&(t.types)).len {
+        debugTypeExpr((&(t.types)).get<TypeExpr>(i), indentation + 2);
+        i++;
+    };
+    printIndentation(indentation);
+    printf("UNDERLYING:");
+    debugExpr(&(t.val), indentation + 2);
+};
+
+func maybeTemplatedExpr(parser: &Parser, e: Expr) : Expr = {
+    parser.lexer.takeWhitespace();
+    if parser.lexer.peekChar() == '<' {
+        types: <TypeExpr> VariableArray = parser.parseTemplateList();
+        t: TemplatedExpr;
+        (&t).types = types;
+        (&t).val = e;
+        t.asExpr()
+    } else {e}
+};
+
 func parseExpr(parser: &Parser) : Expr = {
     parser.lexer.takeWhitespace();
 
@@ -1539,6 +1586,8 @@ func parseExpr(parser: &Parser) : Expr = {
 
         expr
     };
+    // TODO: fix this, maybe iterate until no changes?
+    ex = parser.maybeTemplatedExpr(ex);
     ex = parser.maybePostfixBracketsExpr(ex);
     ex = parser.maybeSuffixCallExpr(ex);
     ex = parser.maybeCastExpr(ex);
@@ -1703,7 +1752,7 @@ overloadable func hash(h: &u8): u64 = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "v _s";
+    code: &u8 = "a<b,c, z >()";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: Expr = parser.parseExpr();
