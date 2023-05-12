@@ -247,7 +247,6 @@ func printIndentation(indentation: u64) = {
 
 // }}}
 
-
 // LEXER {{{
 
 // type str = &u8;
@@ -485,6 +484,159 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
 // }}}
 
 
+// HASHMAP {{{
+<K, V> type HMLinkedListElem = {
+    hash: u64,
+    val: &V,
+    has_next_elem: bool,
+    next_elem: &u8,// <T>HMLinkedListElem, // or 0 if no next elem, forgive me for using nullptrs
+};
+
+<K, V> prefix drop(elem: & <K, V>HMLinkedListElem) = {
+    free(elem.val);
+    if (elem.next_elem) as u64 != 0 {
+        drop(elem.next_elem);
+    };
+    free(elem as &u8);
+};
+
+/* <T> type HMBucket = { */
+/*     hash_offset: u8, */
+/*     does_contain_sub_buckets: bool, */
+/*     // array of length uhh 16 */
+/*     sub_buckets: &&HMBucket, */
+/*     // else, a linked list of values of max length uhh 8? */
+/*     sub_values: <T> HMLinkedListElem, */
+/*     sub_values_len: u8, */
+/*     is_using_linked_list: bool, */
+/* }; */
+
+/* <T> func hmbucket#new(hash_offset: u8): <T> HMBucket = { */
+/*     bucket: <T> HMBucket; */
+/*     bucket.hash_offset = hash_offset; */
+/*     bucket.sub_values_len = 0; */
+/*     // TODO */
+/*     bucket */
+/* }; */
+
+<K, V> overloadable func hmlist_contains_internal(self: & <K, V> HMLinkedListElem, hash: u64) : bool = {
+  current: &<K, V>HMLinkedListElem = self;
+  while true {
+    /* printf("checking\n"); */
+    if (current.hash) == hash { return true }
+    else if !(current.has_next_elem) { return false }
+    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem)}
+  };
+  false
+};
+<K, V> overloadable func hmlist_contains(self: & <K, V> HMLinkedListElem, key: K) : bool = self.hmlist_contains_internal<K, V>(hash(key));
+
+<K, V> overloadable func hmlist_get(self: & <K, V> HMLinkedListElem, key: K) : &V = {
+  hash: u64 = hash(key);
+  current: & <K, V>HMLinkedListElem = self;
+  while true {
+    /* printf("get checking\n"); */
+    if (current.hash) == hash { return (current.val) }
+    else if ! (current.has_next_elem) { panic("Getting an element that doesn't exist") }
+    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem) }
+  };
+  self.val
+};
+
+<K, V> overloadable func hmlist_get_elem_internal(self: & <K, V> HMLinkedListElem, hash: u64) : & <K, V> HMLinkedListElem = {
+  current: &<K, V>HMLinkedListElem = self;
+  while true {
+    /* printf("getelem checking\n"); */
+    if (current.hash) == hash { return current }
+    else if !(current.has_next_elem) { panic("Getting an element that doesn't exist") }
+    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem) }
+  };
+  self
+};
+
+<K, V> overloadable func hmlist_add(self: & <K, V> HMLinkedListElem, key: K, value: V) = {
+  hash: u64 = hash(key);
+  if self.hmlist_contains_internal<K, V>(hash) {
+    elem: & <K, V>HMLinkedListElem = self.hmlist_get_elem_internal<K, V>(hash);
+    elem.val = (malloc(@sizeof(V)) as &V);
+    memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(V));
+  } else {
+    elem: <K, V>HMLinkedListElem;
+    (&elem).hash = hash;
+    (&elem).val = (malloc(@sizeof(V)) as &V);
+    memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(V));
+    &(elem).has_next_elem = (self.has_next_elem);
+    &(elem).next_elem = (self.next_elem);
+    elem2: & <K, V>HMLinkedListElem = malloc(@sizeof(elem)) as & <K, V>HMLinkedListElem;
+    memcpy(elem2 as &u8, (&elem) as &u8, @sizeof(elem));
+    (self.next_elem) = elem2 as &u8;
+    (self.has_next_elem) = true;
+  }
+};
+
+<K, V> func hmlist#new(key: K, value: V): <K, V> HMLinkedListElem = {
+  elem: <K, V>HMLinkedListElem;
+  &(elem).hash = hash(key);
+  &(elem).val = (malloc(@sizeof(V)) as &V);
+  memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(V));
+  &(elem).has_next_elem = false;
+  elem
+};
+
+
+<K, V> overloadable func add(self: & <K, V>HMBucket, value: V, hash: u64) = {
+  if self.is_using_linked_list {
+    hnelem: bool = true;
+    elem: <K, V> HMLinkedListElem = *(self.sub_values);
+    while hnelem {
+      if *(elem.hash) == hash {
+        elem.val = value;
+      };
+      hnelem = *(elem.has_next_elem);
+      elem = *(elem.next_elem);
+    };
+  };
+};
+
+<T> type HashMap = {
+    buckets: &&HMBucket,
+};
+
+<T> prefix drop(elem: & <T> HMBucket) = {
+    if elem.does_contain_sub_buckets {
+        i: u8 = 0_8;
+        while i != 16 {
+            /* drop<T> elem.sub_buckets[i]; */
+        };
+    } else {
+        /* drop<T> elem.sub_values; */
+    };
+    free(elem as &u8);
+};
+// }}}
+
+// HASHINGS {{{
+overloadable func hash(h: u64): u64 = h;
+overloadable func hash(h: &u8): u64 = {
+  i: u64 = 0;
+  total: u64 = 0;
+  while ((*h[i])) != 0_8 {
+    q: u8 = *h[i];
+    /* putchar(q); */
+    /* putchar(':'); */
+    /* printint(2^2); */
+    p: u64 = @AS("int_z_extend q 64");
+    total += (53^i) * p;
+    i += 1;
+  };
+  total = (total % 1000000009);
+  /* printf("Hash of "); */
+  /* printf(h); */
+  /* printint(total); */
+  total
+};
+// }}}
+
 // LIST {{{
 
 <T> type VariableArray = {
@@ -572,6 +724,7 @@ type Parser = {
     brackets: <u8> VariableArray,
     prefixes: <&u8> VariableArray,
     suffixes: <&u8> VariableArray,
+    binaries: <&u8, u64> HMLinkedListElem,
 };
 
 
@@ -715,6 +868,7 @@ enum ExprType = {
     PrefixCall,
     SuffixCall,
     TemplatedExpr,
+    Binary
 };
 
 type Expr = {
@@ -805,6 +959,12 @@ type TemplatedExpr = {
     val: Expr,
 };
 
+type BinaryExpr = {
+    lhs: Expr,
+    rhs: Expr,
+    op: IdentifierExpr,
+};
+
 // type CDefExpr
 
 
@@ -817,6 +977,8 @@ func parser#new(lexer: &Lexer) : Parser = {
     (&parser).suffixes = variablearray#new<&u8>();
     (&((&parser).brackets)).append<u8>('(');
     (&((&parser).brackets)).append<u8>(')');
+    (&parser).binaries = hmlist#new<&u8, u64>("+", 50);
+    (&((&parser).binaries)).hmlist_add<&u8, u64>("*", 100);
     // TODO: THIS IS TESTING PLZ REMOVE
     // (&((&parser).prefixes)).append<&u8>("free");
     // (&((&parser).suffixes)).append<&u8>("_s");
@@ -852,6 +1014,8 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#SuffixCall");
     } else if *val == ExprType#TemplatedExpr {
         printf("ExprType#TemplatedExpr");
+    } else if *val == ExprType#Binary {
+        printf("ExprType#Binary");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -859,7 +1023,7 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
 
 
 // forward-def
-func parseExpr(parser: &Parser) : Expr;
+func parsePrimaryExpr(parser: &Parser) : Expr;
 // GOT HERE, need to forward-def overloadbles
 func debugBlockExpr(val: &BlockExpr, indentation: u64);
 func debugIdentifierExpr(val: &IdentifierExpr, indentation: u64);
@@ -874,6 +1038,7 @@ func debugPostfixBracketsExpr(val: &PostfixBracketsExpr, indentation: u64);
 func debugPrefixCallExpr(val: &PrefixCallExpr, indentation: u64);
 func debugSuffixCallExpr(val: &SuffixCallExpr, indentation: u64);
 func debugTemplatedExpr(t: &TemplatedExpr, indentation: u64);
+func debugBinaryExpr(b: &BinaryExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {
     debugExprType(&(val.variant), indentation);
@@ -903,6 +1068,8 @@ overloadable func debugExpr(val: &Expr, indentation: u64) = {
         debugSuffixCallExpr((val.value) as &SuffixCallExpr, indentation);
     } else if val.variant == ExprType#TemplatedExpr {
         debugTemplatedExpr((val.value) as &TemplatedExpr, indentation);
+    } else if val.variant == ExprType#Binary {
+        debugBinaryExpr((val.value) as &BinaryExpr, indentation);
     } else {
         printf("Dunno how to debug this type");
     }
@@ -912,6 +1079,7 @@ prefix drop(expr: Expr) = {
     free (&expr.value);
 };
 
+func parseExpr(parser: &Parser) : Expr;
 
 func debugNumberExpr(val: &NumberExpr, indentation: u64) = {
     debugLexString(&(val.source), indentation);
@@ -1449,7 +1617,7 @@ func maybePrefixCallExpr(parser: &Parser, i: IdentifierExpr) : Expr = {
       free r;
         p: PrefixCallExpr;
         (&p).prefix = i;
-        (&p).val = parser.parseExpr();
+        (&p).val = parser.parsePrimaryExpr();
         end: u64 = parser.lexer.index;
         start: u64 = (&((&i).source)).offset;
         (&p).source = lexstring#new(parser.lexer, start, end);
@@ -1541,7 +1709,9 @@ func maybeTemplatedExpr(parser: &Parser, e: Expr) : Expr = {
     } else {e}
 };
 
-func parseExpr(parser: &Parser) : Expr = {
+// DOES NOT HANDLE BINARY SHENANIGANS
+
+func parsePrimaryExpr(parser: &Parser) : Expr = {
     parser.lexer.takeWhitespace();
 
     next_char: u8 = parser.lexer.peekChar();
@@ -1594,165 +1764,79 @@ func parseExpr(parser: &Parser) : Expr = {
     ex
 };
 
-// }}}
+prefix copy(b: BinaryExpr) : &BinaryExpr = b.flatCopy<BinaryExpr>();
 
-// HASHMAP {{{
-<K, V> type HMLinkedListElem = {
-    hash: u64,
-    val: &V,
-    has_next_elem: bool,
-    next_elem: &u8,// <T>HMLinkedListElem, // or 0 if no next elem, forgive me for using nullptrs
+func asExpr(b: BinaryExpr) : Expr = {
+    ex: Expr;
+    (&ex).variant = ExprType#Binary;
+    (&ex).value = (copy b) as &u8;
+
+    ex
 };
 
-<K, V> prefix drop(elem: & <K, V>HMLinkedListElem) = {
-    free(elem.val);
-    if (elem.next_elem) as u64 != 0 {
-        drop(elem.next_elem);
+func debugBinaryExpr(b: &BinaryExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("BINARY:");
+    debugIdentifierExpr(&(b.op), indentation + 2);
+    printIndentation(indentation);
+    printf("LHS:");
+    debugExpr(&(b.lhs), indentation + 2);
+    printIndentation(indentation);
+    printf("RHS:");
+    debugExpr(&(b.rhs), indentation + 2);
+};
+
+func parseBinary(parser: &Parser, lhs_: Expr, current_prec: u64) : Expr = {
+    lhs: Expr = lhs_;
+    while true {
+      parser.lexer.takeWhitespace();
+      peekl: Lexer = parser.lexer.peek();
+      id: LexString = (&peekl).takeIdentifier();
+      peeked: &u8 = (&id).render();
+      if !((&(parser.binaries)).hmlist_contains<&u8, u64>(peeked)) { free peeked; return lhs; };
+      their_prec: u64 = *((&(parser.binaries)).hmlist_get<&u8, u64>(peeked));
+      free peeked;
+      if current_prec > their_prec { return lhs; };
+      // okay take it
+      op: IdentifierExpr = parser.parseIdentifierExpr();
+      // and the rhs
+      rhs: Expr = parser.parsePrimaryExpr();
+
+      // identity theft
+      our_prec: u64 = their_prec;
+
+      parser.lexer.takeWhitespace();
+      peekl = parser.lexer.peek();
+      id = (&peekl).takeIdentifier();
+      peeked = (&id).render();
+    
+      // TODO: negative numbers (!)
+      their_prec = if !((&(parser.binaries)).hmlist_contains<&u8, u64>(peeked)) { 0 }
+      else { *((&(parser.binaries)).hmlist_get<&u8, u64>(peeked)) };
+
+      // if theirs is bigger than ours consider it first
+      rhs = if their_prec > our_prec { parser.parseBinary(rhs, our_prec) }
+      else { rhs };
+
+      lhsnew: BinaryExpr;
+      (&lhsnew).lhs = lhs;
+      (&lhsnew).rhs = rhs;
+      (&lhsnew).op = op;
+
+      lhs = lhsnew.asExpr();
     };
-    free(elem as &u8);
+
+    lhs
 };
 
-/* <T> type HMBucket = { */
-/*     hash_offset: u8, */
-/*     does_contain_sub_buckets: bool, */
-/*     // array of length uhh 16 */
-/*     sub_buckets: &&HMBucket, */
-/*     // else, a linked list of values of max length uhh 8? */
-/*     sub_values: <T> HMLinkedListElem, */
-/*     sub_values_len: u8, */
-/*     is_using_linked_list: bool, */
-/* }; */
+func parseExpr(parser: &Parser) : Expr = parser.parseBinary(parser.parsePrimaryExpr(), 0);
 
-/* <T> func hmbucket#new(hash_offset: u8): <T> HMBucket = { */
-/*     bucket: <T> HMBucket; */
-/*     bucket.hash_offset = hash_offset; */
-/*     bucket.sub_values_len = 0; */
-/*     // TODO */
-/*     bucket */
-/* }; */
-
-<K, V> overloadable func hmlist_contains_internal(self: & <K, V> HMLinkedListElem, hash: u64) : bool = {
-  current: &<K, V>HMLinkedListElem = self;
-  while true {
-    /* printf("checking\n"); */
-    if (current.hash) == hash { return true }
-    else if !(current.has_next_elem) { return false }
-    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem)}
-  };
-  false
-};
-<K, V> overloadable func hmlist_contains(self: & <K, V> HMLinkedListElem, key: K) : bool = self.hmlist_contains_internal(hash(key));
-
-<K, V> overloadable func hmlist_get(self: & <K, V> HMLinkedListElem, key: K) : &V = {
-  hash: u64 = hash(key);
-  current: & <K, V>HMLinkedListElem = self;
-  while true {
-    /* printf("get checking\n"); */
-    if (current.hash) == hash { return (current.val) }
-    else if ! (current.has_next_elem) { panic("Getting an element that doesn't exist") }
-    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem) }
-  };
-  self.val
-};
-
-<K, V> overloadable func hmlist_get_elem_internal(self: & <K, V> HMLinkedListElem, hash: u64) : & <K, V> HMLinkedListElem = {
-  current: &<K, V>HMLinkedListElem = self;
-  while true {
-    /* printf("getelem checking\n"); */
-    if (current.hash) == hash { return current }
-    else if !(current.has_next_elem) { panic("Getting an element that doesn't exist") }
-    else { current = ((current.next_elem) as &<K, V>HMLinkedListElem) }
-  };
-  self
-};
-
-<K, V> overloadable func hmlist_add(self: & <K, V> HMLinkedListElem, key: K, value: V) = {
-  hash: u64 = hash(key);
-  if self.hmlist_contains_internal<K, V>(hash) {
-    elem: & <K, V>HMLinkedListElem = self.hmlist_get_elem_internal<K, V>(hash);
-    elem.val = (malloc(@sizeof(V)) as &V);
-    memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(V));
-  } else {
-    elem: <K, V>HMLinkedListElem;
-    (&elem).hash = hash;
-    (&elem).val = (malloc(@sizeof(V)) as &V);
-    memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(V));
-    &(elem).has_next_elem = (self.has_next_elem);
-    &(elem).next_elem = (self.next_elem);
-    elem2: & <K, V>HMLinkedListElem = malloc(@sizeof(elem)) as & <K, V>HMLinkedListElem;
-    memcpy(elem2 as &u8, (&elem) as &u8, @sizeof(elem));
-    (self.next_elem) = elem2 as &u8;
-    (self.has_next_elem) = true;
-  }
-};
-
-<K, V> func hmlist#new(key: K, value: V): <K, V> HMLinkedListElem = {
-  elem: <K, V>HMLinkedListElem;
-  &(elem).hash = hash(key);
-  &(elem).val = (malloc(@sizeof(V)) as &V);
-  memcpy((&(elem).val) as &u8, (&value) as &u8, @sizeof(V));
-  &(elem).has_next_elem = false;
-  elem
-};
-
-
-<K, V> overloadable func add(self: & <K, V>HMBucket, value: V, hash: u64) = {
-  if self.is_using_linked_list {
-    hnelem: bool = true;
-    elem: <K, V> HMLinkedListElem = *(self.sub_values);
-    while hnelem {
-      if *(elem.hash) == hash {
-        elem.val = value;
-      };
-      hnelem = *(elem.has_next_elem);
-      elem = *(elem.next_elem);
-    };
-  };
-};
-
-<T> type HashMap = {
-    buckets: &&HMBucket,
-};
-
-<T> prefix drop(elem: & <T> HMBucket) = {
-    if elem.does_contain_sub_buckets {
-        i: u8 = 0_8;
-        while i != 16 {
-            /* drop<T> elem.sub_buckets[i]; */
-        };
-    } else {
-        /* drop<T> elem.sub_values; */
-    };
-    free(elem as &u8);
-};
-// }}}
-
-// HASHINGS {{{
-overloadable func hash(h: u64): u64 = h;
-overloadable func hash(h: &u8): u64 = {
-  i: u64 = 0;
-  total: u64 = 0;
-  while ((*h[i])) != 0_8 {
-    q: u8 = *h[i];
-    /* putchar(q); */
-    /* putchar(':'); */
-    /* printint(2^2); */
-    p: u64 = @AS("int_z_extend q 64");
-    total += (53^i) * p;
-    i += 1;
-  };
-  total = (total % 1000000009);
-  /* printf("Hash of "); */
-  /* printf(h); */
-  /* printint(total); */
-  total
-};
 // }}}
 
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "a<b,c, z >()";
+    code: &u8 = "a + b * c + d";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: Expr = parser.parseExpr();
