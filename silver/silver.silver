@@ -752,6 +752,73 @@ type TemplateTypeExpr = {
     value: TypeExpr,
 };
 
+// TODO: Default values
+type StructVarDef = {
+    name: LexString,
+    type: TypeExpr,
+};
+
+type StructTypeExpr = {
+    types: <StructVarDef> VariableArray,
+};
+
+func parseType(parser: &Parser) : TypeExpr;
+
+func debugTypeExpr(ty: &TypeExpr, indentation: u64);
+
+func debugStructVarDef(s: &StructVarDef, indentation: u64) = {
+    printIndentation(indentation);
+    debugLexString(&(s.name), indentation + 2);
+    printIndentation(indentation);
+    printf(":");
+    debugTypeExpr(&(s.type), indentation + 2);
+};
+func debugStructTypeExpr(s: &StructTypeExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("STRUCT TYPE DEF:");
+    i: u64 = 0;
+    while i < (&(s.types)).len {
+        debugStructVarDef((&(s.types)).get<StructVarDef>(i), indentation + 2);
+        i++;
+    };
+};
+
+func parseStructTypeExpr(parser: &Parser) : TypeExpr = {
+    parser.lexer.takeWhitespace();
+    start: u64 = parser.lexer.index;
+    parser.lexer.require('{');
+    parser.lexer.takeWhitespace();
+    s_vardefs: <StructVarDef> VariableArray = variablearray#new<StructVarDef>();
+    while !(parser.lexer.isEof()) && parser.lexer.peekChar() != '}' {
+        name: LexString = parser.lexer.takeIdentifier();
+        if (&name).len == 0 { panic("Expected a name for a struct vardef"); };
+        parser.lexer.takeWhitespace();
+        parser.lexer.require(':');
+        parser.lexer.takeWhitespace();
+        type: TypeExpr = parser.parseType();
+        parser.lexer.takeWhitespace();
+        if parser.lexer.peekChar() != '}' {
+            parser.lexer.require(',');
+        };
+        parser.lexer.takeWhitespace();
+        s: StructVarDef;
+        (&s).name = name;
+        (&s).type = type;
+        (&s_vardefs).append<StructVarDef>(s);
+    };
+    parser.lexer.require('}');
+    end: u64 = parser.lexer.index;
+    s: StructTypeExpr;
+    (&s).types = s_vardefs;
+    
+    t: TypeExpr;
+    (&t).variant = TypeType#Struct;
+    (&t).source = lexstring#new(parser.lexer, start, end);
+    (&t).value = (s.flatCopy<StructTypeExpr>()) as &u8;
+
+    t
+};
+
 func debugTemplateTypeExpr(ty: &TemplateTypeExpr, indentation: u64);
 
 func debugTypeExprInternal(ty: &TypeExpr, indentation: u64) = {
@@ -766,7 +833,9 @@ func debugTypeExprInternal(ty: &TypeExpr, indentation: u64) = {
         free rendered;
     } else if ty.variant == TypeType#Template {
         debugTemplateTypeExpr((ty.value) as &TemplateTypeExpr, indentation);
-      } else {
+    } else if ty.variant == TypeType#Struct {
+        debugStructTypeExpr((ty.value) as &StructTypeExpr, indentation);
+    } else {
         printf("Dunno how to debug this type type")
     }
 };
@@ -793,7 +862,6 @@ prefix copy(ty: TypeExpr) : &TypeExpr = ty.flatCopy<TypeExpr>();
 prefix copy(ty: NamedTypeExpr) : &NamedTypeExpr = ty.flatCopy<NamedTypeExpr>();
 prefix copy(ty: TemplateTypeExpr) : &TemplateTypeExpr = ty.flatCopy<TemplateTypeExpr>();
 
-func parseType(parser: &Parser) : TypeExpr;
 
 func parseTemplateList(parser: &Parser) : <TypeExpr> VariableArray = {
     parser.lexer.require('<');
@@ -833,6 +901,9 @@ func parseType(parser: &Parser) : TypeExpr = {
     (&ty).variant = TypeType#Template;
     (&ty).value = (copy t) as &u8;
     ty
+  } else if c == '{' {
+    t: TypeExpr = parser.parseStructTypeExpr();
+    t
   } else {
     // TODO: structs, funcs
     name: LexString = parser.lexer.takeIdentifier();
@@ -1833,10 +1904,20 @@ func parseExpr(parser: &Parser) : Expr = parser.parseBinary(parser.parsePrimaryE
 
 // }}}
 
+// TL-PARSING {{{
+
+enum TopLevelExpr = {
+    CDef,
+    Function,
+    Typedef,
+};
+
+//  }}}
+
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "a + b * c + d";
+    code: &u8 = "a: {P:q, D:v}";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: Expr = parser.parseExpr();
