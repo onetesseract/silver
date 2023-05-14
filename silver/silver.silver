@@ -872,6 +872,7 @@ func parseTemplateList(parser: &Parser) : <TypeExpr> VariableArray = {
       parser.lexer.takeWhitespace();
       if parser.lexer.peekChar() != '>' {
         parser.lexer.require(',');
+        parser.lexer.takeWhitespace();
       };
     };
     parser.lexer.require('>');
@@ -1906,10 +1907,70 @@ func parseExpr(parser: &Parser) : Expr = parser.parseBinary(parser.parsePrimaryE
 
 // TL-PARSING {{{
 
-enum TopLevelExpr = {
+enum TLExprType = {
     CDef,
     Function,
     Typedef,
+    Enum,
+};
+
+type TLExpr = {
+    variant: TLExprType,
+    value: &u8
+};
+
+type EnumTLExpr = {
+    source: LexString,
+    names: <IdentifierExpr> VariableArray,
+    name: LexString,
+};
+
+func debugEnumTLExpr(e: &EnumTLExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("ENUM:");
+    debugLexString(&(e.name), indentation);
+    i: u64 = 0;
+    while i < (&(e.names)).len {
+        debugIdentifierExpr((&(e.names)).get<IdentifierExpr>(i), indentation + 2);
+        i++
+    };
+};
+
+func parseEnumTLExpr(parser: &Parser) : EnumTLExpr = {
+    parser.lexer.takeWhitespace();
+    start: u64 = parser.lexer.index;
+    l: LexString = (parser.lexer.takeIdentifier());
+    kwd: &u8 = (&l).render();
+    if kwd != "enum" {
+        panic("Expected `enum`");
+    };
+    parser.lexer.takeWhitespace();
+    name: LexString = parser.lexer.takeIdentifier();
+    parser.lexer.takeWhitespace();
+    parser.lexer.require('=');
+    parser.lexer.takeWhitespace();
+    parser.lexer.require('{');
+    parser.lexer.takeWhitespace();
+    
+    names: <IdentifierExpr> VariableArray = variablearray#new<IdentifierExpr>();
+
+    while !(parser.lexer.isEof()) && parser.lexer.peekChar() != '}' {
+          (&names).append<IdentifierExpr>(parser.parseIdentifierExpr());
+          parser.lexer.takeWhitespace();
+          if parser.lexer.peekChar() != '}' {
+              parser.lexer.require(',');
+              parser.lexer.takeWhitespace();
+          };
+    };
+
+    end: u64 = parser.lexer.index;
+
+    e: EnumTLExpr;
+    (&e).source = lexstring#new(parser.lexer, start, end);
+    (&e).names = names;
+    (&e).name = name;
+
+    e
 };
 
 //  }}}
@@ -1917,11 +1978,13 @@ enum TopLevelExpr = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "a: {P:q, D:v}";
+    code: &u8 = "enum pqrs = {a, q, p}";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
-    e: Expr = parser.parseExpr();
-    (&e).debugExpr(0);
+    e: EnumTLExpr = parser.parseEnumTLExpr();
+    debugEnumTLExpr(&e, 0);
+    // e: Expr = parser.parseExpr();
+    // (&e).debugExpr(0);
     /* printf("main"); */
     /* data: &u8 = malloc(9223372036854775807 * @sizeof(u64)); */
     /* (*data[0]) = 7_8; */

@@ -28,9 +28,9 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [?] proper cacheing of templated fns
 - [X] Array indexing syntax
 
-### Selfhosted Todo List:
+### Selfhosted Parsing Todo List:
 #### Parsing:
-- [ ] binary ops
+- [X] binary ops
 - [X] blocks
 - [X] brackets (incl calls somehow)
 - [X] casts
@@ -38,16 +38,20 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] if
 - [X] prefix, suffix, and template calls
 - [X] template typeexprs
-- [ ] bracket typedefs
-- [ ] watch keywords
 - [X] numbers
 - [X] return
 - [X] strings
 - [X] vardefs
 - [X] identifiers/variables
+- [X] Types
+    - [X] struct types
 - [X] while
 ##### top level:
-- [ ] enums
+- [X] enums
 - [ ] hints
 - [ ] protos
 - [ ] templates
+- [ ] macros (oh no)
+#### low priority:
+- [ ] bracket typedefs
+- [ ] watch keywords
