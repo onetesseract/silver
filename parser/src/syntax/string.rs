@@ -22,6 +22,7 @@ impl<'a> StringExpr<'a> {
                 s.push(
                     match lexer.take_char().render().as_bytes()[0] as char {
                         'n' => '\n',
+                        't' => '\t',
                         x => x,
                     }
                 );

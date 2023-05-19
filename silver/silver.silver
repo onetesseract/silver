@@ -1926,7 +1926,7 @@ type EnumTLExpr = {
 };
 
 prefix copy(e: EnumTLExpr) : &EnumTLExpr = e.flatCopy<EnumTLExpr>();
-func asTLExpr(e: EnumTLExpr) : TLExpr = {
+overloadable func asTLExpr(e: EnumTLExpr) : TLExpr = {
     t: TLExpr;
     (&t).variant = TLExprType#Enum;
     (&t).value = (copy e) as &u8;
@@ -1946,7 +1946,6 @@ func debugEnumTLExpr(e: &EnumTLExpr, indentation: u64) = {
 };
 
 func parseEnumTLExpr(parser: &Parser) : EnumTLExpr = {
-    parser.lexer.takeWhitespace();
     start: u64 = parser.lexer.index;
     l: LexString = (parser.lexer.takeIdentifier());
     kwd: &u8 = (&l).render();
@@ -1982,8 +1981,55 @@ func parseEnumTLExpr(parser: &Parser) : EnumTLExpr = {
     e
 };
 
+type TypedefTLExpr = {
+    source: LexString,
+    name: LexString,
+    ty: TypeExpr,
+};
+
+prefix copy(t: TypedefTLExpr) : &TypedefTLExpr = t.flatCopy<TypedefTLExpr>();
+overloadable func asTLExpr(t: TypedefTLExpr) : TLExpr = {
+    e: TLExpr;
+    (&e).variant = TLExprType#Typedef;
+    (&e).value = (copy t) as &u8;
+
+    e
+};
+
+func debugTypedefTLExpr(t: &TypedefTLExpr, indentation: u64) = {
+    printf("\nTYPEDEF:");
+    debugLexString(&(t.name), indentation);
+    debugTypeExpr(&(t.ty), indentation);
+};
+
+func parseTypedefTLExpr(parser: &Parser) : TypedefTLExpr = {
+    start: u64 = parser.lexer.index;
+    l: LexString = (parser.lexer.takeIdentifier());
+    kwd: &u8 = (&l).render();
+    if kwd != "type" {
+        printf("got ");printf(kwd);
+        panic("Expected `type`");
+    };
+    parser.lexer.takeWhitespace();
+    name: LexString = parser.lexer.takeIdentifier();
+    parser.lexer.takeWhitespace();
+    parser.lexer.require('=');
+    parser.lexer.takeWhitespace();
+    t: TypeExpr = parser.parseType();
+
+    end: u64 = parser.lexer.index;
+
+    e: TypedefTLExpr;
+    (&e).source = lexstring#new(parser.lexer, start, end);
+    (&e).ty = t;
+    (&e).name = name;
+
+    e
+  };
+
 func debugTLExprType(t: TLExprType) = {
     if t == TLExprType#Enum {printf("TLExprType#Enum");}
+    else if t == TLExprType#Typedef {printf("TLExprType#Typedef");}
     else (printf("I don't know how to debug this TLExprType"))
 };
 
@@ -1993,23 +2039,33 @@ func debugTLExpr(t: &TLExpr) = {
     debugTLExprType(t.variant);
     if t.variant == TLExprType#Enum {
         debugEnumTLExpr((t.value) as &EnumTLExpr, 0);
-      } else {
+    } else if t.variant == TLExprType#Typedef {
+        debugTypedefTLExpr((t.value) as &TypedefTLExpr, 0);
+    } else {
         printf("Can't debug this TL expr type!");
     }
 };
 
 func parseTLExpr(parser: &Parser) : TLExpr = {
     // TODO: hints, cdefs, etc etc
+    parser.lexer.takeWhitespace();
     peeked: Lexer = parser.lexer.peek();
     ls: LexString = (&peeked).takeIdentifier();
     next: &u8 = (&ls).render();
-    if next == "enum" {
+    e: TLExpr = if next == "enum" {
         parser.parseEnumTLExpr().asTLExpr()
+    } else if next == "type" {
+        parser.parseTypedefTLExpr().asTLExpr()
     } else {
+          printf("Can't parse `");
+          printf(next);
+          printf("`");
           panic("Can't parse TLExpr");
           t: TLExpr;
           t
-    }
+    };
+    free next;
+    e
 };
 
 //  }}}
@@ -2017,7 +2073,7 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "enum pqrs = {a, q, p}";
+    code: &u8 = "type axb = {pqr: u9}";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: TLExpr = parser.parseTLExpr();
