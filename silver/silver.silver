@@ -1907,6 +1907,47 @@ func parseExpr(parser: &Parser) : Expr = parser.parseBinary(parser.parsePrimaryE
 
 // TL-PARSING {{{
 
+// HINTS {{{
+type Hints = {
+    source: LexString,
+    name: LexString,
+    values: <Expr> VariableArray,
+};
+
+func debugHints(h: &Hints, indentation: u64) = {
+    printIndentation(indentation);
+    printf("HINTS:");
+    debugLexString(&(h.name), indentation);
+    i: u64 = 0;
+    while i < (&(h.values)).len {
+        debugExpr((&(h.values)).get<Expr>(i), indentation + 2);
+        i++;
+    };
+};
+
+func parseHints(parser: &Parser) : Hints = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require('#');
+    parser.lexer.takeWhitespace();
+    name: LexString = parser.lexer.takeIdentifier();
+    parser.lexer.takeWhitespace();
+    values: <Expr> VariableArray = variablearray#new<Expr>();
+    while parser.lexer.peekChar() != ';' {
+        (&values).append<Expr>(parser.parseExpr());
+        parser.lexer.takeWhitespace();
+        if parser.lexer.peekChar() != ';' {parser.lexer.require(',');};
+    };
+    end: u64 = parser.lexer.index;
+
+    h: Hints;
+    (&h).name = name;
+    (&h).values = values;
+    (&h).source = lexstring#new(parser.lexer, start, end);
+    h
+};
+
+// }}}
+
 enum TLExprType = {
     CDef,
     Function,
@@ -1916,6 +1957,7 @@ enum TLExprType = {
 
 type TLExpr = {
     variant: TLExprType,
+    hints: <Hints> VariableArray,
     value: &u8
 };
 
@@ -2037,6 +2079,11 @@ func debugTLExpr(t: &TLExpr) = {
     printf("\n");
     printf("Type: ");
     debugTLExprType(t.variant);
+    i: u64 = 0;
+    while i < (&(t.hints)).len {
+        debugHints((&(t.hints)).get<Hints>(i), 0);
+        i++
+    };
     if t.variant == TLExprType#Enum {
         debugEnumTLExpr((t.value) as &EnumTLExpr, 0);
     } else if t.variant == TLExprType#Typedef {
@@ -2049,6 +2096,14 @@ func debugTLExpr(t: &TLExpr) = {
 func parseTLExpr(parser: &Parser) : TLExpr = {
     // TODO: hints, cdefs, etc etc
     parser.lexer.takeWhitespace();
+    hints: <Hints> VariableArray = variablearray#new<Hints>();
+    while parser.lexer.peekChar() == '#' {
+        h: Hints = parser.parseHints();
+        (&hints).append<Hints>(h);
+        // hints.append<Hints>(parser.parseHints());
+        parser.lexer.require(';');
+        parser.lexer.takeWhitespace();
+    };
     peeked: Lexer = parser.lexer.peek();
     ls: LexString = (&peeked).takeIdentifier();
     next: &u8 = (&ls).render();
@@ -2065,6 +2120,7 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
           t
     };
     free next;
+    (&e).hints = hints;
     e
 };
 
@@ -2073,96 +2129,11 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "type axb = {pqr: u9}";
+    code: &u8 = "#prec 17;type p = q;";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: TLExpr = parser.parseTLExpr();
     debugTLExpr(&e);
-    // e: Expr = parser.parseExpr();
-    // (&e).debugExpr(0);
-    /* printf("main"); */
-    /* data: &u8 = malloc(9223372036854775807 * @sizeof(u64)); */
-    /* (*data[0]) = 7_8; */
-    /* printf("begin\n"); */
-    /* code: &u8 = "178.7492 aa 786 bcd"; */
-    /* lexer: &Lexer = &lexer#new(code); */
-    /**/
-    /*  */
-    /* string: &LexString = & &(lexer.takeWhitespace()); */
-    /* printf(string.render()); */
-    /**/
-    /* putchar('\n'); */
-
-    /* string: &LexString = & &(lexer.takeNumber()); */
-    /* printf(string.render()); */
-    /**/
-    /* putchar('\n'); */
-    /**/
-    /* lexer.takeWhitespace(); */
-    /**/
-    /* string = & &(lexer.takeIdentifier()); */
-    /* printf(string.render()); */
-    /* putchar('\n'); */
-    /**/
-    /* parser: &Parser = &parser#new(lexer); */
-    /**/
-    /* parser.parseNumberExpr(); */
-    /* parser.parseNumberExpr(); */
-
-    /* va: <&u8> VariableArray; */
-    /* va = variablearray#new<&u8>(); */
-
-    /* (&va).append<&u8>("he"); */
-
-    /* printf(*((&va).get<&u8>(0))); */
-
-    /* va: <u64> VariableArray; */
-    /* va = variablearray#new<u64>(); */
-
-    /* (&va).append<u64>(7); */
-
-    /* if *((&va).get<u64>(0)) == 7 { */
-    /*     printf("yay\n"); */
-    /* }; */
-    /* if *((&va).get<u64>(0)) == 0 { */
-    /*     printf("noo\n"); */
-    /* }; */
-
-    /* if (&va).len == 1 { */
-    /*     printf("correct length\n"); */
-    /* }; */
-    /* va: <&u8> VariableArray; */
-    /* va = variablearray#new<&u8>(); */
-    /* (&va).append<&u8>("hello\n"); */
-    /* s: &&u8 = (&va).get<&u8>(0); */
-    /* printf(*s); */
-
-    /* source: &u8 = "{\"babc\"}"; */
-
-    /* lexer: &Lexer = &lexer#new(source); */
-    /* parser: &Parser = &parser#new(lexer); */
-
-    /* printf("hello"); */
-
-    /* expr: Expr = parser.parseExpr(); */
-
-    /* printf("here lol\n"); */
-
-    /* printf("Input was:\n"); */
-    /* printf(source); */
-
-    /* printf("\nOutput was:\n"); */
-
-    /* debugExpr(&expr, 0); */
-    /* printf("here20"); */
-    /* q: <&u8, &u8> HMLinkedListElem = hmlist#new<&u8, &u8>("k1", "jhelp"); */
-    /* printf("here"); */
-    /* (&q).hmlist_add<&u8, &u8>("k2", "aaaa"); */
-    /* p: &&u8 = (&q).hmlist_get<&u8, &u8>(4); */
-    /* printf(*p); */
-    /* p: &&u8 = (&q).hmlist_get<&u8, &u8>("k1"); */
-    /* printf(*p); */
-
     exit(0);
     0
 };
