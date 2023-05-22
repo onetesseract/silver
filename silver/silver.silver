@@ -1948,6 +1948,47 @@ func parseHints(parser: &Parser) : Hints = {
 
 // }}}
 
+// TEMPLATES {{{
+
+type TemplateExpr = {
+    source: LexString,
+    args: <LexString> VariableArray,
+};
+
+func parseTemplate(parser: &Parser) : TemplateExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require('<');
+    parser.lexer.takeWhitespace();
+    v: <LexString> VariableArray = variablearray#new<LexString>();
+    while parser.lexer.peekChar() != '>' {
+        (&v).append<LexString>(parser.lexer.takeIdentifier());
+        parser.lexer.takeWhitespace();
+        if parser.lexer.peekChar() != '>' {
+          parser.lexer.require(',');
+          parser.lexer.takeWhitespace();
+        };
+    };
+    parser.lexer.require('>');
+
+    t: TemplateExpr;
+    (&t).source = lexstring#new(parser.lexer, start, parser.lexer.index);
+    (&t).args = v;
+
+    t
+};
+
+func debugTemplateExpr(t: &TemplateExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("TEMPLATE:");
+    i: u64 = 0;
+    while i < (&(t.args)).len {
+        debugLexString((&(t.args)).get<LexString>(i), indentation + 2);
+        i++
+    };
+};
+
+// }}}
+
 enum TLExprType = {
     CDef,
     Function,
@@ -1958,7 +1999,9 @@ enum TLExprType = {
 type TLExpr = {
     variant: TLExprType,
     hints: <Hints> VariableArray,
-    value: &u8
+    value: &u8,
+    template: TemplateExpr,
+    has_template: bool,
 };
 
 type EnumTLExpr = {
@@ -2084,6 +2127,9 @@ func debugTLExpr(t: &TLExpr) = {
         debugHints((&(t.hints)).get<Hints>(i), 0);
         i++
     };
+    if t.has_template {
+        debugTemplateExpr(&(t.template), 0);
+    };
     if t.variant == TLExprType#Enum {
         debugEnumTLExpr((t.value) as &EnumTLExpr, 0);
     } else if t.variant == TLExprType#Typedef {
@@ -2104,6 +2150,13 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
         parser.lexer.require(';');
         parser.lexer.takeWhitespace();
     };
+    has_template: bool = false;
+    template: TemplateExpr;
+    if parser.lexer.peekChar() == '<' {
+        template = parser.parseTemplate();
+        has_template = true;
+        parser.lexer.takeWhitespace();
+    };
     peeked: Lexer = parser.lexer.peek();
     ls: LexString = (&peeked).takeIdentifier();
     next: &u8 = (&ls).render();
@@ -2121,6 +2174,8 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
     };
     free next;
     (&e).hints = hints;
+    (&e).has_template = has_template;
+    (&e).template = template;
     e
 };
 
@@ -2129,7 +2184,7 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "#prec 17;type p = q;";
+    code: &u8 = "#prec 17;<T, p, qr> type p = q;";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: TLExpr = parser.parseTLExpr();

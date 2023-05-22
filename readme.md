@@ -48,9 +48,9 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] while
 ##### top level:
 - [X] enums
-- [ ] hints
+- [X] hints
 - [ ] protos
-- [ ] templates
+- [X] templates
 - [ ] macros (oh no)
 #### low priority:
 - [ ] bracket typedefs
