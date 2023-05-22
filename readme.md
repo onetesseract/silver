@@ -49,9 +49,10 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 ##### top level:
 - [X] enums
 - [X] hints
-- [ ] protos
+- [X] protos
 - [X] templates
-- [ ] macros (oh no)
+- [X] macros (oh no)
+- [ ] Cdefs
 #### low priority:
 - [ ] bracket typedefs
 - [ ] watch keywords

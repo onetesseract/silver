@@ -1263,6 +1263,15 @@ func maybeVardefExpr(parser: &Parser, id: IdentifierExpr) : Expr = {
   } else { id.asExpr() }
 };
 
+func parseVardefExpr(parser: &Parser) : VardefExpr = {
+    id: IdentifierExpr =  parser.parseIdentifierExpr();
+    parser.lexer.takeWhitespace();
+    if parser.lexer.peekChar() != ':' {panic("Expected ':'");};
+    e: Expr = parser.maybeVardefExpr(id);
+    if (&e).variant != ExprType#Vardef {panic("something is quite wrong")};
+    *(((&e).value) as &VardefExpr)
+};
+
 func debugBlockExpr(val: &BlockExpr, indentation: u64) = {
     printIndentation(indentation);
     exprs: <Expr> VariableArray;
@@ -2110,11 +2119,174 @@ func parseTypedefTLExpr(parser: &Parser) : TypedefTLExpr = {
     (&e).name = name;
 
     e
-  };
+};
+
+enum FnProtoType = {
+    Infix,
+    Suffix,
+    Prefix,
+    Brackets,
+    Normal
+};
+
+func debugFnProtoType(f: FnProtoType, indentation: u64) = {
+    printIndentation(indentation);
+    if f == FnProtoType#Infix {printf("FnProtoType#Infix");}
+    else if f == FnProtoType#Suffix {printf("FnProtoType#Suffix");}
+    else if f == FnProtoType#Prefix {printf("FnProtoType#Prefix");}
+    else if f == FnProtoType#Brackets {printf("FnProtoType#Brackets");}
+    else if f == FnProtoType#Normal {printf("FnProtoType#Normal");}
+    else {printf("Don't know how to debug this FnProtoType");}
+};
+
+type FnProto = {
+  source: LexString,
+    variant: FnProtoType,
+    first: LexString,
+    last: LexString, // only for bracketed
+  args: <VardefExpr> VariableArray,
+  has_retty: bool,
+  retty: TypeExpr,
+  overloadable: bool,
+  macro: bool,
+};
+
+func debugFnProto(p: &FnProto, indentation: u64) = {
+    printIndentation(indentation);
+    printf("PROTO");
+    if p.overloadable {
+        printIndentation(indentation);
+        printf("OVERLOADABLE");
+    };
+    debugFnProtoType(p.variant, indentation);
+    debugLexString(&(p.first), indentation);
+    if p.variant == FnProtoType#Brackets {debugLexString(&(p.last), indentation);};
+    if p.has_retty {debugTypeExpr(&(p.retty), indentation)};
+    i: u64 = 0;
+    while i < (&(p.args)).len {
+        debugVardefExpr((&(p.args)).get<VardefExpr>(i), indentation + 2);
+        i++;
+    };
+};
+
+func parseFnProto(parser: &Parser) : FnProto = {
+    start: u64 = parser.lexer.index;
+    ty: LexString = parser.lexer.takeIdentifier();
+    r: &u8 = (&ty).render();
+    overloadable: bool = if r == "overloadable" {free r; parser.lexer.takeWhitespace();
+      ty: LexString = parser.lexer.takeIdentifier();
+      r: &u8 = (&ty).render(); true}
+    else {false};
+    macro: bool = if r == "macro" {free r; parser.lexer.takeWhitespace();
+      ty: LexString = parser.lexer.takeIdentifier();
+      r: &u8 = (&ty).render(); true}
+    else {false};
+    fnty: FnProtoType = if r == "infix" {FnProtoType#Infix}
+    else if r == "suffix" {FnProtoType#Suffix}
+    else if r == "prefix" {FnProtoType#Prefix}
+    else if r == "brackets" {FnProtoType#Brackets}
+    else if r == "func" {FnProtoType#Normal}
+    else {printf(r); free r; panic("Unknown FnProtoType"); FnProtoType#Normal};
+    free r;
+    
+    parser.lexer.takeWhitespace();
+    first: LexString = parser.lexer.takeIdentifier();
+    // TODO: sanity checks
+    parser.lexer.takeWhitespace();
+    last: LexString;
+    if fnty == FnProtoType#Brackets {
+        last = parser.lexer.takeIdentifier();
+        parser.lexer.takeWhitespace();
+    };
+    parser.lexer.require('(');
+    parser.lexer.takeWhitespace();
+
+    args: <VardefExpr> VariableArray = variablearray#new<VardefExpr>();
+
+    while parser.lexer.peekChar() != ')' {
+        (&args).append<VardefExpr>(parser.parseVardefExpr());
+        parser.lexer.takeWhitespace();
+        if parser.lexer.peekChar() != ')' {
+            parser.lexer.require(',');
+            parser.lexer.takeWhitespace();
+        };
+    };
+
+    parser.lexer.require(')');
+
+    parser.lexer.takeWhitespace();
+    has_retty: bool = false;
+    retty: TypeExpr;
+    if parser.lexer.peekChar() == ':' {
+        has_retty = true;
+        parser.lexer.require(':');
+        parser.lexer.takeWhitespace();
+        retty = parser.parseType();
+    };
+
+    fnpr: FnProto;
+    (&fnpr).source = lexstring#new(parser.lexer, start, parser.lexer.index);
+    (&fnpr).first = first;
+    (&fnpr).last = last;
+    (&fnpr).args = args;
+    (&fnpr).variant = fnty;
+    (&fnpr).has_retty = has_retty;
+    (&fnpr).overloadable = overloadable;
+    (&fnpr).retty = retty;
+    (&fnpr).macro = macro;
+
+    fnpr
+};
+
+type FnDefTLExpr = {
+  proto: FnProto,
+  has_body: bool,
+  body: Expr,
+};
+
+prefix copy(f: FnDefTLExpr) : &FnDefTLExpr = flatCopy<FnDefTLExpr>(f);
+overloadable func asTLExpr(f: FnDefTLExpr) : TLExpr = {
+    t: TLExpr;
+    (&t).variant = TLExprType#Function;
+    (&t).value = (copy f) as &u8;
+
+    t
+};
+
+func debugFnDefTLExpr(f: &FnDefTLExpr, indentation: u64) = {
+  printIndentation(indentation);
+  printf("FNDEF");
+    (&(f.proto)).debugFnProto(indentation);
+    if f.has_body {
+        printIndentation(indentation);
+        printf("BODY");
+        debugExpr(&(f.body), indentation + 2);
+    };
+};
+
+func parseFnDefTLExpr(parser: &Parser) : FnDefTLExpr = {
+  proto: FnProto = parser.parseFnProto();
+  parser.lexer.takeWhitespace();
+  has_body: bool = false;
+  body: Expr;
+  if parser.lexer.peekChar() == '=' {
+      parser.lexer.require('=');
+      body = parser.parseExpr();
+      has_body = true;
+};
+  
+  f: FnDefTLExpr;
+  (&f).proto = proto;
+  (&f).has_body = has_body;
+  (&f).body = body;
+
+  f
+};
 
 func debugTLExprType(t: TLExprType) = {
     if t == TLExprType#Enum {printf("TLExprType#Enum");}
     else if t == TLExprType#Typedef {printf("TLExprType#Typedef");}
+    else if t == TLExprType#Function {printf("TLExprType#Function");}
     else (printf("I don't know how to debug this TLExprType"))
 };
 
@@ -2134,6 +2306,8 @@ func debugTLExpr(t: &TLExpr) = {
         debugEnumTLExpr((t.value) as &EnumTLExpr, 0);
     } else if t.variant == TLExprType#Typedef {
         debugTypedefTLExpr((t.value) as &TypedefTLExpr, 0);
+    } else if t.variant == TLExprType#Function {
+        debugFnDefTLExpr((t.value) as &FnDefTLExpr, 0);
     } else {
         printf("Can't debug this TL expr type!");
     }
@@ -2165,12 +2339,7 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
     } else if next == "type" {
         parser.parseTypedefTLExpr().asTLExpr()
     } else {
-          printf("Can't parse `");
-          printf(next);
-          printf("`");
-          panic("Can't parse TLExpr");
-          t: TLExpr;
-          t
+        parser.parseFnDefTLExpr().asTLExpr();
     };
     free next;
     (&e).hints = hints;
@@ -2184,7 +2353,7 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 // MAIN {{{
 
 func main() : u64 = {
-    code: &u8 = "#prec 17;<T, p, qr> type p = q;";
+    code: &u8 = "#prec 17;<T, p, qr> overloadable brackets pqr rps(s: u648) : p65 = {a;};";
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
     e: TLExpr = parser.parseTLExpr();
