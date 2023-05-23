@@ -96,6 +96,10 @@ infix +(a: u64, b: u64) : u64 = @AS("int_add a b");
 #prec 75;
 infix -(a: u64, b: u64) : u64 = @AS("int_sub a b");
 
+
+#prec 75;
+infix -(a: u8, b: u8) : u8 = @AS("int_sub a b");
+
 #prec 100;
 infix *(a: u64, b: u64) : u64 = @AS("int_mul a b");
 
@@ -146,7 +150,7 @@ func assert(val: bool, message: &u8) = if !val {
         printf(message);
         printf("\n");
         exit(1)
-    };
+};
 
 func assertVerbose(val: bool, message: &u8) = if val {
         printf("Assertion succeeded: ");
@@ -181,7 +185,6 @@ func debugPrint(message: &u8) = {
 
     data
 };
-
 // }}}
 
 func printint(i: u64);
@@ -243,6 +246,32 @@ func printRepeatedChar(char: u8, repeat: u64) = {
 func printIndentation(indentation: u64) = {
     putchar('\n');
     printRepeatedChar(' ', indentation);
+};
+
+func cToI(a: u8) : u64 = {
+    q: u8 = a - '0';
+    @AS("int_z_extend q 64")
+};
+
+
+func aToI(a: &u8) : u64 = {
+    len: u64 = a.strlen();
+    len = len;
+    i: u64 = 0;
+    ret: u64 = 0;
+    while len > 0 {
+        tmp: u64 = cToI(*(a[len - 1]));
+        j: u64 = 0;
+        while j < i {
+            tmp = tmp * 10;
+            j++;
+        };
+        i++;
+        len--;
+        ret += tmp;
+    };
+
+    ret
 };
 
 // }}}
@@ -349,9 +378,10 @@ func takeNumber(lexer: &Lexer) : LexString = {
     string
 };
 
-func isConventionalId(char: u8, first: bool) : bool = char.isAlpha() || (char.isNumeric() && !first) || (char == '_') || (char == '@');
+func isConventionalId(char: u8, first: bool) : bool = char.isAlpha() || (char.isNumeric() && !first) || (char == '_') || (char == '@') || (char == '#');
 
-func isSpecialId(char: u8) : bool = "+-><*/=%!&.[]|()".contains(char);
+func isSpecialId(char: u8) : bool = "+-><*/=%!&.|[]^".contains(char);
+func isSingularId(char: u8) : bool = "()".contains(char);
 
 func takeIdentifier(lexer: &Lexer) : LexString = {
     string: LexString;
@@ -370,6 +400,13 @@ func takeIdentifier(lexer: &Lexer) : LexString = {
     if &string.len == 0 {
         while lexer.peekChar().isSpecialId() {
           /* printf("LTAKES\n"); */
+            (&string.len)++;
+            lexer.takeChar();
+        };
+    };
+
+    if &string.len == 0 {
+        if lexer.peekChar().isSingularId() {
             (&string.len)++;
             lexer.takeChar();
         };
@@ -558,6 +595,7 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
   hash: u64 = hash(key);
   if self.hmlist_contains_internal<K, V>(hash) {
     elem: & <K, V>HMLinkedListElem = self.hmlist_get_elem_internal<K, V>(hash);
+    // TODO: free((elem.val) as &u8);
     elem.val = (malloc(@sizeof(V)) as &V);
     memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(V));
   } else {
@@ -597,7 +635,7 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
     };
   };
 };
-
+/*
 <T> type HashMap = {
     buckets: &&HMBucket,
 };
@@ -606,13 +644,13 @@ overloadable func require(lexer: &Lexer, str: &u8) : LexString = {
     if elem.does_contain_sub_buckets {
         i: u8 = 0_8;
         while i != 16 {
-            /* drop<T> elem.sub_buckets[i]; */
+          //  drop<T> elem.sub_buckets[i];
         };
     } else {
-        /* drop<T> elem.sub_values; */
+        // drop<T> elem.sub_values;
     };
     free(elem as &u8);
-};
+}; */
 // }}}
 
 // HASHINGS {{{
@@ -940,7 +978,8 @@ enum ExprType = {
     PrefixCall,
     SuffixCall,
     TemplatedExpr,
-    Binary
+    Binary,
+    Char
 };
 
 type Expr = {
@@ -951,6 +990,8 @@ type Expr = {
 type NumberExpr = {
     source: LexString,
     parsed: u64,
+    bitwidth: LexString,
+    has_bitwidth: bool,
 };
 
 type IdentifierExpr = {
@@ -977,6 +1018,11 @@ type BlockExpr = {
 type StringExpr = {
     source: LexString,
     value: &u8,
+};
+
+type CharExpr = {
+    source: LexString,
+    value: u8,
 };
 
 type IfExpr = {
@@ -1049,8 +1095,11 @@ func parser#new(lexer: &Lexer) : Parser = {
     (&parser).suffixes = variablearray#new<&u8>();
     (&((&parser).brackets)).append<u8>('(');
     (&((&parser).brackets)).append<u8>(')');
+    (&((&parser).prefixes)).append<&u8>("&");
+    (&((&parser).prefixes)).append<&u8>("*");
+    (&((&parser).prefixes)).append<&u8>("return");
     (&parser).binaries = hmlist#new<&u8, u64>("+", 50);
-    (&((&parser).binaries)).hmlist_add<&u8, u64>("*", 100);
+    (&((&parser).binaries)).hmlist_add<&u8, u64>(".", 1000);
     // TODO: THIS IS TESTING PLZ REMOVE
     // (&((&parser).prefixes)).append<&u8>("free");
     // (&((&parser).suffixes)).append<&u8>("_s");
@@ -1088,6 +1137,8 @@ overloadable func debugExprType(val: &ExprType, indentation: u64) = {
         printf("ExprType#TemplatedExpr");
     } else if *val == ExprType#Binary {
         printf("ExprType#Binary");
+    } else if *val == ExprType#Char {
+        printf("ExprType#Char");
     } else {
         printf("Debug expr type for this one not implmented yet");
     }
@@ -1111,6 +1162,7 @@ func debugPrefixCallExpr(val: &PrefixCallExpr, indentation: u64);
 func debugSuffixCallExpr(val: &SuffixCallExpr, indentation: u64);
 func debugTemplatedExpr(t: &TemplatedExpr, indentation: u64);
 func debugBinaryExpr(b: &BinaryExpr, indentation: u64);
+func debugCharExpr(c: &CharExpr, indentation: u64);
 
 overloadable func debugExpr(val: &Expr, indentation: u64) = {
     debugExprType(&(val.variant), indentation);
@@ -1155,16 +1207,30 @@ func parseExpr(parser: &Parser) : Expr;
 
 func debugNumberExpr(val: &NumberExpr, indentation: u64) = {
     debugLexString(&(val.source), indentation);
+    if val.has_bitwidth {
+        printIndentation(indentation);
+        printf("BW");
+        debugLexString(&(val.bitwidth), indentation);
+    };
 };
 
 func parseNumberExpr(parser: &Parser) : NumberExpr = {
-    debugPrint("Parsing number\n");
+    // debugPrint("Parsing number\n");
     number: LexString = parser.lexer.takeNumber();
     if &number.len == 0 {
         panic("Expected number");
     };
+    bitwidth: LexString;
+    has_bitwidth: bool = false;
+    if parser.lexer.peekChar() == '_' {
+        parser.lexer.takeChar();
+        bitwidth = parser.lexer.takeNumber();
+    };
+
     expr: NumberExpr;
     &expr.source = number;
+    &expr.bitwidth = bitwidth;
+    &expr.has_bitwidth = has_bitwidth;
 
     // TODO: atoi
 
@@ -1200,7 +1266,7 @@ func debugIdentifierExpr(val: &IdentifierExpr, indentation: u64) = {
 };
 
 func parseIdentifierExpr(parser: &Parser) : IdentifierExpr = {
-    debugPrint("Parsing identifier expr\n");
+    // debugPrint("Parsing identifier expr\n");
     id: LexString = parser.lexer.takeIdentifier();
     if &id.len == 0 {
         panic("Expected valid identifier");
@@ -1306,13 +1372,9 @@ func parseBlockExpr(parser: &Parser) : BlockExpr = {
 
     while !(parser.lexer.isEof()) && (parser.lexer.peekChar() != '}') {
         internal_expr: Expr = parser.parseExpr();
-        printf("parsing ex\n");
-        debugExprType(&((&internal_expr).variant), 0);
         (&exprs).append<Expr>(internal_expr);
         parser.lexer.takeWhitespace();
         if parser.lexer.peekChar() == '}' {
-            debugPrint("Broke loop\n");
-            debugPrint("got: ");
             last_semicolon = false;
             break;
         };
@@ -1372,20 +1434,21 @@ func parseStringExpr(parser: &Parser) : StringExpr = {
 
     str: <u8> VariableArray = variablearray#new<u8>();
     escaped: bool = false;
-    while true {
+    while !(parser.lexer.isEof()) && (!((parser.lexer.peekChar() == '"') && (!(escaped)))) {
         next_char: u8 = parser.lexer.takeChar();
         if escaped {
             (&str).append<u8>(next_char);
+            escaped = false;
         } else {
             if next_char == '\\' {
                 escaped = true;
-            } else if next_char == '"' {
-                break;
             } else {
                 (&str).append<u8>(next_char);
             }
         }
     };
+
+    parser.lexer.require('"');
 
     end: u64 = parser.lexer.index;
     s: StringExpr;
@@ -1410,6 +1473,51 @@ overloadable func asExpr(id: StringExpr) : Expr = {
 
     expr
 };
+
+func debugCharExpr(val: &CharExpr, indentation: u64) = {
+    printIndentation(indentation);    
+  /* printf("`"); */
+    id: &u8 = (&(val.source)).render();
+    printf(id);
+    free id;
+    /* printf("`"); */
+    // debugLexString(&(val.source), indentation);
+};
+
+func parseCharExpr(parser: &Parser) : CharExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require('\'');
+
+    char: u8 = parser.lexer.takeChar();
+    if char == '\\' {
+        char = parser.lexer.takeChar();
+    };
+
+    parser.lexer.require('\'');
+
+    end: u64 = parser.lexer.index;
+    s: CharExpr;
+    (&s).source = lexstring#new(parser.lexer, start, end);
+    (&s).value = char;
+
+    s
+};
+
+prefix copy(val: CharExpr) : &CharExpr = {
+    data: &CharExpr = malloc(@sizeof(CharExpr)) as &CharExpr;
+    memcpy(data as &u8, (&val) as &u8, @sizeof(CharExpr));
+
+    data
+};
+
+overloadable func asExpr(id: CharExpr) : Expr = {
+    expr: Expr;
+    (&expr).variant = ExprType#Char;
+    (&expr).value = (copy id) as &u8;
+
+    expr
+};
+
 
 
 func debugIfExpr(val: &IfExpr, indentation: u64) = {
@@ -1642,7 +1750,6 @@ func maybePostfixBracketsExpr(parser: &Parser, e: Expr) : Expr = {
 
     exprs: <Expr> VariableArray = variablearray#new<Expr>();
 
-
     while !(parser.lexer.isEof()) && !({
         parser.lexer.peekChar() == last
     }) {
@@ -1685,16 +1792,23 @@ prefix copy(p: PrefixCallExpr) : &PrefixCallExpr = p.flatCopy<PrefixCallExpr>();
 
 overloadable func asExpr(p: PrefixCallExpr) : Expr = {
     e: Expr;
-    printf("prefix asexprd");
     (&e).variant = ExprType#PrefixCall;
     (&e).value = (copy p) as &u8;
     e
 };
 
 func maybePrefixCallExpr(parser: &Parser, i: IdentifierExpr) : Expr = {
-    r: &u8 = (&((&i).source)).render();
+    r: &u8 = (&((&i).source)).render(); /*
+    printf("Trying");
+    printf(r);
+    j: u64 = 0;
+    while j < (&(parser.prefixes)).len {
+        printf("\n ");
+        printf(*((&(parser.prefixes)).get<&u8>(j)));
+        j++;
+    }; */
     if (&(parser.prefixes)).va_contains<&u8>(r) {
-      printf("PREFIXED");
+      // printf("PREFIXED");
       free r;
         p: PrefixCallExpr;
         (&p).prefix = i;
@@ -1730,7 +1844,6 @@ prefix copy(s: SuffixCallExpr) : &SuffixCallExpr = {
 // again IDK why
 overloadable func sf_asExpr(p: SuffixCallExpr) : Expr = {
     e: Expr;
-    printf("is var suffix");
     (&e).variant = ExprType#SuffixCall;
     (&e).value = (copy p) as &u8;
     e
@@ -1742,7 +1855,6 @@ func maybeSuffixCallExpr(parser: &Parser, e: Expr) : Expr = {
     ls: LexString = (&l).takeIdentifier();
     sf: &u8 = (&ls).render();
     if (&(parser.suffixes)).va_contains<&u8>(sf) {
-        printf("suffixed");
         free sf;
         start: u64 = parser.lexer.index;
         s: SuffixCallExpr;
@@ -1780,7 +1892,9 @@ func debugTemplatedExpr(t: &TemplatedExpr, indentation: u64) = {
 };
 
 func maybeTemplatedExpr(parser: &Parser, e: Expr) : Expr = {
-    parser.lexer.takeWhitespace();
+    // janks af. forgive me
+    ls: LexString = lexstring#new(parser.lexer, parser.lexer.index - 1, parser.lexer.index);
+    if (&ls).render() == " " {return e};
     if parser.lexer.peekChar() == '<' {
         types: <TypeExpr> VariableArray = parser.parseTemplateList();
         t: TemplatedExpr;
@@ -1828,6 +1942,8 @@ func parsePrimaryExpr(parser: &Parser) : Expr = {
         e
     } else if next_char == '"' {
       parser.parseStringExpr().asExpr()
+    } else if next_char == '\'' {
+      parser.parseCharExpr().asExpr()
     } else {
         expr: Expr;
         printf("Cannot parse: `");
@@ -1956,7 +2072,6 @@ func parseHints(parser: &Parser) : Hints = {
 };
 
 // }}}
-
 // TEMPLATES {{{
 
 type TemplateExpr = {
@@ -2064,6 +2179,8 @@ func parseEnumTLExpr(parser: &Parser) : EnumTLExpr = {
               parser.lexer.takeWhitespace();
           };
     };
+
+    parser.lexer.require('}');
 
     end: u64 = parser.lexer.index;
 
@@ -2175,18 +2292,18 @@ func parseFnProto(parser: &Parser) : FnProto = {
     r: &u8 = (&ty).render();
     overloadable: bool = if r == "overloadable" {free r; parser.lexer.takeWhitespace();
       ty: LexString = parser.lexer.takeIdentifier();
-      r: &u8 = (&ty).render(); true}
+      r = (&ty).render(); true}
     else {false};
     macro: bool = if r == "macro" {free r; parser.lexer.takeWhitespace();
       ty: LexString = parser.lexer.takeIdentifier();
-      r: &u8 = (&ty).render(); true}
+      r = (&ty).render(); true}
     else {false};
     fnty: FnProtoType = if r == "infix" {FnProtoType#Infix}
     else if r == "suffix" {FnProtoType#Suffix}
     else if r == "prefix" {FnProtoType#Prefix}
     else if r == "brackets" {FnProtoType#Brackets}
     else if r == "func" {FnProtoType#Normal}
-    else {printf(r); free r; panic("Unknown FnProtoType"); FnProtoType#Normal};
+    else {printf("`"); printf(r); printf("`"); free r; panic("Unknown FnProtoType ");FnProtoType#Normal};
     free r;
     
     parser.lexer.takeWhitespace();
@@ -2283,10 +2400,65 @@ func parseFnDefTLExpr(parser: &Parser) : FnDefTLExpr = {
   f
 };
 
+
+// TL CDEFS {{{
+type CDefTLExpr = {
+    source: LexString,
+    name: LexString,
+    values: <Expr> VariableArray,
+};
+
+prefix copy(c: CDefTLExpr) : &CDefTLExpr = flatCopy<CDefTLExpr>(c);
+overloadable func asTLExpr(c: CDefTLExpr) : TLExpr = {
+    t: TLExpr;
+    (&t).variant = TLExprType#CDef;
+    (&t).value = (copy c) as &u8;
+
+    t
+};
+
+func debugCDefTLExpr(h: &CDefTLExpr, indentation: u64) = {
+    printIndentation(indentation);
+    printf("TLCDef:");
+    debugLexString(&(h.name), indentation);
+    i: u64 = 0;
+    while i < (&(h.values)).len {
+        debugExpr((&(h.values)).get<Expr>(i), indentation + 2);
+        i++;
+    };
+};
+
+func parseCDefTLExpr(parser: &Parser) : CDefTLExpr = {
+    start: u64 = parser.lexer.index;
+    parser.lexer.require('@');
+    parser.lexer.takeWhitespace();
+    name: LexString = parser.lexer.takeIdentifier();
+    parser.lexer.takeWhitespace();
+    parser.lexer.require('(');
+    parser.lexer.takeWhitespace();
+    values: <Expr> VariableArray = variablearray#new<Expr>();
+    while parser.lexer.peekChar() != ')' {
+        (&values).append<Expr>(parser.parseExpr());
+        parser.lexer.takeWhitespace();
+        if parser.lexer.peekChar() != ')' {parser.lexer.require(',');};
+    };
+    parser.lexer.require(')');
+    end: u64 = parser.lexer.index;
+
+    h: CDefTLExpr;
+    (&h).name = name;
+    (&h).values = values;
+    (&h).source = lexstring#new(parser.lexer, start, end);
+    h
+};
+
+//  }}}
+
 func debugTLExprType(t: TLExprType) = {
     if t == TLExprType#Enum {printf("TLExprType#Enum");}
     else if t == TLExprType#Typedef {printf("TLExprType#Typedef");}
     else if t == TLExprType#Function {printf("TLExprType#Function");}
+    else if t == TLExprType#CDef {printf("TLExprType#CDef");}
     else (printf("I don't know how to debug this TLExprType"))
 };
 
@@ -2308,6 +2480,8 @@ func debugTLExpr(t: &TLExpr) = {
         debugTypedefTLExpr((t.value) as &TypedefTLExpr, 0);
     } else if t.variant == TLExprType#Function {
         debugFnDefTLExpr((t.value) as &FnDefTLExpr, 0);
+    } else if t.variant == TLExprType#CDef {
+        debugCDefTLExpr((t.value) as &CDefTLExpr, 0);
     } else {
         printf("Can't debug this TL expr type!");
     }
@@ -2334,17 +2508,72 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
     peeked: Lexer = parser.lexer.peek();
     ls: LexString = (&peeked).takeIdentifier();
     next: &u8 = (&ls).render();
-    e: TLExpr = if next == "enum" {
+    e: TLExpr = if parser.lexer.peekChar() == '@' {
+        parser.parseCDefTLExpr().asTLExpr()
+    } else if next == "enum" {
         parser.parseEnumTLExpr().asTLExpr()
     } else if next == "type" {
         parser.parseTypedefTLExpr().asTLExpr()
     } else {
-        parser.parseFnDefTLExpr().asTLExpr();
+        // NOTE: we don't free rend on purpose
+        // since it's kept lol
+
+        f: FnDefTLExpr = parser.parseFnDefTLExpr();
+        if (&((&f).proto)).variant == FnProtoType#Brackets {
+            ls: LexString = (&((&f).proto)).first;
+            rend: &u8 = (&ls).render();
+            (&(parser.brackets)).append<u8>(*(rend[0]));
+            ls = (&((&f).proto)).last;
+            rend = (&ls).render();
+            (&(parser.brackets)).append<u8>(*(rend[0]));
+        } else if (&((&f).proto)).variant == FnProtoType#Prefix {
+            ls: LexString = (&((&f).proto)).first;
+            rend: &u8 = (&ls).render();
+            (&(parser.prefixes)).append<&u8>(rend);
+        } else if (&((&f).proto)).variant == FnProtoType#Suffix {
+            ls: LexString = (&((&f).proto)).first;
+            rend: &u8 = (&ls).render();
+            (&(parser.suffixes)).append<&u8>(rend);
+        } else if (&((&f).proto)).variant == FnProtoType#Infix {
+            found: bool = false;
+            hint: &Hints;
+            i: u64 = 0;
+            while i < (&hints).len {
+                ls: LexString = (((&hints).get<Hints>(i))).name;
+                rend: &u8 = (&ls).render();
+                if rend == "prec" {
+                    found = true;
+                    hint = ((&hints).get<Hints>(i));
+                    break;
+                };
+                free rend;
+                i++;
+            };
+            if !found {panic("Expected a prec hint for an infix fn");};
+            if (&(hint.values)).len != 1 {panic("Expected 1 arg to a prec hint");};
+            arg: &Expr = (&(hint.values)).get<Expr>(0);
+            if (arg.variant) != ExprType#Number {panic("Expected a number for a prec hint");};
+            ls: LexString = ((arg.value) as &NumberExpr).source;
+            rend: &u8 = (&ls).render();
+            p: u64 = aToI(rend);
+            free rend;
+            ls = (&((&f).proto)).first;
+            rend = (&ls).render();
+            (&(parser.binaries)).hmlist_add<&u8, u64>(rend, p);
+        };
+
+        f.asTLExpr()
     };
     free next;
     (&e).hints = hints;
     (&e).has_template = has_template;
     (&e).template = template;
+    
+    parser.lexer.takeWhitespace();
+    while (parser.lexer.peekChar() == ';') && (!(parser.lexer.isEof())){
+        parser.lexer.takeChar();
+        parser.lexer.takeWhitespace();
+    };
     e
 };
 
@@ -2352,12 +2581,19 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 
 // MAIN {{{
 
+func readFile(name: &u8) : &u8;
+func cinit();
+
 func main() : u64 = {
-    code: &u8 = "#prec 17;<T, p, qr> overloadable brackets pqr rps(s: u648) : p65 = {a;};";
+    cinit();
+    // code: &u8 = "overloadable brackets pqr rps(s: u648) : p65 = {a;};";
+    code: &u8 = readFile("./silver.silver");
     lexer: &Lexer = &lexer#new(code);
     parser: &Parser = &parser#new(lexer);
-    e: TLExpr = parser.parseTLExpr();
-    debugTLExpr(&e);
+    while !(parser.lexer.isEof()) {
+      e: TLExpr = parser.parseTLExpr();
+      debugTLExpr(&e);
+    };
     exit(0);
     0
 };

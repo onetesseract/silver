@@ -8,6 +8,29 @@ void print_addr(char *addr) { printf("addr: %lx\n", (unsigned long int)addr); }
 
 void printint(uint64_t i) {printf("int: %lu\n", i);}
 
+void cinit() {setbuf(stdout, NULL);}
+
+char* readFile(char* name) {
+  char * buffer = 0;
+  long length;
+  FILE * f = fopen (name, "rb");
+
+  if (f)
+  {
+    fseek (f, 0, SEEK_END);
+    length = ftell (f);
+    fseek (f, 0, SEEK_SET);
+    buffer = malloc (length);
+    if (buffer)
+    {
+      fread (buffer, 1, length, f);
+    }
+    fclose (f);
+  } else {printf("NO NO BAD NO FILE"); exit(1);}
+
+  return buffer;
+}
+
 // char *itoa(int num, char *buffer, int base) {
 //   int curr = 0;
 

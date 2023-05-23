@@ -1,0 +1,24 @@
+func malloc(bytes: u64) : &u8;
+func realloc(data: &u8, bytes: u64) : &u8;
+func strlen(str: &u8) : u64;
+prefix free(data: &u8);
+func strcpy(dest: &u8, src: &u8);
+func strncpy(dest: &u8, src: &u8, len: u64);
+func memcpy(dest: &u8, src: &u8, len: u64);
+func strcmp(a: &u8, b: &u8) : u64;
+func printf(str: &u8);
+/* func printf(str: &u8, val: u64); */
+/* func printf(str: &u8) = printf(str, 0); */
+func putchar(char: u8);
+func exit(code: u64);
+func pow(base: u64, power: u64): u64;
+
+
+#prec 25;
+infix == (a: u64, b: u64) : bool = @AS("int_cmp_eq a b");
+
+#prec 25;
+infix != (a: u64, b: u64) : bool = @AS("int_cmp_neq a b");
+
+#prec 30;
+infix < (a: u64, b: u64) : bool = @AS("int_cmp_ult a b");
