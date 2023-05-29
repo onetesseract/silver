@@ -337,6 +337,7 @@ pub fn expr_codegen<'a>(e: Expr<'a>, compiler: CompilerInstance<'a>) -> Compilat
                 .i8_type()
                 .const_int(c.rendered.as_bytes()[0] as u64, false),
         )),
+        _ => panic!(),
     }
 }
 

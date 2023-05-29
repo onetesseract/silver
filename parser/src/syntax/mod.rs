@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::lexer::{Lexer, match_spec_id, LexString};
 
-use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::{StringExpr, CharExpr}, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call, enumeration::Enum};
+use self::{number::NumberExpr, variable::VariableExpr, call::CallExpr, block::Block, vardef::VarDef, proto::{FnProto, FnType}, hints::Hints, cdef::CDef, string::{StringExpr, CharExpr}, template::Template, keywords::Boolean, while_loop::WhileLoop, if_expr::IfExpr, ret::ReturnExpr, cast::Cast, ty::Ty, brackets::maybe_bracket_call, enumeration::Enum, lambda::LambdaExpr};
 
 pub mod number;
 pub mod ty;
@@ -23,6 +23,7 @@ pub mod ret;
 pub mod cast;
 pub mod brackets;
 pub mod enumeration;
+pub mod lambda;
 
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
 
@@ -42,6 +43,7 @@ pub enum ExprVal<'a> {
     Cast(Cast<'a>),
     Break(LexString<'a>),
     Char(CharExpr<'a>),
+    LambdaExpr(LambdaExpr<'a>),
 }
 
 #[derive(Debug, Clone)]
