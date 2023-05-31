@@ -272,6 +272,7 @@ func aToI(a: &u8) : u64 = {
     ret
 };
 
+
 // }}}
 
 
@@ -358,23 +359,9 @@ func aToI(a: &u8) : u64 = {
 };
 
 
-<K, V> overloadable func add(self: & <K, V>HMBucket, value: V, hash: u64) = {
-  if self.is_using_linked_list {
-    hnelem: bool = true;
-    elem: <K, V> HMLinkedListElem = *(self.sub_values);
-    while hnelem {
-      if *(elem.hash) == hash {
-        elem.val = value;
-      };
-      hnelem = *(elem.has_next_elem);
-      elem = *(elem.next_elem);
-    };
-  };
-};
-
 <K, V> type HashMap = {
     has_init: bool,
-    value: &<K, V> HMLinkedListElem,
+    value: <K, V> HMLinkedListElem,
 };
 
 <K,V> func hashmap#new() : <K, V> HashMap = {
@@ -383,45 +370,29 @@ func aToI(a: &u8) : u64 = {
     h
 };
 
-<K, V> overloadable func add(self: &<K, V>HashMap, key: K, value: V) = {
+<K, V> overloadable func hm_add(self: &<K, V>HashMap, key: K, value: V) = {
     if self.has_init {
-      (self.value).add<K, V>(value, hash(key));
+      (&(self.value)).hmlist_add<K, V>(key, value);
     } else {
       self.value = hmlist#new<K, V>(key, value);
       self.has_init = true;
     }
 };
 
-<K, V> overloadable func contains(self: &<K, V>HashMap, key: K) : bool = {
+<K, V> overloadable func hm_contains(self: &<K, V>HashMap, key: K) : bool = {
     if !(self.has_init) {false}
     else {
-      (self.value).hmlist_contains<K, V>(key)
+      (&(self.value)).hmlist_contains<K, V>(key)
     }
 };
 
-<K, V> overloadable func get(self: &<K, V>HashMap, key: K) : &V = {
+<K, V> overloadable func hm_get(self: &<K, V>HashMap, key: K) : &V = {
     if !(self.has_init) {panic("Getting an uninit HashMap"); v: V; &v}
     else {
-        (self.value).hmlist_get<K, V>(key)
+        (&(self.value)).hmlist_get<K, V>(key)
     }
 };
 
-/*
-<T> type HashMap = {
-    buckets: &&HMBucket,
-};
-
-<T> prefix drop(elem: & <T> HMBucket) = {
-    if elem.does_contain_sub_buckets {
-        i: u8 = 0_8;
-        while i != 16 {
-          //  drop<T> elem.sub_buckets[i];
-        };
-    } else {
-        // drop<T> elem.sub_values;
-    };
-    free(elem as &u8);
-}; */
 // }}}
 
 // HASHINGS {{{
@@ -1004,7 +975,7 @@ type Expr = {
 
 type NumberExpr = {
     source: LexString,
-    parsed: u64,
+    // parsed: u64,
     bitwidth: LexString,
     has_bitwidth: bool,
 };
@@ -1045,7 +1016,7 @@ type IfExpr = {
     cond: Expr,
     then: Expr,
     has_else: bool,
-    else: Expr,
+    els: Expr,
 };
 
 type WhileExpr = {
@@ -1545,7 +1516,7 @@ func debugIfExpr(val: &IfExpr, indentation: u64) = {
     if (val.has_else) {
       printIndentation(indentation);
       printf("ELSE: ");
-      debugExpr(&(val.else), indentation + 2);
+      debugExpr(&(val.els), indentation + 2);
     };
     /* printf("`"); */
     // debugLexString(&(val.source), indentation);
@@ -1559,14 +1530,14 @@ func parseIfExpr(parser: &Parser) : IfExpr = {
     then: Expr = parseExpr(parser);
     parser.lexer.takeWhitespace();
 
-    else: Expr;
+    els: Expr;
     peek_: Lexer = parser.lexer.peek();
     peeked: &Lexer = &peek_;
     n_id: LexString = peeked.takeIdentifier();
     next: &u8 = (&n_id).render();
     has_else: bool = if next == "else" {
         parser.lexer.takeIdentifier();
-        else = parser.parseExpr();
+        els = parser.parseExpr();
         true
     } else false;
 
@@ -1577,7 +1548,7 @@ func parseIfExpr(parser: &Parser) : IfExpr = {
     (&i).source = lexstring#new(parser.lexer, start, end);
     (&i).cond = cond;
     (&i).then = then;
-    (&i).else = else;
+    (&i).els = els;
     (&i).has_else = has_else;
 
     i
@@ -2606,7 +2577,7 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 //  }}}
 
 
-// {{{ COMPILER ISH
+// COMPILER ISH {{{
 
 // INST DECL {{{
 enum Instructions = {
@@ -2614,6 +2585,7 @@ enum Instructions = {
   Return,
   IfBranch,
   WhileBranch,
+  SubBlockBranch,
   Break,
   Vardef,
   Builtin,
@@ -2649,10 +2621,17 @@ type Instruction = {
 // }}}
 
 // TYPES {{{
+enum CompilerTypeType = {
+  Int,
+  Reference,
+  Struct,
+};
+// TODO: FUNC
 type CompilerType = {
-  variant: TypeType,
+  variant: CompilerTypeType,
   value: &u8,
 };
+prefix copy(c: CompilerType) : &CompilerType = c.flatCopy<CompilerType>();
 
 type CompilerStructType = {
   names: <&u8> VariableArray,
@@ -2662,6 +2641,18 @@ type CompilerTemplatedType = {
   types: <CompilerType> VariableArray,
   templated: CompilerType,
 };
+type CompilerIntType = {
+  bitwidth: u64,
+  // TODO: signed
+};
+prefix copy(c: CompilerIntType) : &CompilerIntType = c.flatCopy<CompilerIntType>();
+overloadable func asCompilerType(c: CompilerIntType) : CompilerType = {
+  t: CompilerType;
+  (&t).variant = CompilerTypeType#Int;
+  (&t).value = (copy c) as &u8;
+
+  t
+};
 // }}}
 type Block = {
   is_toplevel: bool,
@@ -2669,22 +2660,26 @@ type Block = {
   parent_block_idx: u64,
   parent_fn_idx: u64,
   instructions: <Instruction> VariableArray,
+  // known_vars: <&u8, CompilerType> HashMap,
   idx: u64,
 };
 // BLOCK {{{
 func block#newTl(parent_fn_idx: u64, idx: u64) : Block = {
   b: Block;
-  (&b).is_tl = true;
+  (&b).is_toplevel = true;
   (&b).parent_fn_idx = parent_fn_idx;
   (&b).instructions = variablearray#new<Instruction>();
+  // (&b).known_vars: hashmap#new();
   (&b).idx = idx;
 
   b
 };
 
+// func lookupVarType
+
 func block#newParented(parent_fn_idx: u64, parent_instr_idx: u64, parent_block_idx: u64, idx: u64) : Block = {
   b: Block;
-  (&b).is_tl = false;
+  (&b).is_toplevel = false;
   (&b).parent_fn_idx = parent_fn_idx;
   (&b).parent_instr_idx = parent_instr_idx;
   (&b).parent_block_idx = parent_block_idx;
@@ -2708,7 +2703,7 @@ type Function = {
 };
 
 // FUNCTION {{{
-func function#new(name: &u8, args: <FunctionArg> VariableArray, has_body: bool, idx: u64) : Function {
+func function#new(name: &u8, args: <FunctionArg> VariableArray, has_body: bool, idx: u64) : Function = {
   f: Function;
   (&f).name = name;
   (&f).args = args;
@@ -2717,37 +2712,81 @@ func function#new(name: &u8, args: <FunctionArg> VariableArray, has_body: bool, 
   if has_body {
     (&f).blocks = variablearray#new<Block>();
     b: Block = block#newTl(idx, 0);
-    (&(&f).blocks).append<Block>(b);
+    (&((&f).blocks)).append<Block>(b);
   };
 
   f
 };
 // }}}
 
+// LITERALS {{{
+enum LiteralType = {
+  Number,
+  String,
+};
+type Literal = {
+  variant: LiteralType,
+  data: &u8,
+};
+type NumberLiteral = {
+    number: u64,
+    bitwidth: u64,
+};
+prefix copy(n: NumberLiteral) : &NumberLiteral = n.flatCopy<NumberLiteral>();
+// }}}
+
 type Module = {
   type_mappings: <&u8, CompilerType> HashMap,
-  functions: <&u8, Function> HashMap,
+  functions: <&u8, <Function> VariableArray> HashMap,
+  fn_count: u64,
+  // used to name implicits
+  var_tick: u64,
+  literals: <Literal> VariableArray,
 };
 
 // MODULE {{{
 
 func module#new() : Module = {
   m: Module;
+  (&m).literals = variablearray#new<Literal>();
   (&m).type_mappings = hashmap#new<&u8, CompilerType>();
-  (&m).functions = hashmap#new<&u8, Function>();
+  (&m).functions = hashmap#new<&u8, <Function> VariableArray>();
+  (&m).fn_count = 0;
+  (&m).var_tick = 0;
   m
 };
 
 // don't free name
-func addFunc(self: &Module, name: &u8, args: <FunctionArg> VariableArray) : &Function {
-  f: Function = function#new(name, args, )
+func addFunc(self: &Module, name: &u8, args: <FunctionArg> VariableArray, has_body: bool) : &Function = {
+  f: Function = function#new(name, args, has_body, self.fn_count);
+  (self.fn_count)++;
+  if !((&(self.functions)).hm_contains<&u8, <Function> VariableArray>(name)) {
+    (&(self.functions)).hm_add<&u8, <Function> VariableArray>(name, variablearray#new<Function>());
+  };
+  arr: &<Function> VariableArray = (&(self.functions)).hm_get<&u8, <Function> VariableArray>(name);
+  arr.append<Function>(f);
+  arr.get<Function>(arr.len - 1)
 };
 // }}}
 
 type Variable = {
-    name: <u8> VariableArray,
+    name: &u8,
+    number: u64,
     explicit: bool,
+    ty_known: bool,
+    ty: CompilerType,
+    literal: bool,
+    none: bool,
 };
+
+// VARIABLE {{{
+func variable#none() : Variable = {
+  v: Variable;
+  (&v).none = true;
+
+  v
+};
+// }}}
 
 
 
@@ -2758,25 +2797,298 @@ type CallInstruction = {
 
 type ReturnInstruction = {
     has_val: bool,
-    val: Variable,
+    value: Variable,
+};
+prefix copy(r: ReturnInstruction) : &ReturnInstruction = r.flatCopy<ReturnInstruction>();
+overloadable func asInstruction(r: ReturnInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#Return;
+    (&i).value = (copy r) as &u8;
+
+    i
 };
 
 type IfBranchInstruction = {
     condition: Variable,
-    then: Block,
+    then_idx: u64,
     has_else: bool,
-    els: Block,
+    els_idx: u64,
+};
+prefix copy(i: IfBranchInstruction) : &IfBranchInstruction = i.flatCopy<IfBranchInstruction>();
+overloadable func asInstruction(i_: IfBranchInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#IfBranch;
+    (&i).value = (copy i_) as &u8;
+
+    i
 };
 
 type WhileBranchInstruction = {
     condition: Variable,
-    then: Block,
+    then_idx: u64,
 };
+prefix copy(w: WhileBranchInstruction) : &WhileBranchInstruction = w.flatCopy<WhileBranchInstruction>();
+overloadable func asInstruction(w: WhileBranchInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#WhileBranch;
+    (&i).value = (copy w) as &u8;
 
+    i
+};
 type VardefInstruction = {
   name: Variable,
   ty: CompilerType,
 };
+
+prefix copy(v: VardefInstruction) : &VardefInstruction = v.flatCopy<VardefInstruction>();
+overloadable func asInstruction(v: VardefInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#Vardef;
+    (&i).value = (copy v) as &u8;
+
+    i
+};
+
+type SubBlockBranchInstruction = {
+  block_idx: u64,
+  has_retval: bool,
+  retval: Variable,
+};
+
+type Compiler = {
+    module: Module,
+    curr_fn: &Function,
+    curr_fn_idx: u64,
+    curr_block: &Block,
+    curr_block_idx: u64,
+};
+
+// TYPES {{{
+func compileType(c: &Compiler, ty: TypeExpr) : CompilerType = {
+    panic("UNIMPLEMENTED COMPILETYPE");
+    c: CompilerType;
+    c
+};
+// }}}
+
+// COMPILER {{{
+func compiler#new(module: Module) : Compiler = {
+    c: Compiler;
+    (&c).module = module;
+
+    c
+};
+// }}}
+
+func compileExpr(c: &Compiler, e: Expr) : Variable;
+
+func compileIdentifierExpr(c: &Compiler, i: IdentifierExpr): Variable = {
+    v: Variable;
+    (&v).name = (&((&i).source)).render();
+    (&v).explicit = true;
+    (&v).ty_known = false;
+    (&v).none = false;
+
+    v
+};
+
+func compileNumberExpr(c: &Compiler, n: NumberExpr) : Variable = {
+    l: Literal;
+    nl: NumberLiteral;
+    r: &u8 = (&((&n).source)).render();
+    i: u64 = aToI(r);
+    free r;
+    (&nl).number = i;
+    // TODO: sane default managaent
+    (&nl).bitwidth = if (&n).has_bitwidth {
+        r: &u8 = (&((&n).bitwidth)).render();
+        q: u64 = r.aToI();
+        free r;
+        q
+    } else {64};
+    pnl: &NumberLiteral = copy nl;
+    (&l).variant = LiteralType#Number;
+    (&l).data = pnl as &u8;
+    (&((&(c.module)).literals)).append<Literal>(l);
+
+    it: CompilerIntType;
+    (&it).bitwidth = (&nl).bitwidth;
+    t: CompilerType = it.asCompilerType();
+
+    v: Variable;
+    (&v).explicit = false;
+    (&v).ty_known = true;
+    (&v).ty = t;
+    (&v).literal = true;
+    (&v).none = false;
+    (&v).number = ((&((&(c.module)).literals)).len) - 1;
+
+    v
+};
+
+func compileBlockIntoCurrent(c: &Compiler, b: BlockExpr) : Variable = {
+    i: u64 = 0;
+    v: Variable;
+    while i < (&((&b).exprs)).len {
+        v = c.compileExpr(*((&((&b).exprs)).get<Expr>(i)));
+        i++
+    };
+
+    if (&b).use_last_val {v} else {variable#none()}
+};
+
+func compileVardef(c: &Compiler, v: VardefExpr) : Variable = {
+    var: Variable;
+    (&var).name = (&((&v).source)).render();
+    (&var).explicit = true;
+    (&var).none = false;
+    (&var).ty_known = true;
+    (&var).ty = c.compileType((&v).ty);
+
+    vdi: VardefInstruction;
+    (&vdi).name = var;
+    (&vdi).ty = (&var).ty;
+
+    (&(c.curr_block.instructions)).append<Instruction>(vdi.asInstruction());
+
+    var
+};
+
+func compileStringExpr(c: &Compiler, s: StringExpr) : Variable = {
+    l: Literal;
+    (&l).variant = LiteralType#String;
+    (&l).data = (&s).value;
+
+    (&((&(c.module)).literals)).append<Literal>(l);
+
+    it: CompilerIntType;
+    (&it).bitwidth = 8;
+    t: CompilerType = it.asCompilerType();
+    ptr: CompilerType;
+    (&ptr).variant = CompilerTypeType#Reference;
+    (&ptr).value = (copy t) as &u8;
+
+    v: Variable;
+    (&v).explicit = false;
+    (&v).ty_known = true;
+    (&v).ty = ptr;
+    (&v).literal = true;
+    (&v).none = false;
+    (&v).number = ((&((&(c.module)).literals)).len) - 1;
+
+    v
+};
+
+func compileCharExpr(c: &Compiler, ch: CharExpr) : Variable = {
+    l: Literal;
+    nl: NumberLiteral;
+    i: u8 = (&ch).value;
+    (&nl).number = @AS("int_z_extend i 64");
+    (&nl).bitwidth = 8;
+    pnl: &NumberLiteral = copy nl;
+    (&l).variant = LiteralType#Number;
+    (&l).data = pnl as &u8;
+    (&((&(c.module)).literals)).append<Literal>(l);
+
+    it: CompilerIntType;
+    (&it).bitwidth = 8;
+    t: CompilerType = it.asCompilerType();
+
+    v: Variable;
+    (&v).explicit = false;
+    (&v).ty_known = true;
+    (&v).ty = t;
+    (&v).literal = true;
+    (&v).none = false;
+    (&v).number = ((&((&(c.module)).literals)).len) - 1;
+
+    v
+};
+
+func compileWhileExpr(c: &Compiler, w: WhileExpr) : Variable = {
+    wi: WhileBranchInstruction;
+    (&wi).condition = c.compileExpr((&w).cond);
+    // before add instr
+    b: Block = block#newParented(c.curr_fn_idx, (&(c.curr_block.instructions)).len, c.curr_block_idx, (&(c.curr_fn.blocks)).len);
+    old_b: &Block = c.curr_block;
+    old_b_idx: u64 = c.curr_block_idx;
+    (&(c.curr_fn.blocks)).append<Block>(b);
+
+    (&wi).then_idx = (&b).idx;
+    
+    (&(c.curr_block.instructions)).append<Instruction>(wi.asInstruction());
+
+    c.curr_block = &b;
+    c.curr_block_idx = (&b).idx;
+
+    c.compileExpr((&w).then);
+
+    // return to old block
+    c.curr_block = old_b;
+    c.curr_block_idx = old_b_idx;
+
+    
+    variable#none()
+};
+
+func compileIfExpr(c: &Compiler, i: IfExpr) : Variable = {
+    // BIG TODO: PHIS
+    ii: IfBranchInstruction;
+    (&ii).has_else = false;
+    (&ii).condition = c.compileExpr((&i).cond);
+    // before add instr
+    b: Block = block#newParented(c.curr_fn_idx, (&(c.curr_block.instructions)).len, c.curr_block_idx, (&(c.curr_fn.blocks)).len);
+    
+    old_b: &Block = c.curr_block;
+    old_b_idx: u64 = c.curr_block_idx;
+    (&(c.curr_fn.blocks)).append<Block>(b);
+
+    (&ii).then_idx = (&b).idx;
+
+    c.curr_block_idx = (&b).idx;
+    
+
+    c.curr_block = (&(c.curr_fn.blocks)).get<Block>((&(c.curr_fn.blocks)).len - 1);
+
+    c.compileExpr((&i).then);
+
+    els_b: Block;
+    if (&ii).has_else {
+        els_b = block#newParented(c.curr_fn_idx, (&(c.curr_block.instructions)).len, c.curr_block_idx, (&(c.curr_fn.blocks)).len + 1);
+        (&ii).els_idx = (&els_b).idx;
+
+        c.curr_block_idx = (&els_b).idx;
+        (&(c.curr_fn.blocks)).append<Block>(els_b);
+        c.curr_block = (&(c.curr_fn.blocks)).get<Block>((&(c.curr_fn.blocks)).len - 1);
+
+
+        c.compileExpr((&i).els);
+    };
+
+
+    // return to old block
+    c.curr_block = old_b;
+    c.curr_block_idx = old_b_idx;
+
+
+    (&(c.curr_block.instructions)).append<Instruction>(ii.asInstruction());
+
+    
+    variable#none()
+};
+
+func compileReturnExpr(c: &Compiler, r: ReturnExpr) : Variable = {
+    ri: ReturnInstruction;
+    (&ri).has_val = (&r).has_val;
+    if (&r).has_val {
+        (&ri).value = c.compileExpr((&r).val);
+    };
+
+    (&((c.curr_block).instructions)).append<Instruction>((ri).asInstruction());
+
+    variable#none()
+};
+
 
 // }}}
 
