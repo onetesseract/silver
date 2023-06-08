@@ -2581,14 +2581,16 @@ func parseTLExpr(parser: &Parser) : TLExpr = {
 
 // INST DECL {{{
 enum Instructions = {
+  Cast,
   Call,
+  Break,
   Return,
+  Vardef,
+  Builtin,
   IfBranch,
   WhileBranch,
   SubBlockBranch,
-  Break,
-  Vardef,
-  Builtin,
+  InstantiateTemplated,
 };
 
 // BUILTINS (ew) {{{
@@ -2700,6 +2702,7 @@ type Function = {
     args: <FunctionArg> VariableArray,
     has_body: bool,
     idx: u64,
+    var_tick: u64,
 };
 
 // FUNCTION {{{
@@ -2708,6 +2711,7 @@ func function#new(name: &u8, args: <FunctionArg> VariableArray, has_body: bool, 
   (&f).name = name;
   (&f).args = args;
   (&f).has_body = has_body;
+  (&f).var_tick = 0;
   
   if has_body {
     (&f).blocks = variablearray#new<Block>();
@@ -2740,7 +2744,6 @@ type Module = {
   functions: <&u8, <Function> VariableArray> HashMap,
   fn_count: u64,
   // used to name implicits
-  var_tick: u64,
   literals: <Literal> VariableArray,
 };
 
@@ -2752,7 +2755,6 @@ func module#new() : Module = {
   (&m).type_mappings = hashmap#new<&u8, CompilerType>();
   (&m).functions = hashmap#new<&u8, <Function> VariableArray>();
   (&m).fn_count = 0;
-  (&m).var_tick = 0;
   m
 };
 
@@ -2789,10 +2791,22 @@ func variable#none() : Variable = {
 // }}}
 
 
-
+// TODO: make work with longer than 1-char brackets
 type CallInstruction = {
+    is_brack: bool,
+    b_first: u8,
+    b_last: u8,
     target_fn: Variable,
     args: <Variable> VariableArray,
+    output: Variable,
+};
+prefix copy(c: CallInstruction) : &CallInstruction = c.flatCopy<CallInstruction>();
+overloadable func asInstruction(c: CallInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#Call;
+    (&i).value = (copy c) as &u8;
+
+    i
 };
 
 type ReturnInstruction = {
@@ -2849,10 +2863,46 @@ overloadable func asInstruction(v: VardefInstruction) : Instruction = {
     i
 };
 
+type CastInstruction = {
+    from: Variable,
+    to: Variable,
+};
+prefix copy(c: CastInstruction) : &CastInstruction = c.flatCopy<CastInstruction>();
+overloadable func asInstruction(c: CastInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#Cast;
+    (&i).value = (copy c) as &u8;
+
+    i
+};
+
 type SubBlockBranchInstruction = {
   block_idx: u64,
-  has_retval: bool,
-  retval: Variable,
+//   has_retval: bool,
+//  retval: Variable,
+};
+// prefix copy(s: SubBlockBranchInstruction) : &SubBlockBranchInstruction = s.flatCopy<SubBlockBranchInstruction>();
+overloadable func asInstruction(s: SubBlockBranchInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#SubBlockBranch;
+    (&i).value = (s.flatCopy<SubBlockBranchInstruction>()) as &u8;
+
+    i
+};
+
+// TODO: shouldn't val be a thingy whatsit identifier/&u8?
+type InstantiateTemplatedInstruction = {
+  val: Variable,
+  args: <CompilerType> VariableArray,
+  output: Variable,
+};
+prefix copy(t: InstantiateTemplatedInstruction) : &InstantiateTemplatedInstruction = t.flatCopy<InstantiateTemplatedInstruction>();
+overloadable func asInstruction(t: InstantiateTemplatedInstruction) : Instruction = {
+    i: Instruction;
+    (&i).variant = Instructions#InstantiateTemplated;
+    (&i).value = (copy t) as &u8;
+
+    i
 };
 
 type Compiler = {
@@ -2862,6 +2912,8 @@ type Compiler = {
     curr_block: &Block,
     curr_block_idx: u64,
 };
+
+// BIG TODO: dedup logic, make a variable#newanon fn!
 
 // TYPES {{{
 func compileType(c: &Compiler, ty: TypeExpr) : CompilerType = {
@@ -2881,6 +2933,7 @@ func compiler#new(module: Module) : Compiler = {
 // }}}
 
 func compileExpr(c: &Compiler, e: Expr) : Variable;
+func compileExprWithBlockHandled(c: &Compiler, e: Expr) : Variable;
 
 func compileIdentifierExpr(c: &Compiler, i: IdentifierExpr): Variable = {
     v: Variable;
@@ -2927,6 +2980,7 @@ func compileNumberExpr(c: &Compiler, n: NumberExpr) : Variable = {
 };
 
 func compileBlockIntoCurrent(c: &Compiler, b: BlockExpr) : Variable = {
+    // TODO: variable breakout
     i: u64 = 0;
     v: Variable;
     while i < (&((&b).exprs)).len {
@@ -3021,7 +3075,7 @@ func compileWhileExpr(c: &Compiler, w: WhileExpr) : Variable = {
     c.curr_block = &b;
     c.curr_block_idx = (&b).idx;
 
-    c.compileExpr((&w).then);
+    c.compileExprWithBlockHandled((&w).then);
 
     // return to old block
     c.curr_block = old_b;
@@ -3050,7 +3104,7 @@ func compileIfExpr(c: &Compiler, i: IfExpr) : Variable = {
 
     c.curr_block = (&(c.curr_fn.blocks)).get<Block>((&(c.curr_fn.blocks)).len - 1);
 
-    c.compileExpr((&i).then);
+    c.compileExprWithBlockHandled((&i).then);
 
     els_b: Block;
     if (&ii).has_else {
@@ -3062,7 +3116,7 @@ func compileIfExpr(c: &Compiler, i: IfExpr) : Variable = {
         c.curr_block = (&(c.curr_fn.blocks)).get<Block>((&(c.curr_fn.blocks)).len - 1);
 
 
-        c.compileExpr((&i).els);
+        c.compileExprWithBlockHandled((&i).els);
     };
 
 
@@ -3087,6 +3141,225 @@ func compileReturnExpr(c: &Compiler, r: ReturnExpr) : Variable = {
     (&((c.curr_block).instructions)).append<Instruction>((ri).asInstruction());
 
     variable#none()
+};
+
+func compileCastExpr(c: &Compiler, r: CastExpr) : Variable = {
+    from: Variable = c.compileExpr((&r).val);
+    to: Variable;
+    (&to).explicit = false;
+    (&to).ty_known = true;
+    (&to).ty = c.compileType((&r).ty);
+    (&to).literal = false;
+    (&to).none = false;
+    (&to).number = c.curr_fn.var_tick;
+    (c.curr_fn.var_tick) += 1;
+    ci: CastInstruction;
+    (&ci).from = from;
+    (&ci).to = to;
+
+    (&((c.curr_block).instructions)).append<Instruction>((ci).asInstruction());
+
+    to
+};
+
+func compilePrefixCallExpr(c: &Compiler, p: PrefixCallExpr) : Variable = {
+    target_fn: Variable = c.compileIdentifierExpr((&p).prefix);
+    args: <Variable> VariableArray = variablearray#new<Variable>();
+    (&args).append<Variable>(c.compileExpr((&p).val));
+
+    to: Variable;
+    (&to).explicit = false;
+    (&to).ty_known = false;
+    (&to).literal = false;
+    (&to).none = false;
+    (&to).number = c.curr_fn.var_tick;
+    (c.curr_fn.var_tick) += 1;
+
+    ci: CallInstruction;
+    (&ci).is_brack = false;
+    (&ci).args = args;
+    (&ci).target_fn = target_fn;
+    (&ci).output = to;
+
+    (&((c.curr_block).instructions)).append<Instruction>((ci).asInstruction());
+
+    to
+};
+
+func compileSuffixCallExpr(c: &Compiler, s: SuffixCallExpr) : Variable = {
+    target_fn: Variable = c.compileIdentifierExpr((&s).suffix);
+    args: <Variable> VariableArray = variablearray#new<Variable>();
+    (&args).append<Variable>(c.compileExpr((&s).val));
+
+    to: Variable;
+    (&to).explicit = false;
+    (&to).ty_known = false;
+    (&to).literal = false;
+    (&to).none = false;
+    (&to).number = c.curr_fn.var_tick;
+    (c.curr_fn.var_tick) += 1;
+
+    ci: CallInstruction;
+    (&ci).is_brack = false;
+    (&ci).args = args;
+    (&ci).target_fn = target_fn;
+    (&ci).output = to;
+
+    (&((c.curr_block).instructions)).append<Instruction>((ci).asInstruction());
+
+    to
+};
+
+func compileBinaryExpr(c: &Compiler, b: BinaryExpr) : Variable = {
+    target_fn: Variable = c.compileIdentifierExpr((&b).op);
+    args: <Variable> VariableArray = variablearray#new<Variable>();
+    (&args).append<Variable>(c.compileExpr((&b).lhs));
+    (&args).append<Variable>(c.compileExpr((&b).rhs));
+
+    to: Variable;
+    (&to).explicit = false;
+    (&to).ty_known = false;
+    (&to).literal = false;
+    (&to).none = false;
+    (&to).number = c.curr_fn.var_tick;
+    (c.curr_fn.var_tick) += 1;
+
+    ci: CallInstruction;
+    (&ci).is_brack = false;
+    (&ci).args = args;
+    (&ci).target_fn = target_fn;
+    (&ci).output = to;
+
+    (&((c.curr_block).instructions)).append<Instruction>((ci).asInstruction());
+
+    to
+};
+
+func compilePostfixBracketsExpr(c: &Compiler, p: PostfixBracketsExpr) : Variable = {
+    target_fn: Variable = c.compileExpr((&p).val);
+    args: <Variable> VariableArray = variablearray#new<Variable>();
+    i: u64 = 0;
+    while i < (&((&p).args)).len {
+        (&args).append<Variable>(c.compileExpr(*((&((&p).args)).get<Expr>(i))));
+        i++;
+    };
+
+    to: Variable;
+    (&to).explicit = false;
+    (&to).ty_known = false;
+    (&to).literal = false;
+    (&to).none = false;
+    (&to).number = c.curr_fn.var_tick;
+    (c.curr_fn.var_tick) += 1;
+
+    ci: CallInstruction;
+    (&ci).is_brack = true;
+    (&ci).args = args;
+    (&ci).target_fn = target_fn;
+    (&ci).output = to;
+    (&ci).b_first = (&p).brack_first;
+    (&ci).b_last = (&p).brack_last;
+
+    (&((c.curr_block).instructions)).append<Instruction>((ci).asInstruction());
+
+    to
+};
+
+func compileTemplatedExpr(c: &Compiler, t: TemplatedExpr) : Variable = {
+    val: Variable = c.compileExpr((&t).val);
+    args: <CompilerType> VariableArray = variablearray#new<CompilerType>();
+    i: u64 = 0;
+    while i < (&((&t).types)).len {
+        (&args).append<CompilerType>(c.compileType(*((&((&t).types)).get<TypeExpr>(i))));
+        i++;
+    };
+
+    to: Variable;
+    (&to).explicit = false;
+    (&to).ty_known = false;
+    (&to).literal = false;
+    (&to).none = false;
+    (&to).number = c.curr_fn.var_tick;
+    (c.curr_fn.var_tick) += 1;
+
+    iti: InstantiateTemplatedInstruction;
+    (&iti).val = val;
+    (&iti).args = args;
+    (&iti).output = to;
+
+    (&((c.curr_block).instructions)).append<Instruction>((iti).asInstruction());
+
+  to
+};
+
+func compileExprWithBlockHandled(c: &Compiler, e: Expr) : Variable = {
+    if (&e).variant == ExprType#Number {
+        c.compileNumberExpr(*(((&e).value) as &NumberExpr))
+    } else if (&e).variant == ExprType#Identifier {
+        c.compileIdentifierExpr(*(((&e).value) as &IdentifierExpr))
+    } else if (&e).variant == ExprType#Block {
+        c.compileBlockIntoCurrent(*(((&e).value) as &BlockExpr))
+    } else if (&e).variant == ExprType#String {
+        c.compileStringExpr(*(((&e).value) as &StringExpr))
+    } else if (&e).variant == ExprType#If {
+        c.compileIfExpr(*(((&e).value) as &IfExpr))
+    } else if (&e).variant == ExprType#While {
+        c.compileWhileExpr(*(((&e).value) as &WhileExpr))
+    } else if (&e).variant == ExprType#Vardef {
+        c.compileVardef(*(((&e).value) as &VardefExpr))
+    } else if (&e).variant == ExprType#Return {
+        c.compileReturnExpr(*(((&e).value) as &ReturnExpr))
+    } else if (&e).variant == ExprType#Cast {
+        c.compileCastExpr(*(((&e).value) as &CastExpr))
+    } else if (&e).variant == ExprType#CDef {
+        panic("UNIMPL COMPILE CDEF");
+        v: Variable;
+        v
+    } else if (&e).variant == ExprType#PostfixBrackets {
+        c.compilePostfixBracketsExpr(*(((&e).value) as &PostfixBracketsExpr))
+    } else if (&e).variant == ExprType#PrefixCall {
+        c.compilePrefixCallExpr(*(((&e).value) as &PrefixCallExpr))
+    } else if (&e).variant == ExprType#SuffixCall {
+        c.compileSuffixCallExpr(*(((&e).value) as &SuffixCallExpr))
+    } else if (&e).variant == ExprType#TemplatedExpr {
+        c.compileTemplatedExpr(*(((&e).value) as &TemplatedExpr))
+    } else if (&e).variant == ExprType#Binary {
+        c.compileBinaryExpr(*(((&e).value) as &BinaryExpr))
+    } else if (&e).variant == ExprType#Char {
+        c.compileCharExpr(*(((&e).value) as &CharExpr))
+    } else {
+        panic("wud, compile expr not impl");
+        v: Variable;
+        v
+    }
+};
+
+func compileExpr(c: &Compiler, e: Expr) : Variable = {
+    if (&e).variant == ExprType#Block {
+        sbb: SubBlockBranchInstruction;
+        // before add instr
+        b: Block = block#newParented(c.curr_fn_idx, (&(c.curr_block.instructions)).len, c.curr_block_idx, (&(c.curr_fn.blocks)).len);
+        old_b: &Block = c.curr_block;
+        old_b_idx: u64 = c.curr_block_idx;
+        (&(c.curr_fn.blocks)).append<Block>(b);
+
+        (&sbb).block_idx = (&b).idx;
+        
+        (&(c.curr_block.instructions)).append<Instruction>(sbb.asInstruction());
+
+        c.curr_block = &b;
+        c.curr_block_idx = (&b).idx;
+
+        v: Variable = c.compileExprWithBlockHandled(e);
+
+        // return to old block
+        c.curr_block = old_b;
+        c.curr_block_idx = old_b_idx;
+
+        v
+    } else {
+        c.compileExprWithBlockHandled(e)
+    }
 };
 
 
