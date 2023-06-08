@@ -15,7 +15,7 @@ syn keyword	silverConditional	if else
 syn keyword	silverRepeat		while
 syn keyword silverType      u8 u64 u32 bool
 syn keyword silverFNDef     func infix prefix suffix macro
-syn keyword silverTypedef   type
+syn keyword silverTypedef   type enum
 syn keyword silverBool      true false
 
 
@@ -73,5 +73,5 @@ hi link silverPDef SpecialChar
 " hi link silverVDef SpecialChar
 
 
-let b:current_syntax = "c"
+let b:current_syntax = "silver"
 

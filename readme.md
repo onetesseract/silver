@@ -28,7 +28,7 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [?] proper cacheing of templated fns
 - [X] Array indexing syntax
 
-### Selfhosted Parsing Todo List:
+### Selfhosted Todo List:
 #### Parsing:
 - [X] binary ops
 - [X] blocks
@@ -46,13 +46,35 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] Types
     - [X] struct types
 - [X] while
-##### top level:
+###### top level:
 - [X] enums
 - [X] hints
 - [X] protos
 - [X] templates
 - [X] macros (oh no)
 - [ ] Cdefs
-#### low priority:
+##### low priority:
 - [ ] bracket typedefs
 - [ ] watch keywords
+
+#### Compiling
+##### Expr reprs
+- [X] Number
+- [X] Identifier
+- [X] Block
+- [X] String
+- [X] If
+- [X] While
+- [X] Vardef
+- [X] Return
+- [X] Cast
+- [ ] CDef
+- [X] Calls
+    - [X] Prefix
+    - [X] Suffix
+    - [X] Infix
+    - [X] Postfix brackets
+- [X] Templates
+- [X] Char
+#### Types
+- [ ] types
