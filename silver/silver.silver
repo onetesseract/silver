@@ -273,6 +273,7 @@ func aToI(a: &u8) : u64 = {
 };
 
 
+
 // }}}
 
 
@@ -495,6 +496,85 @@ overloadable func hash(h: &u8): u64 = {
 
 // }}}
 
+// LIST AND STRING STUFF {{{
+// yes I know this is ugly and godless
+// and brings tears to my eyes
+// but i am tired
+// TODO: rewrite to use memcpy operations
+// copies, doesn't move
+func append_str(va: & <u8> VariableArray, str: &u8) = {
+  i: u64 = 0;
+  while (*(str[i])) != 0_8 {
+    va.append<u8>(*(str[i]));
+  };
+};
+
+// this, too, is a bad idea.
+// TODO: rewrite to either use strcpy or some sort of taking ownership and just saying "yup this is VA memory now"
+// copies, doesn't move
+func va_from_str(str: &u8) : <u8> VariableArray = {
+  va: <u8> VariableArray = variablearray#new<u8>();
+  (&va).append_str(str);
+  va
+};
+
+// more crimes
+func str_from_va(va: & <u8> VariableArray) : &u8 = {
+  // must not forget nulltermi
+  s: &u8 = malloc(@sizeof(u8) * (va.len + 1));
+  s[va.len] [=] 0_8;
+
+  s
+};
+
+func itoa(val: u64, s: &u8) : &u8;
+
+// itoa, base 10
+func iToA_b10(i: u64) : &u8 = {
+  // screw this stuff
+  s: &u8 = malloc(@sizeof(u8) * 17);
+  itoa(i, s)
+
+
+
+  // todo: make this static/const/explicit or smth
+  /*
+  base: &u8 = "0123456789";
+  // we could figure out how many digits we need with a log_10
+  // but thats for nerds
+  // va: <u8> VariableArray;
+  if i == 0 {
+    s: &u8 = malloc(@sizeof(u8) * 2);
+    strcpy(s, "0");
+    return s;
+  };
+  j: u64 = 0;
+  while i != 0 {
+    j = i % 10;
+    (&va).append<u8>(*(base[j]));
+    // sure I could integer division it
+    // but i have trust issues ok
+    i = i - j;
+    i /= 10;
+  };
+
+  // this is equivalent to like
+  // va.reversed.as_str
+  // but we skip a few copies cuz my code sucks
+  j = (&va).len;
+  s: &u8 = malloc(j + 1);
+  i = 0;
+  // != instead of <= avoids some unsigned underflow shenanigans
+  while j != 0 {
+    s[i] [=] *((&va).get<u8>(j - 1));
+    i++;
+  };
+  s[i] [=] 0_8;
+  drop<u8>(va);
+  
+  s */
+};
+// }}}
 
 // LEXER {{{
 
@@ -3365,6 +3445,68 @@ func compileExpr(c: &Compiler, e: Expr) : Variable = {
 
 // }}}
 
+// to LLIR i guess?? {{{
+// we don't need this garbage, we just need to walk the tree
+/* {{{
+type LLIRBlock = {
+  // just a series of strings + some meta
+  name: &u8,
+  instructions: <&u8> VariableArray,
+};
+func llirblock#new(name: &u8) : LLIRBlock = {
+    l: LLIRBlock;
+    (&l).name = name;
+    (&l).instructions = variablearray#new<&u8>();
+
+    l
+};
+type LLIRFunction = {
+  // just a series of blocks + some metadata
+  // can miss the body
+  // TODO: types
+  name: &u8,
+  has_body: bool,
+  blocks: <LLIRBlock> VariableArray,
+};
+// TODO: types
+func llrirfunction#new(name: &u8) = {
+    l: LLIRFunction;
+    (&l).name = name;
+    (&l).blocks = variablearray#new<LLIRBlock>();
+    (&l).has_body = true;
+
+    l
+};
+func llrirfunction#new_decl(name: &u8) = {
+    l: LLIRFunction;
+    (&l).name = name;
+    (&l).has_body = false;
+
+    l
+};
+type LLIRCompiler = {
+  // just a bunch of functions
+  // TODO: stuff like globals etc etc etc
+  fns: <LLIRFunction> VariableArray,
+};
+}}} */
+func llvmCompileType(ty: &CompilerType) : <u8> VariableArray = {
+  if ty.variant == CompilerTypeType#Int {
+    // GOT HERE
+  };
+
+  v: <u8> VariableArray;
+  v
+};
+
+func llvmCompile(mod: &Module) : <<u8> VariableArray> VariableArray = {
+  // TODO: literals
+  
+  v: <<u8> VariableArray> VariableArray;
+  v
+};
+
+// }}}
 
 // MAIN {{{
 
@@ -3373,6 +3515,11 @@ func cinit();
 
 func main() : u64 = {
     cinit();
+
+    // testing
+    // printf(iToA_b10(3));
+    // exit(0);
+
     // code: &u8 = "overloadable brackets pqr rps(s: u648) : p65 = {a;};";
     code: &u8 = readFile("./silver.silver");
     lexer: &Lexer = &lexer#new(code);

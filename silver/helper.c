@@ -9,6 +9,11 @@ void print_addr(char *addr) { printf("addr: %lx\n", (unsigned long int)addr); }
 void printint(uint64_t i) {printf("int: %lu\n", i);}
 
 void cinit() {setbuf(stdout, NULL);}
+// this not good
+char* itoa(uint64_t val, char* str) {
+  sprintf(str, "%lu", val);
+  return str;
+}
 
 char* readFile(char* name) {
   char * buffer = 0;

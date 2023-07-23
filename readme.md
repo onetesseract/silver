@@ -28,6 +28,9 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [?] proper cacheing of templated fns
 - [X] Array indexing syntax
 
+### Fixes todo:
+ - [ ] Prefix templated calls :( (and does selfhosted work w them??)
+
 ### Selfhosted Todo List:
 #### Parsing:
 - [X] binary ops
