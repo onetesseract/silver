@@ -329,13 +329,14 @@ func aToI(a: &u8) : u64 = {
   self
 };
 
-<K, V> overloadable func hmlist_add(self: & <K, V> HMLinkedListElem, key: K, value: V) = {
+<K, V> overloadable func hmlist_add(self: & <K, V> HMLinkedListElem, key: K, value: V) : &V = {
   hash: u64 = hash(key);
   if self.hmlist_contains_internal<K, V>(hash) {
     elem: & <K, V>HMLinkedListElem = self.hmlist_get_elem_internal<K, V>(hash);
     // TODO: free((elem.val) as &u8);
     elem.val = (malloc(@sizeof(V)) as &V);
     memcpy((elem.val) as &u8, (&value) as &u8, @sizeof(V));
+    elem.val
   } else {
     elem: <K, V>HMLinkedListElem;
     (&elem).hash = hash;
@@ -347,6 +348,7 @@ func aToI(a: &u8) : u64 = {
     memcpy(elem2 as &u8, (&elem) as &u8, @sizeof(elem));
     (self.next_elem) = elem2 as &u8;
     (self.has_next_elem) = true;
+    elem2.val
   }
 };
 
@@ -494,6 +496,16 @@ overloadable func hash(h: &u8): u64 = {
     0
 };
 
+// I am the queen of bad code
+// you can't have va == v2
+<T> func append_va(va: & <T> VariableArray, v2: & <T> VariableArray) = {
+  i: u64 = 0;
+  while i < v2.len {
+    va.append<T>(*(v2.get<T>(i)));
+    i++;
+  };
+};
+
 // }}}
 
 // LIST AND STRING STUFF {{{
@@ -506,8 +518,10 @@ func append_str(va: & <u8> VariableArray, str: &u8) = {
   i: u64 = 0;
   while (*(str[i])) != 0_8 {
     va.append<u8>(*(str[i]));
+    i++;
   };
 };
+
 
 // this, too, is a bad idea.
 // TODO: rewrite to either use strcpy or some sort of taking ownership and just saying "yup this is VA memory now"
@@ -522,6 +536,7 @@ func va_from_str(str: &u8) : <u8> VariableArray = {
 func str_from_va(va: & <u8> VariableArray) : &u8 = {
   // must not forget nulltermi
   s: &u8 = malloc(@sizeof(u8) * (va.len + 1));
+  strncpy(s, va.data, va.len);
   s[va.len] [=] 0_8;
 
   s
@@ -857,6 +872,7 @@ type TemplateTypeExpr = {
 };
 
 // TODO: Default values
+// TODO: calling things `type` really, _really_ shouldn't work
 type StructVarDef = {
     name: LexString,
     type: TypeExpr,
@@ -2707,6 +2723,7 @@ enum CompilerTypeType = {
   Int,
   Reference,
   Struct,
+  Alias,
 };
 // TODO: FUNC
 type CompilerType = {
@@ -2716,7 +2733,7 @@ type CompilerType = {
 prefix copy(c: CompilerType) : &CompilerType = c.flatCopy<CompilerType>();
 
 type CompilerStructType = {
-  names: <&u8> VariableArray,
+  names: <LexString> VariableArray,
   types: <CompilerType> VariableArray,
 };
 type CompilerTemplatedType = {
@@ -2727,7 +2744,13 @@ type CompilerIntType = {
   bitwidth: u64,
   // TODO: signed
 };
+type CompilerAliasType = {
+  name: LexString,
+  // TODO: signed
+};
+prefix copy(c: CompilerAliasType) : &CompilerAliasType = c.flatCopy<CompilerAliasType>();
 prefix copy(c: CompilerIntType) : &CompilerIntType = c.flatCopy<CompilerIntType>();
+prefix copy(c: CompilerStructType) : &CompilerStructType = c.flatCopy<CompilerStructType>();
 overloadable func asCompilerType(c: CompilerIntType) : CompilerType = {
   t: CompilerType;
   (&t).variant = CompilerTypeType#Int;
@@ -2736,6 +2759,7 @@ overloadable func asCompilerType(c: CompilerIntType) : CompilerType = {
   t
 };
 // }}}
+// BLOCK {{{
 type Block = {
   is_toplevel: bool,
   parent_instr_idx: u64,
@@ -2745,7 +2769,6 @@ type Block = {
   // known_vars: <&u8, CompilerType> HashMap,
   idx: u64,
 };
-// BLOCK {{{
 func block#newTl(parent_fn_idx: u64, idx: u64) : Block = {
   b: Block;
   (&b).is_toplevel = true;
@@ -2772,6 +2795,7 @@ func block#newParented(parent_fn_idx: u64, parent_instr_idx: u64, parent_block_i
 };
 // }}}
 
+// FUNCTION {{{
 type FunctionArg = {
   name: &u8,
   ty: CompilerType,
@@ -2781,17 +2805,18 @@ type Function = {
     name: &u8,
     args: <FunctionArg> VariableArray,
     has_body: bool,
+    retty: CompilerType,
     idx: u64,
     var_tick: u64,
 };
 
-// FUNCTION {{{
-func function#new(name: &u8, args: <FunctionArg> VariableArray, has_body: bool, idx: u64) : Function = {
+func function#new(name: &u8, args: <FunctionArg> VariableArray, has_body: bool, retty: CompilerType, idx: u64) : Function = {
   f: Function;
   (&f).name = name;
   (&f).args = args;
   (&f).has_body = has_body;
   (&f).var_tick = 0;
+  (&f).retty = retty;
   
   if has_body {
     (&f).blocks = variablearray#new<Block>();
@@ -2819,6 +2844,7 @@ type NumberLiteral = {
 prefix copy(n: NumberLiteral) : &NumberLiteral = n.flatCopy<NumberLiteral>();
 // }}}
 
+// Module {{{
 type Module = {
   type_mappings: <&u8, CompilerType> HashMap,
   functions: <&u8, <Function> VariableArray> HashMap,
@@ -2826,8 +2852,6 @@ type Module = {
   // used to name implicits
   literals: <Literal> VariableArray,
 };
-
-// MODULE {{{
 
 func module#new() : Module = {
   m: Module;
@@ -2839,8 +2863,8 @@ func module#new() : Module = {
 };
 
 // don't free name
-func addFunc(self: &Module, name: &u8, args: <FunctionArg> VariableArray, has_body: bool) : &Function = {
-  f: Function = function#new(name, args, has_body, self.fn_count);
+func addFunc(self: &Module, name: &u8, args: <FunctionArg> VariableArray, has_body: bool, retty: CompilerType) : &Function = {
+  f: Function = function#new(name, args, has_body, retty, self.fn_count);
   (self.fn_count)++;
   if !((&(self.functions)).hm_contains<&u8, <Function> VariableArray>(name)) {
     (&(self.functions)).hm_add<&u8, <Function> VariableArray>(name, variablearray#new<Function>());
@@ -2851,6 +2875,8 @@ func addFunc(self: &Module, name: &u8, args: <FunctionArg> VariableArray, has_bo
 };
 // }}}
 
+// VARIABLE {{{
+// TODO: replace with LexString
 type Variable = {
     name: &u8,
     number: u64,
@@ -2861,7 +2887,6 @@ type Variable = {
     none: bool,
 };
 
-// VARIABLE {{{
 func variable#none() : Variable = {
   v: Variable;
   (&v).none = true;
@@ -2869,7 +2894,7 @@ func variable#none() : Variable = {
   v
 };
 // }}}
-
+// Instructions {{{
 
 // TODO: make work with longer than 1-char brackets
 type CallInstruction = {
@@ -2985,6 +3010,9 @@ overloadable func asInstruction(t: InstantiateTemplatedInstruction) : Instructio
     i
 };
 
+// }}}
+
+// Compiler {{{
 type Compiler = {
     module: Module,
     curr_fn: &Function,
@@ -2993,10 +3021,43 @@ type Compiler = {
     curr_block_idx: u64,
 };
 
+// }}}
+
 // BIG TODO: dedup logic, make a variable#newanon fn!
 
 // TYPES {{{
-func compileType(c: &Compiler, ty: TypeExpr) : CompilerType = {
+func compileType(c: &Compiler, t: &TypeExpr) : CompilerType = {
+    if t.variant == TypeType#Reference {
+        q: CompilerType = c.compileType((t.value) as &TypeExpr);
+        ct: CompilerType;
+        (&ct).variant = CompilerTypeType#Reference;
+        (&ct).value = (copy q) as &u8;
+        return ct;
+    } else if t.variant == TypeType#Named {
+        q: CompilerAliasType;
+        (&q).name = (((t.value) as &NamedTypeExpr).name);
+        ct: CompilerType;
+        (&ct).variant = CompilerTypeType#Alias;
+        (&ct).value = (copy q) as &u8;
+        return ct;
+    } else if t.variant == TypeType#Struct {
+        st: &StructTypeExpr = (t.value) as &StructTypeExpr;
+        sta: &<StructVarDef> VariableArray = &(st.types);
+        q: CompilerStructType;
+        (&q).names = variablearray#new<LexString>();
+        (&q).types = variablearray#new<CompilerType>();
+        i: u64 = 0;
+        while i < sta.len {
+            svd: &StructVarDef = sta.get<StructVarDef>(i);
+            (&((&q).names)).append<LexString>(svd.name);
+            (&((&q).types)).append<CompilerType>(c.compileType(&(svd.type)));
+            i++;
+        };
+        ct: CompilerType;
+        (&ct).variant = CompilerTypeType#Struct;
+        (&ct).value = (copy q) as &u8;
+        return ct;
+    };
     panic("UNIMPLEMENTED COMPILETYPE");
     c: CompilerType;
     c
@@ -3015,6 +3076,7 @@ func compiler#new(module: Module) : Compiler = {
 func compileExpr(c: &Compiler, e: Expr) : Variable;
 func compileExprWithBlockHandled(c: &Compiler, e: Expr) : Variable;
 
+// compiling exprs {{{
 func compileIdentifierExpr(c: &Compiler, i: IdentifierExpr): Variable = {
     v: Variable;
     (&v).name = (&((&i).source)).render();
@@ -3077,7 +3139,7 @@ func compileVardef(c: &Compiler, v: VardefExpr) : Variable = {
     (&var).explicit = true;
     (&var).none = false;
     (&var).ty_known = true;
-    (&var).ty = c.compileType((&v).ty);
+    (&var).ty = c.compileType(&((&v).ty));
 
     vdi: VardefInstruction;
     (&vdi).name = var;
@@ -3228,7 +3290,7 @@ func compileCastExpr(c: &Compiler, r: CastExpr) : Variable = {
     to: Variable;
     (&to).explicit = false;
     (&to).ty_known = true;
-    (&to).ty = c.compileType((&r).ty);
+    (&to).ty = c.compileType(&((&r).ty));
     (&to).literal = false;
     (&to).none = false;
     (&to).number = c.curr_fn.var_tick;
@@ -3350,7 +3412,7 @@ func compileTemplatedExpr(c: &Compiler, t: TemplatedExpr) : Variable = {
     args: <CompilerType> VariableArray = variablearray#new<CompilerType>();
     i: u64 = 0;
     while i < (&((&t).types)).len {
-        (&args).append<CompilerType>(c.compileType(*((&((&t).types)).get<TypeExpr>(i))));
+        (&args).append<CompilerType>(c.compileType(((&((&t).types)).get<TypeExpr>(i))));
         i++;
     };
 
@@ -3413,6 +3475,7 @@ func compileExprWithBlockHandled(c: &Compiler, e: Expr) : Variable = {
         v
     }
 };
+// }}}
 
 func compileExpr(c: &Compiler, e: Expr) : Variable = {
     if (&e).variant == ExprType#Block {
@@ -3446,60 +3509,350 @@ func compileExpr(c: &Compiler, e: Expr) : Variable = {
 // }}}
 
 // to LLIR i guess?? {{{
-// we don't need this garbage, we just need to walk the tree
-/* {{{
-type LLIRBlock = {
-  // just a series of strings + some meta
-  name: &u8,
-  instructions: <&u8> VariableArray,
-};
-func llirblock#new(name: &u8) : LLIRBlock = {
-    l: LLIRBlock;
-    (&l).name = name;
-    (&l).instructions = variablearray#new<&u8>();
-
-    l
-};
-type LLIRFunction = {
-  // just a series of blocks + some metadata
-  // can miss the body
-  // TODO: types
-  name: &u8,
-  has_body: bool,
-  blocks: <LLIRBlock> VariableArray,
-};
-// TODO: types
-func llrirfunction#new(name: &u8) = {
-    l: LLIRFunction;
-    (&l).name = name;
-    (&l).blocks = variablearray#new<LLIRBlock>();
-    (&l).has_body = true;
-
-    l
-};
-func llrirfunction#new_decl(name: &u8) = {
-    l: LLIRFunction;
-    (&l).name = name;
-    (&l).has_body = false;
-
-    l
-};
-type LLIRCompiler = {
-  // just a bunch of functions
-  // TODO: stuff like globals etc etc etc
-  fns: <LLIRFunction> VariableArray,
-};
-}}} */
+// llvmCompileType {{{
 func llvmCompileType(ty: &CompilerType) : <u8> VariableArray = {
+  v: <u8> VariableArray;
   if ty.variant == CompilerTypeType#Int {
-    // GOT HERE
+    c: &CompilerIntType = (ty.value) as &CompilerIntType;
+    v = va_from_str("i");
+    (&v).append_str(iToA_b10(c.bitwidth));
+  } else if ty.variant == CompilerTypeType#Reference {
+    v = llvmCompileType((ty.value) as &CompilerType);
+    (&v).append_str("*");
+  } else if ty.variant == CompilerTypeType#Struct {
+    // TODO: refactor to use consts when they happen
+    v = va_from_str("{ ");
+    // vp: &<u8>VariableArray = &v;
+    v3: <u8> VariableArray = va_from_str(", ");
+    v4: <u8> VariableArray = va_from_str(" }");
+    i: u64 = 0;
+    c: &CompilerStructType = (ty.value) as &CompilerStructType;
+    while i < (&(c.types)).len {
+      v2: <u8> VariableArray = llvmCompileType((&(c.types)).get<CompilerType>(i));
+      (&v).append_va<u8>(&v2);
+      drop<u8>(v2);
+      i++;
+      if i < (&(c.types)).len {
+        (&v).append_va<u8>(&v3);
+      }
+    };
+    drop<u8>(v3);
+    (&v).append_va<u8>(&v4);
+    drop<u8>(v4);
   };
 
-  v: <u8> VariableArray;
   v
 };
+// }}}
+// LlvmBlock {{{
+type LlvmBlock = {
+  instrs: <<u8> VariableArray> VariableArray
+};
+func add_instr(b: &LlvmBlock, i: <u8> VariableArray) = {
+  (&(b.instrs)).append<<u8> VariableArray>(i)
+};
+func llvmblock#new() : LlvmBlock = {
+  l: LlvmBlock;
+  (&l).instrs = variablearray#new<<u8> VariableArray>();
 
-func llvmCompile(mod: &Module) : <<u8> VariableArray> VariableArray = {
+  l
+};
+// }}}
+// LlvmFunction {{{
+type LlvmFunction = {
+  entry_block: &LlvmBlock,
+  blocks: <&u8, LlvmBlock> HMLinkedListElem,
+};
+// }}}
+// LlvmModule {{{
+type LlvmModule = {
+  functions: <LlvmFunction> VariableArray,
+  curr_fn: &LlvmFunction,
+  curr_block: &LlvmBlock,
+  iblock_inc: u64,
+  // TODO: globals literals etc etc
+};
+// }}}
+// Instructions {{{
+// compile variable {{{
+type LlvmCompileVariableResult = {
+  name: <u8> VariableArray,
+  ty: <u8> VariableArray,
+};
+prefix drop(t: LlvmCompileVariableResult) = {
+  drop<u8>((&t).name);
+  drop<u8>((&t).ty);
+};
+
+func llvmCompileVariable(mod: &LlvmModule, v: &Variable) : LlvmCompileVariableResult = {
+    // Functions are first-class <3
+    // TODO: sanitization of LLVM IR-compatible names (like == needs to be "==")
+    // Also add % or @ as required (local v global I think?)
+    panic("unimplW");
+    o: LlvmCompileVariableResult;
+    o
+};
+// }}}
+// compile block {{{
+func llvmCompileBlock(mod: &LlvmModule, block_idx: u64) : <u8> VariableArray = {
+  panic("llvmCompileBlock Unimplemeneted");
+  variablearray#new<u8>();
+};
+// }}}
+// compile call {{{
+func llvmCompileCallInstruction(mod: &LlvmModule, c: &CallInstruction) : <u8> VariableArray = {
+  // syntax: `call <retty> @name(argtype %name, ...)`
+  // (&(mod.functions)).hm_get(&u8 name) returns a vararray of overloadabels
+  v: <u8> VariableArray = va_from_str("call ");
+  // TODO: overloadables
+  // specifically, check if variable is named and then the vararray from module is longer than 1
+  // if so, don't compile the variable, pick out the name, append llvmcompiled-type, and use that instead <3
+  // remember to sanitize! wrap in quotes :3
+  // no i will not explain the :3 it just feels right
+  // TODO: bracket functions
+  fn: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.target_fn));
+  (&v).append_va<u8>(&((&fn).ty));
+  (&v).append_str(" ");
+  (&v).append_va<u8>(&((&fn).name));
+  (&v).append<u8>('(');
+  drop fn;
+  args: &<Variable> VariableArray = &(c.args);
+  i: u64 = 0;
+  while i < args.len {
+    arg: LlvmCompileVariableResult = mod.llvmCompileVariable(args.get<Variable>(i));
+    (&v).append_va<u8>(&((&arg).ty));
+    (&v).append<u8>(' ');
+    (&v).append_va<u8>(&((&arg).name));
+    i++;
+    if i < args.len {
+      (&v).append_str(", ");
+    };
+    drop arg;
+  };
+  (&v).append<u8>(')');
+
+  v
+};
+// }}}
+// compile ret {{{
+func llvmCompileReturnInstruction(mod: &LlvmModule, r: &ReturnInstruction) : <u8> VariableArray = {
+  v: <u8> VariableArray = va_from_str("ret ");
+  if !(r.has_val) {
+    (&v).append_str("void");
+    return v
+  };
+
+  val: LlvmCompileVariableResult = mod.llvmCompileVariable(&(r.value));
+  (&v).append_va<u8>(&((&val).ty));
+  (&v).append<u8>(' ');
+  (&v).append_va<u8>(&((&val).name));
+
+  drop val;
+
+  v
+};
+// }}}
+// compile if {{{
+func llvmCompileIfBranchInstruction(mod: &LlvmModule, i: &IfBranchInstruction) : <u8> VariableArray = {
+  cond: LlvmCompileVariableResult = mod.llvmCompileVariable(&(i.condition));
+  ty_name: &u8 = (&((&cond).ty)).str_from_va();
+  if !(ty_name == "i1") {
+    printf("Error compiling to LLVM: `");
+    // really we should free it but we panicking so who cares
+    printf((&((&cond).name)).str_from_va());
+    printf("` as an if condition is not an i1, but rather a `");
+    printf((&((&cond).ty)).str_from_va());
+    printf("`\n");
+    panic();
+  };
+  free(ty_name);
+  // TODO: % in front of names
+  cont_name: <u8> VariableArray = va_from_str("ifcont_");
+  j: &u8 = iToA_b10(mod.iblock_inc);
+  (mod.iblock_inc)++;
+  (&cont_name).append_str(j);
+  free(j);
+  v: <u8> VariableArray = va_from_str("br i1 ");
+  (&v).append_va<u8>(&((&cond).name));
+  (&v).append_str(", label %");
+  // it's all indexes
+  ib_name: &u8 = iToA_b10(i.then_idx);
+  (&v).append_str(ib_name);
+
+  (&v).append_str(", label %");
+
+  eb_name: &u8;
+  if i.has_else {
+    eb_name = iToA_b10(i.els_idx);
+    (&v).append_str(eb_name);
+  } else {
+    (&v).append_va<u8>(&cont_name);
+  };
+  curr_block: &LlvmBlock = mod.curr_block;
+  curr_block.add_instr(v);
+
+  resume_instr: <u8> VariableArray = va_from_str("br label %");
+  (&resume_instr).append_va<u8>(&cont_name);
+
+  // compile the if-block
+  iblock: LlvmBlock = llvmblock#new();
+  mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>(ib_name, iblock);
+  mod.llvmCompileBlock(i.then_idx);
+  mod.curr_block.add_instr(resume_instr);
+
+  // maybe the else block
+  if i.has_else {
+    eblock: LlvmBlock = llvmblock#new();
+    mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>(eb_name, eblock);
+    mod.llvmCompileBlock(i.els_idx);
+    mod.curr_block.add_instr(resume_instr);
+  };
+
+  cblock: LlvmBlock = llvmblock#new();
+  mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>((&cont_name).str_from_va(), cblock);
+
+  // BIG TODO: Phi nodes
+  // garbaging the returns
+  v
+};
+// }}}
+// compile while {{{
+func llvmCompileWhileBranchInstruction(mod: &LlvmModule, w: &WhileBranchInstruction) : <u8> VariableArray = {
+  cond: LlvmCompileVariableResult = mod.llvmCompileVariable(&(w.condition));
+  ty_name: &u8 = (&((&cond).ty)).str_from_va();
+  if !(ty_name == "i1") {
+    printf("Error compiling to LLVM: `");
+    // really we should free it but we panicking so who cares
+    printf((&((&cond).name)).str_from_va());
+    printf("` as a while condition is not an i1, but rather a `");
+    printf((&((&cond).ty)).str_from_va());
+    printf("`\n");
+    panic();
+  };
+  free(ty_name);
+  // TODO: % in front of names
+  cont_name: <u8> VariableArray = va_from_str("whilecont_");
+  j: &u8 = iToA_b10(mod.iblock_inc);
+  (mod.iblock_inc)++;
+  (&cont_name).append_str(j);
+  free(j);
+
+  cond_name: <u8> VariableArray = va_from_str("whilecond_");
+  j = iToA_b10(mod.iblock_inc);
+  (mod.iblock_inc)++;
+  (&cond_name).append_str(j);
+  free(j);
+
+  condi: <u8> VariableArray = va_from_str("br label %");
+  (&condi).append_va<u8>(&cond_name);
+  mod.curr_block.add_instr(condi);
+
+  v: <u8> VariableArray = va_from_str("br i1 ");
+  (&v).append_va<u8>(&((&cond).name));
+  (&v).append_str(", label %");
+  // it's all indexes
+  ib_name: &u8 = iToA_b10(w.then_idx);
+  (&v).append_str(ib_name);
+
+  (&v).append_str(", label %");
+
+  (&v).append_va<u8>(&cont_name);
+
+  condblock: LlvmBlock = llvmblock#new();
+  condblockp: &LlvmBlock = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>((&cond_name).str_from_va(), condblock);
+
+  condblockp.add_instr(v);
+
+  resume_instr: <u8> VariableArray = va_from_str("br label %");
+  (&resume_instr).append_va<u8>(&cont_name);
+
+  // compile the if-block
+  iblock: LlvmBlock = llvmblock#new();
+  mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>(ib_name, iblock);
+  mod.llvmCompileBlock(w.then_idx);
+  mod.curr_block.add_instr(resume_instr);
+
+  cblock: LlvmBlock = llvmblock#new();
+  mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>((&cont_name).str_from_va(), cblock);
+  
+  // maybe empty vararrays shouldn't be used
+  // like, we could have an Option type or smth
+  variablearray#new<u8>()
+};
+// }}}
+// compile subblockbranch {{{
+func llvmCompileSubBlockBranchInstruction(mod: &LlvmModule, s: &SubBlockBranchInstruction) : <u8> VariableArray = {
+  // just realised all the rest is a bit extra lol
+  // we can just compile them into the current block, and not waste br-s
+  mod.llvmCompileBlock(s.block_idx)
+/*
+  resb_name: <u8> VariableArray = va_from_str("sbb_resume_");
+  j: &u8 = iToA_b10(mod.iblock_inc);
+  (mod.iblock_inc)++;
+  (&resb_name).append_str(j);
+  free(j);
+
+  k: &u8 = iToA_b10(mod.iblock_inc);
+  sbb_name: <u8> VariableArray = va_from_str(k);
+  (mod.iblock_inc)++;
+  free(k);
+
+  br_instr: <u8> VariableArray = va_from_str("br label %");
+  (&br_instr).append_va<u8>(&sbb_name);
+
+  mod.curr_block.add_instr(br_instr);
+
+  sblock: LlvmBlock = llvmblock#new();
+  mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>((&sbb_name).str_from_va(), sblock);
+  retval: <u8> VariableArray = mod.llvmCompileBlock(s.block_idx);
+
+  resume_instr: <u8> VariableArray = va_from_str("br label %");
+  (&resume_instr).append_va<u8>(&resb_name);
+
+  mod.curr_block.add_instr(resume_instr);
+
+
+  resblock: LlvmBlock = llvmblock#new();
+*/
+};
+// }}}
+// compile cast {{{
+// TODO: clarify: does the CastInstr expect the name of .to to be used?
+func llvmCompileCastInstruction(mod: &LlvmModule, c: &CastInstruction) : <u8> VariableArray = {
+  v: <u8> VariableArray = va_from_str("bitcast ");
+  r: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.from));
+  (&v).append_va<u8>(&((&r).ty));
+  (&v).append<u8>(' ');
+  (&v).append_va<u8>(&((&r).name));
+  (&v).append_str(" to ");
+  t: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.from));
+  (&v).append_va<u8>(&((&t).ty));
+
+  drop r;
+  drop t;
+
+  v
+};
+// }}}
+// compile vardef {{{
+func llvmCompileVardefInstruction(mod: &LlvmModule, vdi: &VardefInstruction) : <u8> VariableArray = {
+  v: <u8> VariableArray = va_from_str("%");
+  (&v).append_str(&(vdi.name).name);
+  (&v).append_str(" = alloca ");
+  ct: <u8> VariableArray = llvmCompileType(&(vdi.ty));
+  (&v).append_va<u8>(&ct);
+  drop<u8>(ct);
+
+  mod.curr_fn.entry_block.add_instr(v);
+
+  va_from_str(&(vdi.name).name)
+};
+// }}}
+// }}}
+
+func llvmCompileInstruction(mod: &LlvmModule, i: &Instruction);
+func llvmCompileBlock(mod: &LlvmModule, bidx: u64);
+func llvmCompile(mod: &LlvmModule) : <<u8> VariableArray> VariableArray = {
   // TODO: literals
   
   v: <<u8> VariableArray> VariableArray;
@@ -3519,6 +3872,42 @@ func main() : u64 = {
     // testing
     // printf(iToA_b10(3));
     // exit(0);
+    //c: <u8> VariableArray = va_from_str("6");
+    //printf("here\n");
+    //(&c).append_str(iToA_b10(3));
+    //printf("here2\n");
+    //printf(iToA_b10((&c).len));
+    //printf((&c).str_from_va());
+
+    //exit(0);
+
+    c: CompilerType;
+    (&c).variant = CompilerTypeType#Int;
+    i: CompilerIntType;
+    (&i).bitwidth = 32;
+    // really we should memcpy it but this is good for a test
+    (&c).value = (&i) as &u8;
+
+    r: CompilerType;
+    (&r).variant = CompilerTypeType#Reference;
+    (&r).value = (&c) as &u8;
+
+    b: CompilerStructType;
+    (&b).types = variablearray#new<CompilerType>();
+    (&((&b).types)).append<CompilerType>(r);
+    (&((&b).types)).append<CompilerType>(r);
+
+    q: CompilerType;
+    (&q).variant = CompilerTypeType#Struct;
+    (&q).value = (&b) as &u8;
+
+
+
+    v: <u8> VariableArray = llvmCompileType(&q);
+    v2: <u8> VariableArray = "henlo".va_from_str();
+    (&v).append_va<u8>(&v2);
+    printf((&v).str_from_va());
+    exit(0);
 
     // code: &u8 = "overloadable brackets pqr rps(s: u648) : p65 = {a;};";
     code: &u8 = readFile("./silver.silver");
