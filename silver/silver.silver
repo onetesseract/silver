@@ -3657,6 +3657,7 @@ type LlvmModule = {
   break_to: <u8> VariableArray,
   from_fn: &Function,
   parent_mod: &Module,
+  fns_output: <<<u8> VariableArray> VariableArray> VariableArray,
   // TODO: globals literals etc etc
 };
 func llvmmodule#new(mod: &Module) : LlvmModule = {
@@ -3665,8 +3666,26 @@ func llvmmodule#new(mod: &Module) : LlvmModule = {
   lp.functions = variablearray#new<LlvmFunction>();
   lp.iblock_inc = 0;
   lp.parent_mod = mod;
-
+  lp.fns_output = variablearray#new<<<u8> VariableArray> VariableArray>();
   l
+};
+
+func collect(mod: &LlvmModule) : <u8> VariableArray = {
+  output: <u8> VariableArray = variablearray#new<u8>();
+  // multiple dimension arrays lesgo
+  tla: &<<<u8> VariableArray> VariableArray> VariableArray = &(mod.fns_output);
+  i: u64 = 0;
+  while i < tla.len {
+    j: u64 = 0;
+    la2: &<<u8> VariableArray> VariableArray = tla.get<<<u8> VariableArray> VariableArray>(i);
+    while j < la2.len {
+      (&output).append_va<u8>(la2.get<<u8> VariableArray>(j));
+      (&output).append<u8>('\n');
+      j++;
+    };
+    i++;
+  };
+  output
 };
 // }}}
 // fwd-defs {{{
@@ -3742,6 +3761,7 @@ prefix drop(t: LlvmCompileVariableResult) = {
   drop<u8>((&t).ty);
 };
 
+// TODO: add true/false
 func llvmCompileVariable(mod: &LlvmModule, v: &Variable) : LlvmCompileVariableResult = {
     r: LlvmCompileVariableResult;
     if v.literal {
@@ -4041,7 +4061,7 @@ func llvmCompileBreak(mod: &LlvmModule) : <u8> VariableArray = {
 // }}}
 
 // compile function, please help {{{
-func llvmCompileFunction(mod: &LlvmModule, fn: &Function) : <<u8> VariableArray> VariableArray = {
+func llvmCompileFunction(mod: &LlvmModule, fn: &Function) = {
   fn_text: <u8> VariableArray;
   if !(fn.has_body) {
     fn_text = va_from_str("declare ");
@@ -4078,7 +4098,7 @@ func llvmCompileFunction(mod: &LlvmModule, fn: &Function) : <<u8> VariableArray>
   whole: <<u8> VariableArray> VariableArray = variablearray#new<<u8> VariableArray>();
   (&whole).append<<u8> VariableArray>(fn_text);
   if !(fn.has_body) {
-    return whole;
+    return;
   };
   // le fn
   lfn: LlvmFunction;
@@ -4128,11 +4148,12 @@ func llvmCompileFunction(mod: &LlvmModule, fn: &Function) : <<u8> VariableArray>
     i++;
   };
   (&whole).append<<u8> VariableArray>((va_from_str("}")));
-  whole
+
+  (&(mod.fns_output)).append<<<u8> VariableArray> VariableArray>(whole);
 };
 // }}}
 
-func llvmCompile(mod: &LlvmModule) : <<u8> VariableArray> VariableArray = {
+func llvmCompile(mod: &LlvmModule) = {
   // TODO: literals
   // TODO: iter over type_mappings, enums, literals????
   fns: <& <Function> VariableArray> VariableArray = (&(mod.parent_mod.functions)).hm_vals<&u8, <Function> VariableArray>();
@@ -4141,7 +4162,8 @@ func llvmCompile(mod: &LlvmModule) : <<u8> VariableArray> VariableArray = {
     j: u64 = 0;
     fnsfns : & <Function> VariableArray = *((&fns).get<&<Function>VariableArray>(i));
     while j < fnsfns.len {
-      result: <<u8> VariableArray> VariableArray = mod.llvmCompileFunction(fnsfns.get<Function>(j));
+      mod.llvmCompileFunction(fnsfns.get<Function>(j));
+      /*
       k: u64 = 0;
       while k < (&result).len {
         s: &u8 = (((&result).get<<u8> VariableArray>(k))).str_from_va();
@@ -4150,12 +4172,11 @@ func llvmCompile(mod: &LlvmModule) : <<u8> VariableArray> VariableArray = {
         free(s);
         k++;
       };
-      j++
+      */
+      j++;
     };
     i++;
   };
-  v: <<u8> VariableArray> VariableArray;
-  v
 };
 
 // }}}
@@ -4189,9 +4210,10 @@ func main() : u64 = {
       }
       // TODO: all the rest
     };
-    printf("\n");
     lm: LlvmModule = llvmmodule#new(&m);
     (&lm).llvmCompile();
+    out: <u8> VariableArray = (&lm).collect();
+    printf(str_from_va(&out));
     exit(0);
     0
 };
