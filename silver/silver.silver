@@ -2836,7 +2836,7 @@ func block#newParented(parent_fn_idx: u64, parent_instr_idx: u64, parent_block_i
   // (&b).parent_fn_idx = parent_fn_idx;
   //(&b).parent_instr_idx = parent_instr_idx;
   //(&b).parent_block_idx = parent_block_idx;
-  //(&b).instructions = variablearray#new<Instruction>();
+  (&b).instructions = variablearray#new<Instruction>();
   (&b).idx = idx;
 
   b
@@ -3120,12 +3120,14 @@ func compileExpr(c: &Compiler, e: Expr) : Variable;
 func compileExprWithBlockHandled(c: &Compiler, e: Expr) : Variable;
 
 // compiling exprs {{{
+// TODO: check _every_ instantiation of a Variable since stupid language no warnings
 func compileIdentifierExpr(c: &Compiler, i: IdentifierExpr): Variable = {
     v: Variable;
     (&v).name = (&((&i).source)).render();
     (&v).explicit = true;
     (&v).ty_known = false;
     (&v).none = false;
+    (&v).literal = false;
 
     v
 };
@@ -3283,6 +3285,7 @@ func compileIfExpr(c: &Compiler, i: IfExpr) : Variable = {
     (&(c.curr_fn.blocks)).append<Block>(b);
 
     (&ii).then_idx = (&b).idx;
+    (&(c.curr_block.instructions)).append<Instruction>(ii.asInstruction());
 
     c.curr_block_idx = (&b).idx;
     
@@ -3310,7 +3313,6 @@ func compileIfExpr(c: &Compiler, i: IfExpr) : Variable = {
     c.curr_block_idx = old_b_idx;
 
 
-    (&(c.curr_block.instructions)).append<Instruction>(ii.asInstruction());
 
     
     variable#none()
@@ -3611,8 +3613,12 @@ func compileFunction(c: &Compiler, fd: FnDefTLExpr) : &Function = {
     c.curr_fn_idx = (((c.module)).fn_count) - 1;
     c.curr_block = (&(f.blocks)).get<Block>(0);
     c.curr_block_idx = 0;
+    
+    // so here's the thing, right
+    // if it's a block we already made the block for it
+    // so special case!! wooo i love this
 
-    f.retvar =  c.compileExpr(((&(fd)).body));
+    f.retvar =  c.compileExprWithBlockHandled(((&(fd)).body));
   };
 
   f;
@@ -3689,10 +3695,8 @@ func collect(mod: &LlvmModule) : <u8> VariableArray = {
 };
 // }}}
 // fwd-defs {{{
-func llvmCompileInstruction(mod: &LlvmModule, i: &Instruction) : <u8> VariableArray = {
-  panic("unimplwed");
-  va_from_str("no");
-};
+func llvmCompileInstruction(mod: &LlvmModule, i: &Instruction) : <u8> VariableArray;
+
 // }}}
 // llvmCompileType {{{
 func llvmCompileType(ty: &CompilerType) : <u8> VariableArray = {
@@ -3781,7 +3785,13 @@ func llvmCompileVariable(mod: &LlvmModule, v: &Variable) : LlvmCompileVariableRe
         
         }
     } else {
-
+        if v.explicit {
+            if v.name == "true" {
+                (&r).name = va_from_str("1");
+                (&r).ty = va_from_str("i1");
+                return r;
+            }
+        }
     };
     // Functions are first-class <3
     // TODO: sanitization of LLVM IR-compatible names (like == needs to be "==")
@@ -3795,13 +3805,16 @@ func llvmCompileVariable(mod: &LlvmModule, v: &Variable) : LlvmCompileVariableRe
 func llvmCompileCallInstruction(mod: &LlvmModule, c: &CallInstruction) : <u8> VariableArray = {
   // syntax: `call <retty> @name(argtype %name, ...)`
   // (&(mod.functions)).hm_get(&u8 name) returns a vararray of overloadabels
-  v: <u8> VariableArray = va_from_str("call ");
+  out: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.target_fn));
+  v: <u8> VariableArray = (&out).name;
+  (&v).append_str(" = call ");
   // TODO: overloadables
   // specifically, check if variable is named and then the vararray from module is longer than 1
   // if so, don't compile the variable, pick out the name, append llvmcompiled-type, and use that instead <3
   // remember to sanitize! wrap in quotes :3
   // no i will not explain the :3 it just feels right
   // TODO: bracket functions
+  // TODO: #builtin shenanigans (add # to function defs ig)
   fn: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.target_fn));
   (&v).append_va<u8>(&((&fn).ty));
   (&v).append_str(" ");
@@ -3822,8 +3835,9 @@ func llvmCompileCallInstruction(mod: &LlvmModule, c: &CallInstruction) : <u8> Va
     drop arg;
   };
   (&v).append<u8>(')');
+  mod.curr_block.add_instr(v);
 
-  v
+  (&out).name
 };
 // }}}
 // compile ret {{{
@@ -3831,17 +3845,18 @@ func llvmCompileReturnInstruction(mod: &LlvmModule, r: &ReturnInstruction) : <u8
   v: <u8> VariableArray = va_from_str("ret ");
   if !(r.has_val) {
     (&v).append_str("void");
-    return v
+  } else {
+    val: LlvmCompileVariableResult = mod.llvmCompileVariable(&(r.value));
+    (&v).append_va<u8>(&((&val).ty));
+    (&v).append<u8>(' ');
+    (&v).append_va<u8>(&((&val).name));
+
+    drop val;
   };
 
-  val: LlvmCompileVariableResult = mod.llvmCompileVariable(&(r.value));
-  (&v).append_va<u8>(&((&val).ty));
-  (&v).append<u8>(' ');
-  (&v).append_va<u8>(&((&val).name));
+  mod.curr_block.add_instr(v);
 
-  drop val;
-
-  v
+  va_from_str("");
 };
 // }}}
 // compile if {{{
@@ -3866,12 +3881,15 @@ func llvmCompileIfBranchInstruction(mod: &LlvmModule, i: &IfBranchInstruction) :
   free(j);
   v: <u8> VariableArray = va_from_str("br i1 ");
   (&v).append_va<u8>(&((&cond).name));
-  (&v).append_str(", label %");
+  (&v).append_str(", label %\"");
   // it's all indexes
-  ib_name: &u8 = iToA_b10(i.then_idx);
-  (&v).append_str(ib_name);
+  ib_name_idx: &u8 = iToA_b10(i.then_idx);
+  ib_name: <u8> VariableArray = va_from_str("_");
+  (&ib_name).append_str(ib_name_idx);
 
-  (&v).append_str(", label %");
+  (&v).append_va<u8>(&ib_name);
+
+  (&v).append_str("\", label %\"");
 
   eb_name: &u8;
   if i.has_else {
@@ -3880,15 +3898,17 @@ func llvmCompileIfBranchInstruction(mod: &LlvmModule, i: &IfBranchInstruction) :
   } else {
     (&v).append_va<u8>(&cont_name);
   };
+  (&v).append<u8>('"');
   curr_block: &LlvmBlock = mod.curr_block;
   curr_block.add_instr(v);
 
-  resume_instr: <u8> VariableArray = va_from_str("br label %");
+  resume_instr: <u8> VariableArray = va_from_str("br label %\"");
   (&resume_instr).append_va<u8>(&cont_name);
+  (&resume_instr).append<u8>('"');
 
   // compile the if-block
   iblock: LlvmBlock = llvmblock#new();
-  mod.curr_block = (&(mod.curr_fn.blocks)).hm_add<&u8, LlvmBlock>(ib_name, iblock);
+  mod.curr_block = (&(mod.curr_fn.blocks)).hm_add<&u8, LlvmBlock>((&ib_name).str_from_va(), iblock);
   mod.llvmCompileBlock(i.then_idx);
   mod.curr_block.add_instr(resume_instr);
 
@@ -3905,7 +3925,7 @@ func llvmCompileIfBranchInstruction(mod: &LlvmModule, i: &IfBranchInstruction) :
 
   // BIG TODO: Phi nodes
   // garbaging the returns
-  v
+  variablearray#new<u8>()
 };
 // }}}
 // compile while {{{
@@ -3986,57 +4006,31 @@ func llvmCompileSubBlockBranchInstruction(mod: &LlvmModule, s: &SubBlockBranchIn
   // TODO: fix blocks and storing their return values
   // need to add a retval field to SubBBranchInst
   variablearray#new<u8>()
-/*
-  resb_name: <u8> VariableArray = va_from_str("sbb_resume_");
-  j: &u8 = iToA_b10(mod.iblock_inc);
-  (mod.iblock_inc)++;
-  (&resb_name).append_str(j);
-  free(j);
-
-  k: &u8 = iToA_b10(mod.iblock_inc);
-  sbb_name: <u8> VariableArray = va_from_str(k);
-  (mod.iblock_inc)++;
-  free(k);
-
-  br_instr: <u8> VariableArray = va_from_str("br label %");
-  (&br_instr).append_va<u8>(&sbb_name);
-
-  mod.curr_block.add_instr(br_instr);
-
-  sblock: LlvmBlock = llvmblock#new();
-  mod.curr_block = (&(mod.curr_fn.blocks)).hmlist_add<&u8, LlvmBlock>((&sbb_name).str_from_va(), sblock);
-  retval: <u8> VariableArray = mod.llvmCompileBlock(s.block_idx);
-
-  resume_instr: <u8> VariableArray = va_from_str("br label %");
-  (&resume_instr).append_va<u8>(&resb_name);
-
-  mod.curr_block.add_instr(resume_instr);
-
-
-  resblock: LlvmBlock = llvmblock#new();
-*/
 };
 // }}}
 // compile cast {{{
 // TODO: clarify: does the CastInstr expect the name of .to to be used?
 func llvmCompileCastInstruction(mod: &LlvmModule, c: &CastInstruction) : <u8> VariableArray = {
-  v: <u8> VariableArray = va_from_str("bitcast ");
+  t: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.to));
+  v: <u8> VariableArray = (&t).name;
+  (&v).append_str(" = bitcast ");
   r: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.from));
   (&v).append_va<u8>(&((&r).ty));
   (&v).append<u8>(' ');
   (&v).append_va<u8>(&((&r).name));
   (&v).append_str(" to ");
-  t: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.from));
   (&v).append_va<u8>(&((&t).ty));
 
   drop r;
-  drop t;
 
-  v
+  mod.curr_block.add_instr(v);
+
+  (&t).name
 };
 // }}}
 // compile vardef {{{
 func llvmCompileVardefInstruction(mod: &LlvmModule, vdi: &VardefInstruction) : <u8> VariableArray = {
+  // TODO: should probably use llvmCompileVariable
   v: <u8> VariableArray = va_from_str("%");
   (&v).append_str(&(vdi.name).name);
   (&v).append_str(" = alloca ");
@@ -4060,6 +4054,39 @@ func llvmCompileBreak(mod: &LlvmModule) : <u8> VariableArray = {
 // }}}
 // }}}
 
+// compile instruction {{{
+func llvmCompileInstruction(mod: &LlvmModule, i: &Instruction) : <u8> VariableArray = {
+  // printf(iToA_b10(i.variant));
+  if i.variant == Instructions#Call {
+    // printf("llcompiling call\n");
+    mod.llvmCompileCallInstruction((i.value) as &CallInstruction)
+  } else if i.variant == Instructions#Return {
+    // printf("llcompiling ret\n");
+    mod.llvmCompileReturnInstruction((i.value) as &ReturnInstruction)  
+  } else if i.variant == Instructions#IfBranch {
+    // printf("llcompiling if\n");
+    mod.llvmCompileIfBranchInstruction((i.value) as &IfBranchInstruction)
+  } else if i.variant == Instructions#WhileBranch {
+    // printf("llcompiling WB\n");
+    mod.llvmCompileWhileBranchInstruction((i.value) as &WhileBranchInstruction)
+  } else if i.variant == Instructions#SubBlockBranch {
+    // printf("llcompiling SBB\n");
+    mod.llvmCompileSubBlockBranchInstruction((i.value) as &SubBlockBranchInstruction)
+  } else if i.variant == Instructions#Cast {
+    // printf("llcompiling cast\n");
+    mod.llvmCompileCastInstruction((i.value) as &CastInstruction)
+  } else if i.variant == Instructions#Vardef {
+    // printf("llcompiling vardef\n");
+    mod.llvmCompileVardefInstruction((i.value) as &VardefInstruction)
+  } else if i.variant == Instructions#Break {
+    // printf("llcompiling break\n");
+    mod.llvmCompileBreak()
+  } else {
+    panic("unimplwed");
+    va_from_str("no")
+  }
+};
+// }}}
 // compile function, please help {{{
 func llvmCompileFunction(mod: &LlvmModule, fn: &Function) = {
   fn_text: <u8> VariableArray;
@@ -4152,7 +4179,7 @@ func llvmCompileFunction(mod: &LlvmModule, fn: &Function) = {
   (&(mod.fns_output)).append<<<u8> VariableArray> VariableArray>(whole);
 };
 // }}}
-
+// compile as a whole {{{
 func llvmCompile(mod: &LlvmModule) = {
   // TODO: literals
   // TODO: iter over type_mappings, enums, literals????
@@ -4163,21 +4190,12 @@ func llvmCompile(mod: &LlvmModule) = {
     fnsfns : & <Function> VariableArray = *((&fns).get<&<Function>VariableArray>(i));
     while j < fnsfns.len {
       mod.llvmCompileFunction(fnsfns.get<Function>(j));
-      /*
-      k: u64 = 0;
-      while k < (&result).len {
-        s: &u8 = (((&result).get<<u8> VariableArray>(k))).str_from_va();
-        printf(s);
-        printf("\n");
-        free(s);
-        k++;
-      };
-      */
       j++;
     };
     i++;
   };
 };
+// }}}
 
 // }}}
 
