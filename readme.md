@@ -49,6 +49,7 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] Types
     - [X] struct types
 - [X] while
+- [ ] continue
 ###### top level:
 - [X] enums
 - [X] hints
@@ -81,3 +82,5 @@ readme is a WIP because its almost 11pm and im too tired to be sensible and writ
 - [X] Char
 #### Types
 - [ ] types
+#### Other  
+- [ ] using LexStrings instead of &u8s for compiling + instructions

@@ -1,6 +1,9 @@
+func putchar(a: u64);
+func printf(a: &u8);
+
 func main() : u64 = {
-  if true {
-    return 2;
-  };
+  printf("jello");
   3
 };
+
+
