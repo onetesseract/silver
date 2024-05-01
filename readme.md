@@ -1,7 +1,7 @@
 # Silver  
-#### (possibly) the most cursed programming language you'll ever see (no guarantees)  
-readme is a WIP because its almost 11pm and im too tired to be sensible and write sanely rn
-
+#### silver is certainly a Language of all time (no guarantees)  
+This project is legacy, and I am working on a better + more elegant replacement. However, it has still taught me a good number of things.  
+It made it a VERY respectable distance towards being fully selfhosted, and the selfhosted version can correctly compile a number of programs (I cannot remember if it can compile itself, nor how to check).
 ---
 
 #### Todo List:
