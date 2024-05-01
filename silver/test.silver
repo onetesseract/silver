@@ -2,6 +2,7 @@ func putchar(a: u64);
 func printf(a: &u8);
 
 func main() : u64 = {
+  q: u8;
   printf("jello");
   3
 };

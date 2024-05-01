@@ -3190,7 +3190,9 @@ func compileBlockIntoCurrent(c: &Compiler, b: BlockExpr) : Variable = {
 
 func compileVardef(c: &Compiler, v: VardefExpr) : Variable = {
     var: Variable;
-    (&var).name = (&((&v).source)).render();
+    printf((&((&v).source)).render());
+    // (&var).name = (&((&v).source)).render();
+    (&var).name = "eeeeeee";
     (&var).explicit = true;
     (&var).none = false;
     (&var).ty_known = true;
@@ -3988,8 +3990,6 @@ func llvmCompileCallInstruction(mod: &LlvmModule, c: &CallInstruction) : <u8> Va
   // TODO: overloadables
   // specifically, check if variable is named and then the vararray from module is longer than 1
   // if so, don't compile the variable, pick out the name, append llvmcompiled-type, and use that instead <3
-  // remember to sanitize! wrap in quotes :3
-  // no i will not explain the :3 it just feels right
   // TODO: bracket functions
   // TODO: #builtin shenanigans (add # to function defs ig)
   // fn: LlvmCompileVariableResult = mod.llvmCompileVariable(&(c.target_fn));
@@ -4414,7 +4414,7 @@ func main() : u64 = {
     c: Compiler = compiler#new(&m);
     while !(parser.lexer.isEof()) {
       e: TLExpr = parser.parseTLExpr();
-      // debugTLExpr(&e);
+      debugTLExpr(&e);
       // TODO: compileTLTypedef
       if (&e).variant == TLExprType#Function {
         // it just adds it to the compipler
